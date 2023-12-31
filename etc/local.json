@@ -15,8 +15,8 @@
     "sender": "noreply@template.ru"
   },
   "folders": {
-    "media": "./media",
+    "static": "./static",
     "templates": "./templates"
   },
-  "media_url": "/media"
+  "static_url": "/static"
 }
