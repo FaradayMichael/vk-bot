@@ -1,0 +1,22 @@
+{
+  "debug": true,
+  "salt": "qCdzo6ECvh8Bf9Uy6rz7p2",
+  "db": {
+    "dsn": "postgresql://postgres:postgres@db/vk_bot"
+  },
+  "redis": {
+    "dsn": "redis://redis"
+  },
+  "smtp": {
+    "transport": {
+      "hostname": "mailhog",
+      "port": 1025
+    },
+    "sender": "noreply@template.ru"
+  },
+  "folders": {
+    "media": "./media",
+    "templates": "./templates"
+  },
+  "media_url": "/media"
+}

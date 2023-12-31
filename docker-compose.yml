@@ -1,0 +1,76 @@
+version: "3.11"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: web
+    command: python3 web.py
+    ports:
+      - "8010:8010"
+    volumes:
+      - .:/code
+    links:
+      - redis
+      - db
+      - dbmate
+      - mailhog
+    depends_on:
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      - SRVC_CONFIG=etc/local.json
+      - SRVC_LOG=etc/logging.conf
+
+  db:
+    image: postgres
+    container_name: db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=vk_bot
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dbmate:
+    image: amacneil/dbmate
+    command: -d "/code/etc/db/migrations" up
+    volumes:
+      - .:/code
+    links:
+      - db
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
+
+  redis:
+    image: redis
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  pgweb:
+    image: sosedoff/pgweb
+    ports:
+      - "8081:8081"
+    links:
+      - db
+    environment:
+      - PGWEB_DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
