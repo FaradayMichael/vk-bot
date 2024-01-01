@@ -6,6 +6,7 @@ from asyncpg import Record
 
 from misc import db
 from misc.db_tables import DBTables
+from models.auth import RegisterModel
 
 from models.users import (
     User,
@@ -19,7 +20,7 @@ TABLE = DBTables.USERS
 
 async def create_user(
         conn: db.Connection,
-        user_data: UserCreate,
+        user_data: RegisterModel,
         password: str
 ) -> Optional[User]:
     user_dict = user_data.model_dump()
@@ -80,7 +81,7 @@ async def login_exists(
         login: str,
         id: Optional[int] = None
 ) -> bool:
-    where = ["login=$1 AND en=True"]
+    where = ["username=$1 AND en=True"]
     values = [login]
     if id:
         where.append('id <> $2')

@@ -1,0 +1,23 @@
+{% extends "common.html" %}
+
+{% block meta_title %}Confirmation of registration{% endblock %}
+
+{% block header %}<b>Please confirm<br/>your registration</b>{% endblock %}
+
+{% block body %}
+<tr>
+    <td style="font-family: Arial, sans-serif; padding: 12px 0 12px 0; font-size: 16px; line-height: 19px;">
+        Have you tried to register on the site <a href="https://gliderratio.ru"
+                                                  style="color: #08c8df; -webkit-text-size-adjust:none; line-height: 100%; font-size: 16px; line-height: 19px;"
+                                                  target="_blank">template.com</a>.
+        <br/>
+        Your one-time verification code<br>
+        <b style="font-size: 32px; line-height: 48px;">{{ code }}</b>
+    </td>
+</tr>
+<tr>
+    <td style="font-family: Arial, sans-serif; padding: 12px 0 12px 0; font-size: 16px; line-height: 19px;">If you not
+        registered and you don't need the code & mdash; just ignore this message.
+    </td>
+</tr>
+{% endblock %}

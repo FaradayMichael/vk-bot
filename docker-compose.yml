@@ -7,6 +7,32 @@ services:
     container_name: web
     command: python3 web.py
     ports:
+      - "8011:8010"
+    volumes:
+      - .:/code
+    links:
+      - redis
+      - db
+      - dbmate
+      - mailhog
+    depends_on:
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      - SRVC_CONFIG=etc/local.json
+      - SRVC_LOG=etc/logging.conf
+
+  rest_api:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: rest_api
+    command: python3 rest_api.py
+    ports:
       - "8010:8010"
     volumes:
       - .:/code

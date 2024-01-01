@@ -47,7 +47,7 @@ class Session(object):
         self._user = user
         if user:
             self._data['user_id'] = user.id
-            self._data['user_type'] = user.user_type
+            self._data['is_admin'] = user.is_admin
 
     def reset_user(self):
         self._user: BaseUser = Anonymous()
