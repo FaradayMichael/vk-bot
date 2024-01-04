@@ -29,6 +29,7 @@ class MessageInput(BaseModel):
     def empty_model_validate(self):
         if not self.attachments:
             assert self.text is not None, "Field 'text' is required when 'attachments' is null"
+        return self
 
 
 class SendMessageInput(BaseModel):
