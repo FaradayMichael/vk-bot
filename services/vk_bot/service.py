@@ -73,7 +73,7 @@ class VkBotService:
             self.config.vk.main_group_id
         )
         await self.client.send_message(
-            user_id=self.config.vk.main_user_id,
+            peer_id=self.config.vk.main_user_id,
             message=Message(text=f"Starting VkBpt Service\nLast ex: {self.ex}")
         )
         self.ex = None
