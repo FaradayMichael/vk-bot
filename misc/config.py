@@ -34,14 +34,11 @@ class FoldersConfig(BaseModel):
     templates: str
 
 
-class CheckOrdersServiceConfig(BaseModel):
-    check_period_seconds: int = 60
-    payment_due_seconds: int = 300
-
-
-class ParserServiceConfig(BaseModel):
-    start_time: datetime.time = datetime.time(hour=3)
-    watchcharts_api_key: str = ""
+class VkConfig(BaseModel):
+    imgbb_api_key: str
+    vk_token: str
+    main_user_id: int
+    main_group_id: int
 
 
 class Config(BaseModel):
@@ -52,6 +49,7 @@ class Config(BaseModel):
     smtp: SmtpConfig
     folders: FoldersConfig
     static_url: str = '/media'
+    vk: VkConfig
 
 
 def read_config(path: str) -> Config:
@@ -68,10 +66,6 @@ def read_config(path: str) -> Config:
 
 def from_env(config: Config) -> Config:
     return config
-
-
-# def static_files_folder(conf: Config) -> str:
-#     return conf.folders.static
 
 
 def static_files_folder(conf: Config) -> str:

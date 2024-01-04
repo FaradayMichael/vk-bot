@@ -52,6 +52,30 @@ services:
       - SRVC_CONFIG=etc/local.json
       - SRVC_LOG=etc/logging.conf
 
+  vk_bot:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: vk_bot
+    command: python3 vk_bot.py
+    volumes:
+      - .:/code
+    links:
+      - redis
+      - db
+      - dbmate
+      - mailhog
+    depends_on:
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      - SRVC_CONFIG=etc/local.json
+      - SRVC_LOG=etc/logging.conf
+
   db:
     image: postgres
     container_name: db

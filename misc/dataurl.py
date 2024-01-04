@@ -158,3 +158,33 @@ class DataURL(str):
             data = unquote(match.group("data"))
 
         return mimetype, name, charset, bool(match.group("base64")), data
+
+    def ext(self) -> str:
+        mimetype = self.mimetype
+        match mimetype:
+            case "text/plain":
+                return "txt"
+            case "image/png":
+                return "png"
+            case "image/jpeg":
+                return "jpeg"
+            case "image/gif":
+                return "gif"
+            case "image/bmp":
+                return "bmp"
+            case "application/msword":
+                return "doc"
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                return "docx"
+            case "application/vnd.oasis.opendocument.text":
+                return "odt"
+            case "application/vnd.oasis.opendocument.spreadsheet":
+                return "ods"
+            case "application/pdf":
+                return "pdf"
+            case "application/vnd.ms-excel":
+                return "xls"
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                return "xlsx"
+            case _:
+                raise RuntimeError(f'Тип {mimetype} не поддерживается')
