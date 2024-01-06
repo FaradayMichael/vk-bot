@@ -18,6 +18,7 @@ async def init(config: RedisConfig) -> Connection:
 
     return await from_url(
         dsn,
+        password=config.password,
         max_connections=config.maxsize
     )
 

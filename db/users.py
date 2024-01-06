@@ -35,14 +35,13 @@ async def create_user(
 
 async def get_user(
         conn: db.Connection,
-        pk: int,
-        fetch_blocked: bool = False
+        pk: int
 ) -> Optional[User]:
     values = [pk]
     result = await db.get_by_where(
         conn,
         TABLE,
-        'id = $1 AND en' if fetch_blocked else 'id = $1 AND en AND is_blocked=False',
+        'id = $1 AND en',
         values,
     )
     return await record_to_model_user(conn, result)

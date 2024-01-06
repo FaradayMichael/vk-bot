@@ -12,6 +12,8 @@ from fastapi.security.api_key import (
     APIKeyHeader,
     APIKeyCookie
 )
+
+from db.users import get_user
 from models.users import Anonymous
 from misc import (
     db,

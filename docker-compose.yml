@@ -79,8 +79,8 @@ services:
   db:
     image: postgres
     container_name: db
-    ports:
-      - "5433:5432"
+#    ports:
+#      - "5433:5432"
     environment:
       - POSTGRES_DB=vk_bot
       - POSTGRES_USER=postgres
@@ -106,6 +106,7 @@ services:
 
   redis:
     image: redis
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "qwe" ]
 
   mailhog:
     image: mailhog/mailhog
