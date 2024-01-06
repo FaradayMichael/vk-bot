@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 from asyncio import AbstractEventLoop
 from pprint import pformat
@@ -43,6 +44,7 @@ class VkBotService:
         self.stopping: bool = False
         self.ex: Exception | None = None
         self.task: asyncio.Task | None = None
+        self.background_tasks: list[asyncio.Task] = []
 
         self.client: VkClient | None = None
         self.long_pool: VkBotLongPoll | None = None
@@ -91,7 +93,6 @@ class VkBotService:
         logger.info("Start listening task")
         while not self.stopping:
             try:
-                await self.allocate()
                 await self.bot_listen()
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 self.stop()
@@ -99,6 +100,7 @@ class VkBotService:
             except Exception as e:
                 logger.exception(e)
                 self.ex = e
+                await self.allocate()
 
     async def allocate(self):
         logger.info("Allocate VkBotService...")
@@ -132,15 +134,45 @@ class VkBotService:
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
+        await self.allocate()
 
-        self.register(VkBotEventType.MESSAGE_NEW, self.on_new_message)
+        self.register_handler(VkBotEventType.MESSAGE_NEW, self.on_new_message)
+
+        self.register_background_task(
+            self.client.send_message,
+            datetime.time(hour=9, minute=0),
+            1,
+            peer_id=2000000003,
+            message=Message(
+                text='',
+                attachment=await self.client.upload_doc_message(
+                    peer_id=2000000003,
+                    doc_path='static/test.gif'
+                )
+            )
+        )
 
         self.task = self.loop.create_task(
             self.listen_task()
         )
 
-    def register(self, method: VkBotEventType, handler: Callable):
+    def register_handler(self, method: VkBotEventType, handler: Callable):
         self.handlers[method] = handler
+
+    def register_background_task(
+            self,
+            method: Callable,
+            start_time: datetime.time,
+            weekday: int | None = None,
+            *args,
+            **kwargs
+    ):
+        self.background_tasks.append(
+            self.loop.create_task(
+                base_schedule_task(method, start_time, weekday, *args, **kwargs)
+            )
+        )
+        logger.info(f"Register schedule task for {weekday=} {start_time=}")
 
     def stop(self):
         if not self.stopping:
@@ -157,6 +189,12 @@ class VkBotService:
 
     async def close(self):
         self.stopping = True
+
+        for task in self.background_tasks:
+            task.cancel()
+        if self.background_tasks:
+            await asyncio.wait(self.background_tasks)
+        self.background_tasks = []
 
         if self.db_pool:
             await self.db_pool.close()
@@ -193,3 +231,55 @@ def get_photos_urls_from_message(
 
 def extract_max_size_img(sizes: list[PhotoSize]):
     return max(sizes, key=lambda x: x.height)
+
+
+async def base_schedule_task(
+        method: Callable,
+        start_time: datetime.time,
+        weekday: int | None = None,
+        *args,
+        **kwargs
+):
+    while True:
+        try:
+            sleep = get_sleep_seconds(start_time, weekday)
+            logger.info(f"{sleep=}")
+            await asyncio.sleep(sleep)
+            await method(*args, **kwargs)
+        except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+            break
+        except Exception as e:
+            logger.exception(e)
+
+
+def get_sleep_seconds(
+        start_time: datetime.time,
+        weekday: int | None = None,
+) -> float:
+    now = datetime.datetime.utcnow()
+
+    if weekday is None:
+        start = datetime.datetime(
+            year=now.year,
+            month=now.month,
+            day=now.day,
+            hour=start_time.hour,
+            minute=start_time.minute
+        )
+        if start <= now:
+            start = start + datetime.timedelta(days=1)
+    else:
+        days = weekday - now.weekday()
+        days = 7 - now.weekday() + weekday if days < 0 else days
+        start = datetime.datetime(
+            year=now.year,
+            month=now.month,
+            day=now.day,
+            hour=start_time.hour,
+            minute=start_time.minute
+        )
+        start = start + datetime.timedelta(days=days)
+        if start <= now:
+            start = start + datetime.timedelta(days=7)
+
+    return (start - now).total_seconds()
