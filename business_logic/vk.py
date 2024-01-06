@@ -2,9 +2,21 @@ import asyncio
 import logging
 import uuid
 from typing import assert_never
+from urllib.parse import (
+    urljoin,
+    unquote,
+    quote
+)
+
+import aiohttp
+from bs4 import BeautifulSoup
 
 from misc.vk_client import VkClient
-from models.vk import AttachmentInput, AttachmentType
+from models.images import ImageTags
+from models.vk import (
+    AttachmentInput,
+    AttachmentType
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,4 +50,57 @@ async def parse_attachments(
             case _ as arg:
                 logger.info(arg)
                 assert_never(arg)
+    return result
+
+
+async def parse_image_tags(
+        image_link: str,
+        tries: int = 3
+) -> ImageTags:
+    match_str = "https://yandex.ru/images/search?text="
+    base_search_url = "https://yandex.ru/images/search?rpt=imageview&url="
+
+    image_link = quote(image_link)
+    search_url = base_search_url + image_link
+
+    logger.info(search_url)
+
+    result = ImageTags()
+    for i in range(tries):
+        if i > 0:
+            logger.info(f'try: {i + 1}')
+        async with aiohttp.ClientSession() as session:
+            async with session.get(search_url) as resp:
+                if not resp.status == 200:
+                    logger.info(await resp.text())
+                    await asyncio.sleep(5)
+                    continue
+                soup = BeautifulSoup(await resp.read(), features="html5lib")
+        await asyncio.sleep(0)
+
+        links = soup('a')
+        if "captcha" in " ".join(str(x) for x in links):
+            logger.info("Captcha!")
+            await asyncio.sleep(5)
+            continue
+
+        for link in links:
+            if 'href' in dict(link.attrs):
+                url = urljoin(search_url, link['href'])
+                if url.find("'") != -1:
+                    continue
+                url = url.split('#')[0]
+                if match_str in url:
+                    result.tags.append(
+                        unquote(url.replace(match_str, ''))
+                    )
+
+        desc = soup.find('div', {"class": "CbirObjectResponse-Description"})
+        if desc:
+            result.description = desc.text
+
+        if result.tags:
+            break
+        await asyncio.sleep(3)
+
     return result
