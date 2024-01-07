@@ -11,6 +11,10 @@ class ImageTags(BaseModel):
     tags: list[str] = []
     description: str | None = None
 
+    @property
+    def tags_text(self) -> str:
+        return ', '.join(self.tags)
+
 
 class ImageTagsResponse(SuccessResponse):
     data: ImageTags

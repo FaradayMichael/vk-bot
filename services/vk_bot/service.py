@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import random
 from asyncio import AbstractEventLoop
 from pprint import pformat
 from typing import Callable
@@ -15,6 +16,9 @@ from vk_api.bot_longpoll import (
 )
 
 from business_logic.vk import parse_image_tags
+from db import (
+    triggers_answers as triggers_answers_db
+)
 from misc import (
     db
 )
@@ -51,35 +55,46 @@ class VkBotService:
         self.handlers: dict[VkBotEventType, Callable] = {}
 
     async def on_new_message(self, event: VkBotMessageEvent):
-        try:
-            message_model = VkMessage.model_validate(dict(event.message))
-        except ValidationError as e:
-            logger.exception(e)
-            logger.info(event.message)
+        message_model = validate_message(event)
+        if not message_model:
             return
 
         logger.info(pformat(message_model.model_dump()))
+        from_chat = event.from_chat
+        peer_id = message_model.peer_id if event.from_chat else message_model.from_id
+        from_id = message_model.from_id
 
-        tags_models: list[ImageTags] = []
-        if message_model.attachments:
-            images_urls = get_photos_urls_from_message(message_model.attachments)
-            tags_models = [
-                await parse_image_tags(i)
-                for i in images_urls
-            ]
+        tags_models = await parse_attachments_tags(message_model.attachments)
         logger.info(f"{tags_models=}")
         if tags_models:
             await self.client.send_message(
-                peer_id=message_model.peer_id if event.from_chat else message_model.from_id,
+                peer_id=peer_id,
                 message=Message(
                     text='\n\n'.join(
                         [
-                            f'tags: {i.tags}{backslash_n + i.description if i.description else ""}'
+                            f'tags: {i.tags_text}{backslash_n + i.description if i.description else ""}'
                             for i in tags_models
                         ]
                     )
                 )
             )
+
+        async with self.db_pool.acquire() as conn:
+            find_triggers = await triggers_answers_db.get_for_like(
+                conn,
+                f"{message_model.text}{''.join([t.tags_text + str(t.description) for t in tags_models])}"
+            )
+            logger.info(find_triggers)
+            answers = list(set(
+                sum([i.answers for i in find_triggers], [])
+            ))
+            if answers:
+                await self.client.send_message(
+                    peer_id=peer_id,
+                    message=Message(
+                        text=f"{f'@id{from_id} ' if from_chat else ''} {random.choice(answers)}"
+                    )
+                )
 
     async def bot_listen(self):
         logger.info("Start listening")
@@ -205,6 +220,18 @@ class VkBotService:
             self.client = None
 
 
+async def parse_attachments_tags(
+        attachments: list[VkMessageAttachment]
+) -> list[ImageTags]:
+    if not attachments:
+        return []
+    images_urls = get_photos_urls_from_message(attachments)
+    return [
+        await parse_image_tags(i)
+        for i in images_urls
+    ]
+
+
 def get_photos_urls_from_message(
         attachments: list[VkMessageAttachment]
 ) -> list[str]:
@@ -283,3 +310,14 @@ def get_sleep_seconds(
             start = start + datetime.timedelta(days=7)
 
     return (start - now).total_seconds()
+
+
+def validate_message(
+        event: VkBotMessageEvent
+) -> VkMessage | None:
+    try:
+        return VkMessage.model_validate(dict(event.message))
+    except ValidationError as e:
+        logger.exception(e)
+        logger.info(event.message)
+        return None
