@@ -14,7 +14,7 @@ router = APIRouter(
 
 
 @router.post('/parse_tags', response_model=ImageTagsResponse)
-async def api_send_message_vk(
+async def api_parse_image_tags(
         data: ImageUrl
 ) -> ImageTagsResponse | JSONResponse:
     result = await parse_image_tags(
