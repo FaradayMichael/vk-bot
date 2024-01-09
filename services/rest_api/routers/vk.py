@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from business_logic.vk import parse_attachments
+from business_logic.vk import base64_to_vk_attachment
 from misc.config import Config
 from misc.depends.conf import (
     get as get_conf
@@ -23,7 +23,7 @@ async def api_send_message_vk(
 
     attachments = []
     if data.message.attachments:
-        attachments = await parse_attachments(
+        attachments = await base64_to_vk_attachment(
             client,
             data.peer_id,
             data.message.attachments

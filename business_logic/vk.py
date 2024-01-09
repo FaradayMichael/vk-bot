@@ -21,7 +21,7 @@ from models.vk import (
 logger = logging.getLogger(__name__)
 
 
-async def parse_attachments(
+async def base64_to_vk_attachment(
         client: VkClient,
         peer_id: int,
         attachments: list[AttachmentInput]
@@ -60,9 +60,7 @@ async def parse_image_tags(
     match_str = "https://yandex.ru/images/search?text="
     base_search_url = "https://yandex.ru/images/search?rpt=imageview&url="
 
-    image_link = quote(image_link)
-    search_url = base_search_url + image_link
-
+    search_url = base_search_url + quote(image_link)
     logger.info(search_url)
 
     result = ImageTags()
