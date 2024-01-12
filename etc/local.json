@@ -5,8 +5,7 @@
     "dsn": "postgresql://postgres:postgres@db/vk_bot"
   },
   "redis": {
-    "dsn": "redis://redis",
-    "password": "qwe"
+    "dsn": "redis://redis"
   },
   "smtp": {
     "transport": {

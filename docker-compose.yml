@@ -22,9 +22,8 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-    environment:
-      - SRVC_CONFIG=etc/local.json
-      - SRVC_LOG=etc/logging.conf
+    env_file:
+      - .env
 
   rest_api:
     build:
@@ -48,9 +47,8 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-    environment:
-      - SRVC_CONFIG=etc/local.json
-      - SRVC_LOG=etc/logging.conf
+    env_file:
+      - .env
 
   vk_bot:
     build:
@@ -72,9 +70,8 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-    environment:
-      - SRVC_CONFIG=etc/local.json
-      - SRVC_LOG=etc/logging.conf
+    env_file:
+      - .env
 
   db:
     image: postgres
@@ -106,7 +103,9 @@ services:
 
   redis:
     image: redis
-    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "qwe" ]
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", $REDIS_PASS ]
+    env_file:
+      - .env
 
   mailhog:
     image: mailhog/mailhog

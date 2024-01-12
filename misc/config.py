@@ -15,7 +15,6 @@ class PostgresqlConfig(BaseModel):
 
 class RedisConfig(BaseModel):
     dsn: str
-    password: str
     minsize: int = 1
     maxsize: int = 10
 

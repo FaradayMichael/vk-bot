@@ -5,6 +5,7 @@ from typing import Any, Optional
 from redis.asyncio import from_url, Redis
 
 from misc.config import RedisConfig
+from misc.env import get as get_from_env
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ async def init(config: RedisConfig) -> Connection:
 
     return await from_url(
         dsn,
-        password=config.password,
+        password=get_from_env('REDIS_PASS', strict=True),
         max_connections=config.maxsize
     )
 
