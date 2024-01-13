@@ -26,5 +26,5 @@ class RegisterModel(BaseModel):
 
 
 class LoginModel(BaseModel):
-    username: constr(to_lower=True, strip_whitespace=True, pattern=EMAIL_REGEX)
+    username_or_email: constr(to_lower=True, strip_whitespace=True)
     password: constr(strip_whitespace=True)

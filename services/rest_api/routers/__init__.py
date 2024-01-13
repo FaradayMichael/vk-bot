@@ -5,6 +5,7 @@ from fastapi import (
 )
 
 from . import (
+    auth,
     admin,
     triggers_answers,
     vk,
@@ -20,6 +21,10 @@ API_PREFIX = "/api/v1"
 
 def register_routers(app: FastAPI):
     router = APIRouter(prefix=API_PREFIX)
+
+    router.include_router(
+        auth.router
+    )
 
     router.include_router(
         admin.router,

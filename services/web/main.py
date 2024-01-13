@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import (
@@ -43,11 +44,12 @@ def main(args, config: Config):
         config=config
     )
     app = FastAPI(
-        title='VK Bot',
+        title='VK Bot WEB',
         debug=config.debug,
         root_path=root_path,
         responses=responses(),
         dependencies=[Depends(get_session)],
+        lifespan=lifespan
     )
 
     app.state = state
@@ -56,8 +58,8 @@ def main(args, config: Config):
     register_exception_handler(app)
 
     register_routers(app)
-    register_startup(app)
-    register_shutdown(app)
+    # register_startup(app)
+    # register_shutdown(app)
 
     static = StaticFiles(directory=config.folders.static)
     app.mount(config.static_url, static, name='static')
@@ -65,26 +67,29 @@ def main(args, config: Config):
     return app
 
 
-def register_startup(app):
-    @app.on_event("startup")
-    async def handler_startup():
-        logger.info('Startup called')
-        try:
-            await startup(app)
-            logger.info("REST API app startup executed")
-        except:
-            logger.exception('Startup crashed')
+@asynccontextmanager
+async def lifespan(app):
+    await handler_startup(app)
+    yield
+    await handler_shutdown(app)
 
 
-def register_shutdown(app):
-    @app.on_event("shutdown")
-    async def handler_shutdown():
-        logger.info('Shutdown called')
-        try:
-            await shutdown(app)
-            logger.info("REST API app shutdown executed")
-        except:
-            logger.exception('Shutdown crashed')
+async def handler_startup(app):
+    logger.info('Startup called')
+    try:
+        await startup(app)
+        logger.info(f"{app.title} app startup executed")
+    except:
+        logger.exception('Startup crashed')
+
+
+async def handler_shutdown(app):
+    logger.info('Shutdown called')
+    try:
+        await shutdown(app)
+        logger.info(f"{app.title} app shutdown executed")
+    except:
+        logger.exception('Shutdown crashed')
 
 
 async def startup(app):

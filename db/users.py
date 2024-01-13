@@ -49,14 +49,14 @@ async def get_user(
 
 async def get_user_by_credentials(
         conn: db.Connection,
-        email: str,
+        username_or_email: str,
         password: str
 ) -> Optional[User]:
     result = await db.get_by_where(
         conn,
         TABLE,
-        'email=$1 AND password=$2 AND en AND is_blocked=$3',
-        values=[email, password, False]
+        '(email=$1 OR username=$1) AND password=$2 AND en',
+        values=[username_or_email, password]
     )
     return db.record_to_model(User, result)
 

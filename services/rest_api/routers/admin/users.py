@@ -21,9 +21,6 @@ from misc.depends.smtp import (
 from misc.depends.jinja import (
     get as get_jinja
 )
-from misc.depends.redis import (
-    get as get_redis
-)
 from misc.config import Config
 from misc.db import (
     Connection
@@ -32,9 +29,6 @@ from misc.session import Session
 from misc.smtp import (
     SMTP as SMTPConnection
 )
-from misc.redis import (
-    Connection as RedisConnection
-)
 from misc.handlers import error_400
 from misc.password import generate_password, get_password_hash
 from models.auth import (
@@ -42,21 +36,21 @@ from models.auth import (
     MeSuccessResponse,
     MeResponse
 )
+from models.users import UsersSuccessResponse
 
 router = APIRouter(
     prefix='/users'
 )
 
 
-@router.post('/', response_model=MeSuccessResponse)
+@router.post('/', response_model=UsersSuccessResponse)
 async def api_create_user(
         data: RegisterModel,
         conn: Connection = Depends(get_conn),
-        session: Session = Depends(get_session),
         config: Config = Depends(get_conf),
         smtp: SMTPConnection = Depends(get_smtp),
         jinja: JinjaEnvironment = Depends(get_jinja),
-) -> MeSuccessResponse | JSONResponse:
+) -> UsersSuccessResponse | JSONResponse:
     if await users_db.email_exists(conn, data.email):
         return await error_400("Email already exist")
     if await users_db.login_exists(conn, data.username):
@@ -72,5 +66,4 @@ async def api_create_user(
     if not user:
         return await error_400()
     await send_password_email(smtp, user.email, password, jinja, config)
-    session.set_user(user)
-    return MeSuccessResponse(data=MeResponse(me=user, token=session.key))
+    return UsersSuccessResponse(data=user)
