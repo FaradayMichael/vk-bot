@@ -3,11 +3,17 @@ from fastapi import (
     Depends
 )
 
-API_PREFIX = "/api/v1"
+from . import (
+    index
+)
 
 
 def register_routers(app):
-    router = APIRouter(prefix=API_PREFIX)
+    router = APIRouter()
+
+    router.include_router(
+        index.router
+    )
 
     app.include_router(router)
     return app

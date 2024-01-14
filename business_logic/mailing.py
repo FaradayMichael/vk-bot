@@ -109,31 +109,31 @@ async def send_change_email(
 
 
 async def generate_register_template(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/confirm-message.html", **data)
+    return await generate_tpl(jinja, "mail/auth/confirm-message.html", **data)
 
 
 async def generate_recover_template(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/recover-password.html", **data)
+    return await generate_tpl(jinja, "mail/auth/recover-password.html", **data)
 
 
 async def generate_password_template(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/send-password.html", **data)
+    return await generate_tpl(jinja, "mail/auth/send-password.html", **data)
 
 
 async def generate_register_template_phone(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/confirm-message-phone.txt", **data)
+    return await generate_tpl(jinja, "mail/auth/confirm-message-phone.txt", **data)
 
 
 async def generate_recover_template_phone(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/recover-password-phone.txt", **data)
+    return await generate_tpl(jinja, "mail/auth/recover-password-phone.txt", **data)
 
 
 async def generate_password_template_phone(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/send-password-phone.txt", **data)
+    return await generate_tpl(jinja, "mail/auth/send-password-phone.txt", **data)
 
 
 async def generate_change_template_email(jinja, **data) -> str:
-    return await generate_tpl(jinja, "auth/change-email.html", **data)
+    return await generate_tpl(jinja, "mail/auth/change-email.html", **data)
 
 
 async def generate_tpl(jinja: JinjaEnvironment, path: str, **data) -> str:
