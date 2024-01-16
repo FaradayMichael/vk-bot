@@ -108,6 +108,7 @@ class VkBotService:
         logger.info("Start listening task")
         while not self.stopping:
             try:
+                await self.allocate()
                 await self.bot_listen()
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 self.stop()
@@ -115,20 +116,31 @@ class VkBotService:
             except Exception as e:
                 logger.exception(e)
                 self.ex = e
-                await self.allocate()
+                await self.release()
+                await asyncio.sleep(10)
 
-    async def allocate(self):
+    async def allocate(self, notify: bool = True):
         logger.info("Allocate VkBotService...")
-        self.client = await VkClient.create(self.config)
-        self.long_pool = VkBotLongPoll(
-            self.client.session,
-            self.config.vk.main_group_id
-        )
-        await self.client.send_message(
-            peer_id=self.config.vk.main_user_id,
-            message=Message(text=f"Starting VkBot Service\nLast ex: {self.ex}")
-        )
+        if not self.client:
+            self.client = await VkClient.create(self.config)
+        if not self.long_pool:
+            self.long_pool = VkBotLongPoll(
+                self.client.session,
+                self.config.vk.main_group_id
+            )
+        if notify:
+            await self.client.send_message(
+                peer_id=self.config.vk.main_user_id,
+                message=Message(text=f"Starting VkBot Service\nLast ex: {self.ex}")
+            )
         self.ex = None
+
+    async def release(self):
+        if self.client:
+            await self.client.close()
+            self.client = None
+        if self.long_pool:
+            self.long_pool = None
 
     async def events_generator(self):
         while not self.stopping:
@@ -149,14 +161,14 @@ class VkBotService:
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
-        await self.allocate()
+        await self.allocate(notify=False)
 
         self.register_handler(VkBotEventType.MESSAGE_NEW, self.on_new_message)
 
         self.register_background_task(
-            self.client.send_message,
-            datetime.time(hour=9, minute=0),
-            1,
+            method=self.send_on_schedule,
+            start_time=datetime.time(hour=9, minute=0),
+            weekday=1,
             peer_id=2000000003,
             message=Message(
                 text='',
@@ -177,17 +189,36 @@ class VkBotService:
     def register_background_task(
             self,
             method: Callable,
-            start_time: datetime.time,
-            weekday: int | None = None,
             *args,
             **kwargs
     ):
         self.background_tasks.append(
             self.loop.create_task(
-                base_schedule_task(method, start_time, weekday, *args, **kwargs)
+                method(*args, **kwargs)
             )
         )
-        logger.info(f"Register schedule task for {weekday=} {start_time=}")
+        logger.info(f"Register schedule task {method}")
+
+    async def send_on_schedule(
+            self,
+            peer_id: int,
+            message: Message,
+            start_time: datetime.time,
+            weekday: int | None = None
+    ):
+        while True:
+            try:
+                await self.allocate(notify=False)
+                sleep = get_sleep_seconds(start_time, weekday)
+                logger.info(f"{sleep=}")
+                await asyncio.sleep(sleep)
+                await self.client.send_message(peer_id, message)
+            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                break
+            except Exception as e:
+                logger.exception(e)
+                await self.release()
+                await asyncio.sleep(10)
 
     def stop(self):
         if not self.stopping:
@@ -215,9 +246,7 @@ class VkBotService:
             await self.db_pool.close()
             self.db_pool = None
 
-        if self.client:
-            await self.client.close()
-            self.client = None
+        await self.release()
 
 
 async def parse_attachments_tags(
@@ -258,25 +287,6 @@ def get_photos_urls_from_message(
 
 def extract_max_size_img(sizes: list[PhotoSize]):
     return max(sizes, key=lambda x: x.height)
-
-
-async def base_schedule_task(
-        method: Callable,
-        start_time: datetime.time,
-        weekday: int | None = None,
-        *args,
-        **kwargs
-):
-    while True:
-        try:
-            sleep = get_sleep_seconds(start_time, weekday)
-            logger.info(f"{sleep=}")
-            await asyncio.sleep(sleep)
-            await method(*args, **kwargs)
-        except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-            break
-        except Exception as e:
-            logger.exception(e)
 
 
 def get_sleep_seconds(
