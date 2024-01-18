@@ -82,41 +82,7 @@ class VkBotService:
         from . import handlers
         self.register_handler(VkBotEventType.MESSAGE_NEW, handlers.on_new_message)
 
-        self.register_background_task(
-            coro=self.listen_task()
-        )
-
-        async def _get_weekly_message_data(peer_id: int) -> tuple[int, Message]:
-            return peer_id, Message(
-                text='',
-                attachment=await self.client.upload_doc_message(peer_id=peer_id, doc_path='static/test.gif')
-            )
-
-        self.register_background_task(
-            coro=self.base_task(
-                func=self.send_on_schedule,
-                cron="0 9 * * 2",
-                fetch_message_data_func=_get_weekly_message_data,
-                peer_id=2000000003
-            )
-        )
-
-        async def _get_daily_notify_message_data() -> tuple[int, Message]:
-            return self.config.vk.main_user_id, Message(
-                text=f"Daily notify.\n"
-                     f"ex: {self.ex}\n"
-                     f"queue: {self.queue.qsize()}\n"
-                     f"main task: {bool(self.main_task)}\n"
-                     f"tasks: {len(self.background_tasks)}"
-            )
-
-        self.register_background_task(
-            coro=self.base_task(
-                func=self.send_on_schedule,
-                cron="0 6 * * *",
-                fetch_message_data_func=_get_daily_notify_message_data
-            )
-        )
+        self.init_background_tasks()
 
         self.main_task = self.loop.create_task(
             self.worker()
@@ -125,7 +91,11 @@ class VkBotService:
     async def worker(self):
         async def generate_from_queue(queue: asyncio.Queue) -> AsyncIterable[Task]:
             while True:
-                yield await queue.get()
+                try:
+                    yield await queue.get()
+                except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                    logger.info("VkBot worker stop called")
+                    break
 
         logging.info(f'Starting VkBot worker')
         while not self.stopping:
@@ -151,6 +121,7 @@ class VkBotService:
                 await self.allocate(notify=False)
                 await self.bot_listen()
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                logger.info("Listen task stop called")
                 break
             except Exception as e:
                 if not isinstance(e, AttributeError):
@@ -182,6 +153,7 @@ class VkBotService:
             try:
                 await func(*args, **kwargs)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                logger.info(f"Task on {func} stop called")
                 break
             except Exception as e:
                 logger.exception(e)
@@ -227,12 +199,50 @@ class VkBotService:
             await self.client.close()
             self.client = None
         if self.long_pool:
+            await asyncio.to_thread(self.long_pool.session.close)
             self.long_pool = None
+
+    def init_background_tasks(self):
+        self.start_background_task(
+            coro=self.listen_task()
+        )
+
+        async def _get_weekly_message_data(peer_id: int) -> tuple[int, Message]:
+            return peer_id, Message(
+                text='',
+                attachment=await self.client.upload_doc_message(peer_id=peer_id, doc_path='static/test.gif')
+            )
+
+        self.start_background_task(
+            coro=self.base_task(
+                func=self.send_on_schedule,
+                cron="0 9 * * 2",
+                fetch_message_data_func=_get_weekly_message_data,
+                peer_id=2000000003
+            )
+        )
+
+        async def _get_daily_notify_message_data() -> tuple[int, Message]:
+            return self.config.vk.main_user_id, Message(
+                text=f"Daily notify.\n"
+                     f"ex: {self.ex}\n"
+                     f"queue: {self.queue.qsize()}\n"
+                     f"main task: {bool(self.main_task)}\n"
+                     f"tasks: {len(self.background_tasks)}"
+            )
+
+        self.start_background_task(
+            coro=self.base_task(
+                func=self.send_on_schedule,
+                cron="0 6 * * *",
+                fetch_message_data_func=_get_daily_notify_message_data
+            )
+        )
 
     def register_handler(self, method: VkBotEventType, handler: Callable):
         self.handlers[method] = handler
 
-    def register_background_task(
+    def start_background_task(
             self,
             coro: Coroutine
     ):
@@ -248,7 +258,7 @@ class VkBotService:
             logger.info(f"VkBot Service stopping was planned")
             self.stopping = True
 
-            self.loop.create_task(self.safe_close())
+            return self.loop.create_task(self.safe_close())
 
     async def safe_close(self):
         try:
@@ -258,6 +268,9 @@ class VkBotService:
 
     async def close(self):
         self.stopping = True
+
+        self.main_task.cancel()
+        await self.main_task
 
         for task in self.background_tasks:
             task.cancel()

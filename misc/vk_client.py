@@ -66,12 +66,6 @@ class VkClient:
         doc = response['doc']
         return f"doc{doc['owner_id']}_{doc['id']}"
 
-    async def get_chats(self):
-        response = await self.call(
-            method="messages.getConversations"
-        )
-        return response
-
     async def call(
             self,
             method: str,
@@ -97,10 +91,12 @@ class VkClient:
 
     async def close(self):
         if self.session:
+            await asyncio.to_thread(self.session.http.close)
             self.session = None
 
         if self.api:
             self.api = None
 
         if self.upload:
+            await asyncio.to_thread(self.upload.http.close)
             self.upload = None
