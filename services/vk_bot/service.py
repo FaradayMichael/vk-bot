@@ -79,8 +79,7 @@ class VkBotService:
         logging.info(f'Starting VkBot Service')
         await self.allocate(notify=False)
 
-        from . import handlers
-        self.register_handler(VkBotEventType.MESSAGE_NEW, handlers.on_new_message)
+        self.register_handlers()
 
         self.init_background_tasks()
 
@@ -121,7 +120,6 @@ class VkBotService:
                 await self.allocate(notify=False)
                 await self.bot_listen()
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                logger.info("Listen task stop called")
                 break
             except Exception as e:
                 if not isinstance(e, AttributeError):
@@ -143,7 +141,7 @@ class VkBotService:
             for event in await asyncio.to_thread(self.long_pool.check):
                 yield event
 
-    async def base_task(
+    async def base_background_task(
             self,
             func: Callable,
             *args,
@@ -153,7 +151,6 @@ class VkBotService:
             try:
                 await func(*args, **kwargs)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                logger.info(f"Task on {func} stop called")
                 break
             except Exception as e:
                 logger.exception(e)
@@ -214,7 +211,7 @@ class VkBotService:
             )
 
         self.start_background_task(
-            coro=self.base_task(
+            coro=self.base_background_task(
                 func=self.send_on_schedule,
                 cron="0 9 * * 2",
                 fetch_message_data_func=_get_weekly_message_data,
@@ -232,14 +229,18 @@ class VkBotService:
             )
 
         self.start_background_task(
-            coro=self.base_task(
+            coro=self.base_background_task(
                 func=self.send_on_schedule,
                 cron="0 6 * * *",
                 fetch_message_data_func=_get_daily_notify_message_data
             )
         )
 
-    def register_handler(self, method: VkBotEventType, handler: Callable):
+    def register_handlers(self):
+        from . import handlers
+        self.register_handler_vk(VkBotEventType.MESSAGE_NEW, handlers.on_new_message)
+
+    def register_handler_vk(self, method: VkBotEventType, handler: Callable):
         self.handlers[method] = handler
 
     def start_background_task(
@@ -258,7 +259,7 @@ class VkBotService:
             logger.info(f"VkBot Service stopping was planned")
             self.stopping = True
 
-            return self.loop.create_task(self.safe_close())
+            self.loop.create_task(self.safe_close())
 
     async def safe_close(self):
         try:

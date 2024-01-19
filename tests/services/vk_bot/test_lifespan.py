@@ -19,4 +19,4 @@ async def test_vk_service(conf: Config, event_loop):
     service = await VkBotService.create(event_loop, conf)
     await service.start()
     await asyncio.sleep(10)
-    await service.stop()
+    service.stop()

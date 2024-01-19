@@ -76,8 +76,8 @@ services:
   db:
     image: postgres
     container_name: db
-#    ports:
-#      - "5433:5432"
+    #    ports:
+    #      - "5433:5432"
     environment:
       - POSTGRES_DB=vk_bot
       - POSTGRES_USER=postgres
@@ -121,6 +121,20 @@ services:
       - db
     environment:
       - PGWEB_DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  cloudbeaver:
+    container_name: dbeaver
+    image: dbeaver/cloudbeaver
+    restart: unless-stopped
+    links:
+      - db
+    ports:
+      - "8978:8978"
+#    volumes:
+#      - cloudbeaver:/opt/cloudbeaver/workspace
     depends_on:
       db:
         condition: service_healthy
