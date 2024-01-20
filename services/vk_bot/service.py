@@ -226,9 +226,9 @@ class VkBotService:
         self.start_background_task(
             coro=self.base_background_task(
                 func=self.send_on_schedule,
-                cron="*/1 * * * *",
+                cron="0 9 * * 2",
                 fetch_message_data_func=_get_weekly_message_data,
-                peer_id=2000000006
+                peer_id=2000000003
             )
         )
 
