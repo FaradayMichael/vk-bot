@@ -10,6 +10,7 @@ from typing import (
 
 import croniter as croniter
 from asyncpg import Pool
+from redis.asyncio import Redis
 
 from vk_api.bot_longpoll import (
     VkBotLongPoll,
@@ -17,7 +18,8 @@ from vk_api.bot_longpoll import (
 )
 
 from misc import (
-    db
+    db,
+    redis
 )
 
 from misc.config import Config
@@ -48,10 +50,12 @@ class VkBotService:
             loop: AbstractEventLoop,
             config: Config,
             db_pool: Pool,
+            redis_conn: Redis
     ):
         self.loop: AbstractEventLoop = loop
         self.config: Config = config
         self.db_pool: Pool = db_pool
+        self.redis_conn: Redis = redis_conn
 
         self.stopping: bool = False
         self.ex: list[Exception] = []
@@ -70,8 +74,9 @@ class VkBotService:
             config: Config
     ) -> "VkBotService":
         db_pool = await db.init(config.db)
+        redis_conn = await redis.init(config.redis)
 
-        instance = cls(loop, config, db_pool)
+        instance = cls(loop, config, db_pool, redis_conn)
 
         return instance
 
@@ -205,17 +210,25 @@ class VkBotService:
         )
 
         async def _get_weekly_message_data(peer_id: int) -> tuple[int, Message]:
+            key = "get_weekly_message_data-attachment"
+            attachment = await redis.get(self.redis_conn, key)
+            logger.info(f'from redis: {attachment=}')
+            if not attachment:
+                attachment = await self.client.upload_doc_message(peer_id=peer_id, doc_path='static/test.gif')
+                await redis.set(self.redis_conn, key, {'value': attachment})
+            else:
+                attachment = attachment['value']
             return peer_id, Message(
                 text='',
-                attachment=await self.client.upload_doc_message(peer_id=peer_id, doc_path='static/test.gif')
+                attachment=attachment
             )
 
         self.start_background_task(
             coro=self.base_background_task(
                 func=self.send_on_schedule,
-                cron="0 9 * * 2",
+                cron="*/1 * * * *",
                 fetch_message_data_func=_get_weekly_message_data,
-                peer_id=2000000003
+                peer_id=2000000006
             )
         )
 
@@ -284,5 +297,9 @@ class VkBotService:
         if self.db_pool:
             await self.db_pool.close()
             self.db_pool = None
+
+        if self.redis_conn:
+            await redis.close(self.redis_conn)
+            self.redis_conn = None
 
         await self.release()
