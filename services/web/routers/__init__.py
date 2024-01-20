@@ -4,7 +4,8 @@ from fastapi import (
 )
 
 from . import (
-    index
+    index,
+    auth
 )
 
 
@@ -13,6 +14,9 @@ def register_routers(app):
 
     router.include_router(
         index.router
+    )
+    router.include_router(
+        auth.router
     )
 
     app.include_router(router)

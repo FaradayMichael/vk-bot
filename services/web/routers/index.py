@@ -20,5 +20,6 @@ async def index(
         session: Session = Depends(ges_session)
 ):
     return jinja.get_template("index.html").render(
-        user=session.user
+        user=session.user,
+        request=request
     )
