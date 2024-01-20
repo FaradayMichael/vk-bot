@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>AList</h1>
+    <form action="/add_sin_word" method="post">
+        <p>
+            <input type="text" name="sin_words">
+        </p>
+        <p>
+            <input type="submit" value="Add">
+        </p>
+    </form>
+    {{ table }}
+{% endblock %}
