@@ -1,6 +1,14 @@
-from fastapi import APIRouter, Depends, Request, Form
+from fastapi import (
+    APIRouter,
+    Depends,
+    Request,
+    Form
+)
+from fastapi.responses import (
+    HTMLResponse,
+    RedirectResponse
+)
 from jinja2 import Environment
-from starlette.responses import HTMLResponse, RedirectResponse
 
 from db import (
     users as users_db
@@ -37,11 +45,10 @@ async def login_view(
 
 
 @router.post('/login', response_class=HTMLResponse)
-async def login_view(
+async def login_submit(
         request: Request,
         username_or_email=Form(),
         password=Form(),
-
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
         conf: Config = Depends(get_conf),
@@ -63,4 +70,12 @@ async def login_view(
 
     session.set_user(user)
 
-    return RedirectResponse('/')
+    return RedirectResponse('/', status_code=302)
+
+
+@router.get('/logout', response_class=HTMLResponse)
+async def logout(
+        session: Session = Depends(ges_session),
+):
+    session.reset_user()
+    return RedirectResponse('/auth/login', status_code=302)

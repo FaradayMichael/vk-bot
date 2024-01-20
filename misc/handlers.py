@@ -8,9 +8,16 @@ from fastapi import (
     FastAPI
 )
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from pydantic_core import ValidationError as CoreValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import (
+    JSONResponse,
+    RedirectResponse
+)
+from pydantic_core import (
+    ValidationError as CoreValidationError
+)
+from starlette.exceptions import (
+    HTTPException as StarletteHTTPException
+)
 
 from models.base import (
     ValidationError,
@@ -53,6 +60,10 @@ TRANSLATIONS_BY_STATUS = {
 
 
 class UnauthenticatedException(Exception):
+    pass
+
+
+class UnauthenticatedExceptionWeb(Exception):
     pass
 
 
@@ -177,6 +188,10 @@ def register_exception_handler(app: FastAPI):
     @app.exception_handler(UnauthenticatedException)
     async def unauthenticated_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         return await error_401()
+
+    @app.exception_handler(UnauthenticatedExceptionWeb)
+    async def unauthenticated_exception_handler(request: Request, exc: RequestValidationError) -> RedirectResponse:
+        return RedirectResponse('/auth/login', status_code=302)
 
     @app.exception_handler(ForbiddenException)
     async def forbidden_exception_handler(request: Request, exc: ForbiddenException) -> JSONResponse:

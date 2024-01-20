@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    Request
+)
+from fastapi.responses import HTMLResponse
 from jinja2 import Environment
-from starlette.responses import HTMLResponse
 
 from misc.depends.session import (
     get as ges_session
