@@ -3,7 +3,7 @@ import asyncpg
 from misc import db
 from misc.db_tables import DBTables
 from models.triggers_answers import (
-    TriggerAnswerCreate,
+    TriggerAnswerCreateBase,
     TriggerAnswer,
     TriggerGroup
 )
@@ -13,7 +13,7 @@ TABLE = DBTables.TRIGGERS_ANSWERS
 
 async def create(
         conn: db.Connection,
-        model: TriggerAnswerCreate
+        model: TriggerAnswerCreateBase
 ) -> TriggerAnswer:
     record = await db.create(
         conn,
@@ -45,7 +45,12 @@ async def get_triggers_group(
     query = f"""
         SELECT 
             trigger,
-            array_agg(answer) as answers
+            json_agg(
+                json_build_object(
+                    'answer', answer,
+                    'attachment', attachment
+                )
+            ) as answers
         FROM {TABLE.value}
         WHERE lower(trigger) LIKE $1 
         GROUP BY trigger
@@ -61,7 +66,12 @@ async def get_for_like(
     query = f"""
         SELECT 
             trigger,
-            array_agg(answer) as answers
+            json_agg(
+                json_build_object(
+                    'answer', answer,
+                    'attachment', attachment
+                )
+            ) as answers
         FROM {TABLE.value}
         WHERE $1 LIKE '%' || lower(trigger) || '%'
         GROUP BY trigger

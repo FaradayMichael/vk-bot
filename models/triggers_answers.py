@@ -1,31 +1,50 @@
 import datetime
+import json
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
-from models.answers import Answer
 from models.base import (
     SuccessResponse
 )
 
 
-class TriggerAnswerCreate(BaseModel):
+class TriggerBase(BaseModel):
+    trigger: str
+
+
+class AnswerBase(BaseModel):
+    answer: str
+    attachment: str | None = None
+
+    def __hash__(self):
+        return hash(f"{self.answer} {self.attachment}")
+
+
+class TriggerAnswerCreateBase(TriggerBase, AnswerBase):
     trigger: str
     answer: str
+    attachment: str | None = None
 
 
-class TriggerAnswer(TriggerAnswerCreate):
+class TriggerAnswer(TriggerAnswerCreateBase):
     id: int
     ctime: datetime.datetime
 
 
-class TriggerGroup(BaseModel):
+class TriggerGroup(TriggerBase):
     trigger: str
-    answers: list[str]
+    answers: list[AnswerBase]
+
+    @model_validator(mode='before')
+    @classmethod
+    def json_to_list(cls, data: dict):
+        if data.get('answers', None) is not None:
+            data['answers'] = json.loads(data['answers'])
+        return data
 
 
-class AnswerGroup(BaseModel):
-    answer: str
-    triggers: list[str]
+class AnswerGroup(AnswerBase):
+    triggers: list[TriggerBase]
 
 
 class TriggerAnswerListResponse(SuccessResponse):

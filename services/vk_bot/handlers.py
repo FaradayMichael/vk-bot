@@ -14,6 +14,7 @@ from business_logic.vk import (
 from models.images import (
     ImageTags
 )
+from models.triggers_answers import AnswerBase
 from models.vk import (
     Message
 )
@@ -64,10 +65,12 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             sum([i.answers for i in find_triggers], [])
         ))
         if answers:
+            answer: AnswerBase = random.choice(answers)
             await service.client.send_message(
                 peer_id=peer_id,
                 message=Message(
-                    text=f"{f'@id{from_id} ' if from_chat else ''} {random.choice(answers)}"
+                    text=f"{f'@id{from_id} ' if from_chat else ''} {answer.answer}",
+                    attachment=answer.attachment
                 )
             )
 
