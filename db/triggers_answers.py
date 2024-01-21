@@ -23,6 +23,14 @@ async def create(
     return db.record_to_model(TriggerAnswer, record)
 
 
+async def delete(
+        conn: db.Connection,
+        pk: int
+) -> TriggerAnswer | None:
+    record = await db.delete(conn, TABLE, pk)
+    return db.record_to_model(TriggerAnswer, record)
+
+
 async def get_list(
         conn: db.Connection,
         trigger_q: str = '',

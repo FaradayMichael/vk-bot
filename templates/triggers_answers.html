@@ -1,13 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
-    <h1>AList</h1>
-    <form action="/add_sin_word" method="post">
-        <p>
-            <input type="text" name="sin_words">
-        </p>
-        <p>
-            <input type="submit" value="Add">
-        </p>
-    </form>
-    {{ table }}
+<h1>Triggers-Answers</h1>
+<form class="form-inline" method="post" action="/triggers_answers">
+    <div class="form-group mb-2 mr-2">
+        <input type="text" class="form-control" placeholder="Trigger" name="trigger" required>
+    </div>
+    <div class="form-group mb-2 mr-2">
+        <input type="text" class="form-control" placeholder="Answer" name="answer">
+    </div>
+    <div class="form-group mb-2 mr-2">
+        <input type="text" class="form-control" placeholder="Attachment" name="attachment">
+    </div>
+    <input type="submit" class="btn btn-primary mb-2" value="Add">
+</form>
+
+<table id="dtBasicExample" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+    <thead>
+    <tr>
+        <th class="th-sm">Id</th>
+        <th class="th-sm">Trigger</th>
+        <th class="th-sm">Answer</th>
+        <th class="th-sm">Attachment</th>
+        <th class="th-sm">ctime</th>
+        <th class="th-sm">Action</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        <td>{{r.id}}</td>
+        <td>{{r.trigger}}</td>
+        <td>{{r.answer}}</td>
+        <td>{{r.attachment}}</td>
+        <td>{{r.ctime}}</td>
+        <td>
+            <form class="form-inline" action="/triggers_answers/delete" method="post">
+                <input type="hidden" name="pk" value={{r.id}}>
+                <input type="submit" class="btn btn-primary mb-2" value="Delete">
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
 {% endblock %}

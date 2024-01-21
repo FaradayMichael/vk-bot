@@ -5,7 +5,8 @@ from fastapi import (
 
 from . import (
     index,
-    auth
+    auth,
+    triggers_answers
 )
 from services.web.depends.auth import check_auth
 
@@ -19,6 +20,10 @@ def register_routers(app):
     )
     router.include_router(
         auth.router
+    )
+    router.include_router(
+        triggers_answers.router,
+        dependencies=[Depends(check_auth)] if not app.debug else []
     )
 
     app.include_router(router)
