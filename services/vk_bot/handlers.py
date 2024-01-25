@@ -92,10 +92,12 @@ async def parse_attachments_tags(
     if not attachments:
         return []
     images_urls = get_photos_urls_from_message(attachments)
-    return [
-        await parse_image_tags(i)
-        for i in images_urls
-    ]
+    result = []
+    for i in images_urls:
+        tags_model = await parse_image_tags(i)
+        if tags_model and (tags_model.tags or tags_model.description):
+            result.append(tags_model)
+    return result
 
 
 def get_photos_urls_from_message(
