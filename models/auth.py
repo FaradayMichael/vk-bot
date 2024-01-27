@@ -20,6 +20,10 @@ class MeSuccessResponse(SuccessResponse):
     data: MeResponse
 
 
+class PasswordModel(BaseModel):
+    password: constr(strip_whitespace=True)
+
+
 class RegisterModel(BaseModel):
     email: constr(to_lower=True, strip_whitespace=True, pattern=EMAIL_REGEX)
     username: constr(strip_whitespace=True, pattern=LOGIN)

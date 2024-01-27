@@ -26,9 +26,12 @@ from misc.session import Session
 from models.auth import (
     MeSuccessResponse,
     MeResponse,
-    LoginModel
+    LoginModel,
+    PasswordModel
 )
+from models.base import SuccessResponse
 from models.users import Anonymous
+from services.rest_api.depends.auth import check_auth
 
 router = APIRouter(
     prefix='/auth',
@@ -82,3 +85,19 @@ async def logout(
     session.reset_user()
 
     return MeSuccessResponse(data=MeResponse(me=session.user, token=session.key))
+
+
+@router.post('/set_password', response_model=SuccessResponse, dependencies=[Depends(check_auth)])
+async def set_new_password(
+        model: PasswordModel,
+        conn: Connection = Depends(get_db),
+        session: Session = Depends(get_session),
+        conf: Config = Depends(get_conf)
+) -> SuccessResponse | JSONResponse:
+    hashed_password = await get_password_hash(model.password, conf.salt)
+    await users_db.set_password(
+        conn,
+        session.user.email,
+        hashed_password
+    )
+    return SuccessResponse()
