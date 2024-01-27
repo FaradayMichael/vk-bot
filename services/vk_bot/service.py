@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import uuid
 from asyncio import AbstractEventLoop
 from typing import (
     Callable,
@@ -17,6 +18,9 @@ from vk_api.bot_longpoll import (
     VkBotEventType
 )
 
+from db import (
+    tasks as tasks_db
+)
 from misc import (
     db,
     redis
@@ -25,6 +29,7 @@ from misc import (
 from misc.config import Config
 from misc.vk_client import VkClient
 from models.vk import Message
+from models.vk_tasks import VkTask
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +41,38 @@ class Task:
             *args,
             **kwargs
     ):
-        self.method = method
-        self.args = args
-        self.kwargs = kwargs
+        self.tries: int = 0
+        self.uuid: str = uuid.uuid4().hex
+        self.method: Callable = method
+        self.args: tuple = args
+        self.kwargs: dict = kwargs
+        self.errors: list[Exception] | None = None
 
     def __await__(self):
+        self.tries += 1
         return self.method(*self.args, **self.kwargs).__await__()
+
+    @property
+    def dict(self) -> dict:
+        return {
+            'uuid': self.uuid,
+            'method': self.method.__name__,
+            'args': str(self.args),
+            'kwargs': self.kwargs,
+            'errors': str(self.errors),
+            'tries': self.tries
+        }
+
+    @property
+    def model(self) -> VkTask:
+        return VkTask.model_validate(self.dict)
+
+    async def save(self, db_pool: Pool):
+        async with db_pool.acquire() as conn:
+            try:
+                await tasks_db.create(conn, self.model)
+            except Exception as ex:
+                logger.info(f'Saving task {self.uuid} failed with {ex=}')
 
 
 class VkBotService:
@@ -62,6 +93,7 @@ class VkBotService:
         self.queue: asyncio.Queue = asyncio.Queue()
         self.main_task: asyncio.Task | None = None
         self.background_tasks: list[asyncio.Task] = []
+        self.tasks: list[asyncio.Task] = []
 
         self.client: VkClient | None = None
         self.long_pool: VkBotLongPoll | None = None
@@ -96,7 +128,9 @@ class VkBotService:
         async def generate_from_queue(queue: asyncio.Queue) -> AsyncIterable[Task]:
             while True:
                 try:
-                    yield await queue.get()
+                    t: Task = await queue.get()
+                    yield t
+                    self.tasks.append(self.loop.create_task(t.save(self.db_pool)))
                 except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                     logger.info("VkBot worker stop called")
                     break
@@ -113,6 +147,7 @@ class VkBotService:
                 except Exception as e:
                     logger.exception(e)
                     self.ex.append(e)
+                    task.errors.append(e)
                     await self.queue.put(task)
                     await self.release()
                     await asyncio.sleep(30)
@@ -291,6 +326,12 @@ class VkBotService:
         if self.background_tasks:
             await asyncio.wait(self.background_tasks)
         self.background_tasks = []
+
+        for task in self.tasks:
+            task.cancel()
+        if self.tasks:
+            await asyncio.wait(self.tasks)
+        self.tasks = []
 
         self.handlers = {}
 
