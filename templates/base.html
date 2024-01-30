@@ -127,39 +127,31 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <a class="navbar-brand" href='/'>Faraday VK-Bot</a>
-    <div class="collapse navbar-collapse" id="navbarColor02">
+    <div class="collapse navbar-collapse js-navbar" id="navbarColor02">
         <ul class="navbar-nav mr-auto">
+
             <li class="nav-item {% if nbar == 'home' %}active{% endif %}">
                 <a class="nav-link" href="/">Home</a>
             </li>
+
             <li class="nav-item">
                 <a class="nav-link" href="/triggers_answers">Triggers-Answers</a>
             </li>
-            {#
-            <li class="nav-item">#}
-                {# <a class="nav-link" href="/sin_stat_view">Sin Stat</a>#}
-                {#
+
+            <li class="dropdown nav-item">
+                <a id="drop1" href="#" class="dropdown-toggle nav-link" data-toggle="dropdown">
+                    Vk
+                    <span class="caret"></span>
+                </a>
+                <ul class="dropdown-menu navbar-dark bg-dark">
+                    <li>
+                        <a class="nav-link navbar-dark bg-dark" href="/vk/messages">Messages</a>
+                    </li>
+                </ul>
             </li>
-            #}
-            {#
-            <li class="nav-item">#}
-                {# <a class="nav-link" href="/reply_view">Reply</a>#}
-                {#
-            </li>
-            #}
-            {#
-            <li class="nav-item">#}
-                {# <a class="nav-link" href="/rand_reply_view">Rand Reply</a>#}
-                {#
-            </li>
-            #}
-            {#
-            <li class="nav-item">#}
-                {# <a class="nav-link" href="/replace_view">Replace Reply</a>#}
-                {#
-            </li>
-            #}
+
         </ul>
+
         <ul class="nav navbar-nav navbar-right">
             {% if user.id != 0 %}
             <li class="nav-item">
