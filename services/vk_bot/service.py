@@ -48,8 +48,14 @@ class Task:
         self.kwargs: dict = kwargs
         self.errors: list[Exception] | None = None
 
+        self.created: datetime.datetime = datetime.datetime.now()
+        self.started: datetime.datetime | None = None
+        self.done: datetime.datetime | None = None
+
     def __await__(self):
         self.tries += 1
+        if self.started is None:
+            self.started = datetime.datetime.now()
         return self.method(*self.args, **self.kwargs).__await__()
 
     @property
@@ -59,8 +65,11 @@ class Task:
             'method': self.method.__name__,
             'args': str(self.args),
             'kwargs': self.kwargs,
-            'errors': str(self.errors),
-            'tries': self.tries
+            'errors': str(self.errors) if self.errors else None,
+            'tries': self.tries,
+            'created': self.created,
+            'started': self.started,
+            'done': self.done,
         }
 
     @property
@@ -68,6 +77,7 @@ class Task:
         return VkTask.model_validate(self.dict)
 
     async def save(self, db_pool: Pool):
+        self.done = datetime.datetime.now()
         async with db_pool.acquire() as conn:
             try:
                 await tasks_db.create(conn, self.model)
@@ -93,7 +103,6 @@ class VkBotService:
         self.queue: asyncio.Queue = asyncio.Queue()
         self.main_task: asyncio.Task | None = None
         self.background_tasks: list[asyncio.Task] = []
-        self.tasks: list[asyncio.Task] = []
 
         self.client: VkClient | None = None
         self.long_pool: VkBotLongPoll | None = None
@@ -130,7 +139,7 @@ class VkBotService:
                 try:
                     t: Task = await queue.get()
                     yield t
-                    self.tasks.append(self.loop.create_task(t.save(self.db_pool)))
+                    await t.save(self.db_pool)
                 except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                     logger.info("VkBot worker stop called")
                     break
@@ -267,20 +276,26 @@ class VkBotService:
             )
         )
 
-        async def _get_daily_notify_message_data() -> tuple[int, Message]:
+        async def _get_daily_statistic_message_data() -> tuple[int, Message]:
+            now = datetime.datetime.now()
+            async with self.db_pool.acquire() as conn:
+                tasks = await tasks_db.get_list(
+                    conn,
+                    from_dt=now - datetime.timedelta(days=1),
+                    to_dt=now
+                )
+
             return self.config.vk.main_user_id, Message(
                 text=f"Daily notify.\n"
-                     f"ex: {self.ex}\n"
-                     f"queue: {self.queue.qsize()}\n"
-                     f"main task: {bool(self.main_task)}\n"
-                     f"tasks: {len(self.background_tasks)}"
+                     f"service ex: {self.ex}\n"
+                     f"tasks: {len(tasks)} with ex: {len([t for t in tasks if t.errors])}"
             )
 
         self.start_background_task(
             coro=self.base_background_task(
                 func=self.send_on_schedule,
-                cron="0 6 * * *",
-                fetch_message_data_func=_get_daily_notify_message_data
+                cron="6 18 * * *",
+                fetch_message_data_func=_get_daily_statistic_message_data
             )
         )
 
@@ -326,12 +341,6 @@ class VkBotService:
         if self.background_tasks:
             await asyncio.wait(self.background_tasks)
         self.background_tasks = []
-
-        for task in self.tasks:
-            task.cancel()
-        if self.tasks:
-            await asyncio.wait(self.tasks)
-        self.tasks = []
 
         self.handlers = {}
 
