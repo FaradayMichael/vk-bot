@@ -53,5 +53,14 @@ class SendMessageInput(BaseModel):
     message: MessageInput
 
 
+class SendMessage(BaseModel):
+    peer_id: int
+    message: Message
+
+
+class SendMessageResponse(SuccessResponse):
+    data: SendMessage
+
+
 class ChatsListResponse(SuccessResponse):
     data: list[int]
