@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import uuid
 from typing import assert_never
 from urllib.parse import (
@@ -34,22 +35,39 @@ async def base64_to_vk_attachment(
                 f.write,
                 a.file.data
             )
-        match a.type:
-            case AttachmentType.PHOTO:
-                result += await client.upload_photos_message(
-                    peer_id,
-                    [file_path]
-                )
-            case AttachmentType.DOC:
-                result.append(
-                    await client.upload_doc_message(
-                        peer_id,
-                        file_path
-                    )
-                )
-            case _ as arg:
-                logger.info(arg)
-                assert_never(arg)
+        r = await file_to_vk_attachment(client, peer_id, file_path, a.type)
+        if r:
+            result.append(r)
+
+        try:
+            os.remove(file_path)
+        except FileNotFoundError:
+            pass
+
+    return result
+
+
+async def file_to_vk_attachment(
+        client: VkClient,
+        peer_id: int,
+        file_path: str,
+        t: AttachmentType
+) -> str | None:
+    match t:
+        case AttachmentType.PHOTO:
+            tmp = await client.upload_photos_message(
+                peer_id,
+                [file_path]
+            )
+            result = tmp[0] if tmp else None
+        case AttachmentType.DOC:
+            result = await client.upload_doc_message(
+                peer_id,
+                file_path
+            )
+        case _ as arg:
+            logger.info(arg)
+            result = None
     return result
 
 

@@ -160,7 +160,10 @@ class DataURL(str):
         return mimetype, name, charset, bool(match.group("base64")), data
 
     def ext(self) -> str:
-        mimetype = self.mimetype
+        return self.get_ext(self.mimetype)
+
+    @staticmethod
+    def get_ext(mimetype: str) -> str:
         match mimetype:
             case "text/plain":
                 return "txt"

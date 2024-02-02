@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Messages</h1>
+<form action="/vk/messages" method="post" enctype="multipart/form-data">
+    <label>Peer id</label>
+    <div class="form-group">
+        <input type="number" class="form-control" placeholder="Peer id" id="peer_id" name="peer_id" required>
+    </div>
+    <div class="form-group">
+        <label>Message text</label>
+        <textarea class="form-control" name="message_text"></textarea>
+    </div>
+    <div class="form-group">
+        <label>Attachments</label>
+        <input class="form-control" type="file" multiple name="files">
+    </div>
+    <button type="submit" class="btn btn-primary">Send</button>
+</form>
+{% endblock %}
