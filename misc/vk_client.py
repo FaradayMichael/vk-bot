@@ -1,6 +1,7 @@
 import asyncio
 
 from vk_api import VkApi, VkUpload
+from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 from vk_api.vk_api import VkApiMethod
 
@@ -24,16 +25,51 @@ class VkClient:
     async def send_message(
             self,
             peer_id: int,
-            message: Message
+            message: Message,
+            keyboard: VkKeyboard | str | dict | None = None
     ):
+        if isinstance(keyboard, VkKeyboard):
+            keyboard = keyboard.get_keyboard()
+
         await self.call(
             "messages.send",
             dict(
                 message=message.text,
                 attachment=message.attachment,
                 random_id=get_random_id(),
-                peer_id=peer_id
+                peer_id=peer_id,
+                keyboard=keyboard
             ),
+        )
+
+    async def send_event_message(
+            self,
+            event_id: str,
+            user_id: int,
+            peer_id: int,
+            event_data: str
+    ):
+        pass
+
+    async def delete_message(
+            self,
+            peer_id: int,
+            message_ids: list[int] = None,
+            cmids: list[int] = None,
+            delete_for_all: bool = True
+    ):
+        data = dict(
+            peer_id=peer_id,
+            delete_for_all=1 if delete_for_all else 0
+        )
+        if message_ids:
+            data['message_ids'] = ','.join([str(i) for i in message_ids])
+        if cmids:
+            data['cmids'] = ','.join([str(i) for i in cmids])
+
+        await self.call(
+            "messages.delete",
+            data
         )
 
     async def upload_photos_message(

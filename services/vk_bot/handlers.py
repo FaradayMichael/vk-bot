@@ -1,6 +1,7 @@
 import logging
 import random
 from pprint import pformat
+from typing import Callable, Awaitable
 
 from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
@@ -18,6 +19,7 @@ from models.triggers_answers import AnswerBase
 from models.vk import (
     Message
 )
+from . import callbacks
 from .models import (
     VkMessage,
     VkMessageAttachment,
@@ -31,6 +33,26 @@ backslash_n = '\n'  # Expression fragments inside f-strings cannot include backs
 
 
 async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
+    async def on_command(command: str) -> bool:
+
+        async def on_help():
+            await service.client.send_message(
+                peer_id=peer_id,
+                message=Message(
+                    text=f"{f'@id{from_id} ' if from_chat else ''} help"
+                ),
+                keyboard=callbacks.help_kb
+            )
+
+        commands_map = {
+            '/help': on_help
+        }
+        command_call = commands_map.get(command, None)
+        if command_call:
+            await command_call()
+            return True
+        return False
+
     message_model = validate_message(event)
     if not message_model:
         return
@@ -39,6 +61,11 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     from_chat = event.from_chat
     peer_id = message_model.peer_id if event.from_chat else message_model.from_id
     from_id = message_model.from_id
+
+    if message_model.text.strip().startswith('/'):
+        success = await on_command(message_model.text.strip().lower())
+        if success:
+            return
 
     tags_models = await parse_attachments_tags(message_model.attachments)
     logger.info(f"{tags_models=}")
@@ -73,6 +100,21 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                     attachment=answer.attachment
                 )
             )
+
+
+async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
+    callbacks_map: dict[str, Callable[[VkBotService, VkBotMessageEvent], Awaitable]] = {
+        'help_callback': callbacks.help_callback
+    }
+
+    logger.info(pformat(event.object))
+    callback_str = event.object['payload']['type']
+    callback = callbacks_map.get(callback_str, None)
+    if callback is not None:
+        await callback(service, event)
+        return
+    else:
+        logger.info(f"Not found callback for {callback_str}")
 
 
 def validate_message(
