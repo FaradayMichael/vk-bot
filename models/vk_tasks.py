@@ -13,7 +13,7 @@ class VkTaskFilterModel(BaseModel):
 class VkTask(BaseModel):
     uuid: str
     method: str
-    args: str | None
+    args: dict | None
     kwargs: dict | None
     errors: str | None
     tries: int
