@@ -37,6 +37,7 @@ class FoldersConfig(BaseModel):
 class VkConfig(BaseModel):
     imgbb_api_key: str
     vk_token: str
+    user_token: str
     main_user_id: int
     main_group_id: int
 

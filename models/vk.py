@@ -32,6 +32,11 @@ class Message(BaseModel):
     attachment: str | None = None
 
 
+class WallPost(BaseModel):
+    message: str = ''
+    attachments: str | None = None
+
+
 class AttachmentInput(BaseModel):
     type: AttachmentType
     file: DataURL

@@ -28,7 +28,7 @@ from misc.depends.session import (
 from misc.depends.jinja import (
     get as get_jinja
 )
-from misc.files import TempFile
+from misc.files import TempUploadFile
 from misc.session import Session
 from misc.vk_client import VkClient
 
@@ -65,7 +65,7 @@ async def send_vk_message(
             if f.size == 0:
                 continue
 
-            async with TempFile(f) as file_path:
+            async with TempUploadFile(f) as file_path:
                 attachments.append(
                     await file_to_vk_attachment(
                         client,

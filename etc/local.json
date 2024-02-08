@@ -21,7 +21,8 @@
   "static_url": "/static",
   "vk": {
     "imgbb_api_key": "qwe",
-    "vk_token": "qwe",
+    "vk_token": "003466e8014d10aba1fba2281bd3807ca5eb0d117358941ce7de881f6826bbf00c8001984537435bb32a5",
+    "user_token": "qwe",
     "main_user_id": 187127322,
     "main_group_id": 160508919
   }

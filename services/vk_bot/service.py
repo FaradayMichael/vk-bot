@@ -184,7 +184,7 @@ class VkBotService:
         if notify:
             await self.client.send_message(
                 peer_id=self.config.vk.main_user_id,
-                message=Message(text=f"Starting VkBot Service\nex: {self.ex}")
+                message=Message(text=f"Starting VkBot Service\nex: {self.ex}\ndebug: {self.config.debug}")
             )
             self.ex = []
 

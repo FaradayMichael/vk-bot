@@ -28,6 +28,10 @@ class PhotoAttachment(BaseModel):
             self.sizes = [max(self.sizes, key=lambda x: x.height)]
         return self
 
+    @property
+    def attachment_str(self) -> str:
+        return f"photo{self.owner_id}_{self.id}"
+
 
 class VideoAttachment(BaseModel):
     image: list[PhotoSize] = []

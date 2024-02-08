@@ -1,3 +1,4 @@
+import datetime
 import logging
 import random
 from pprint import pformat
@@ -12,12 +13,14 @@ from db import (
 from business_logic.vk import (
     parse_image_tags
 )
+from misc.files import TempUrlFile
 from models.images import (
     ImageTags
 )
 from models.triggers_answers import AnswerBase
 from models.vk import (
-    Message
+    Message,
+    WallPost
 )
 from . import callbacks
 from .models import (
@@ -87,7 +90,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             conn,
             f"{message_model.text}{''.join([t.tags_text + str(t.description) for t in tags_models])}"
         )
-        logger.info(find_triggers)
+        logger.info(f"{find_triggers=}")
         answers = list(set(
             sum([i.answers for i in find_triggers], [])
         ))
@@ -100,6 +103,24 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                     attachment=answer.attachment
                 )
             )
+
+    try:
+        for a in message_model.attachments:
+            if a.type == 'photo' and a.photo:
+                url = a.photo.sizes[0].url
+                async with TempUrlFile(url) as tmp:
+                    attachments = await service.client.upload_photo_wall(
+                        [tmp]
+                    )
+                await service.client.wall_post(
+                    post=WallPost(
+                        attachments=','.join(attachments)
+                    ),
+                    delay=datetime.timedelta(days=3)
+                )
+    except Exception as e:
+        logger.exception(e)
+        service.ex.append(e)
 
 
 async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
