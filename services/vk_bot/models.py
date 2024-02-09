@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any
 
 from pydantic import (
@@ -57,3 +58,15 @@ class VkMessage(BaseModel):
     fwd_messages: list[Any] = []
     peer_id: int = 0
     text: str = ''
+
+
+class WallItemFilter(StrEnum):
+    POSTPONED = 'postponed'
+
+
+class WallItem(BaseModel):
+    comments: dict | None = None
+    attachments: list[VkMessageAttachment] | None = None
+    id: int
+    text: str = ''
+    post_source: dict | None = None

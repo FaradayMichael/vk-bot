@@ -26,7 +26,8 @@ from . import callbacks
 from .models import (
     VkMessage,
     VkMessageAttachment,
-    PhotoSize
+    PhotoSize,
+    WallItemFilter
 )
 from .service import VkBotService
 
@@ -105,19 +106,53 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             )
 
     try:
+        photo_attachments_from_msg = []
         for a in message_model.attachments:
             if a.type == 'photo' and a.photo:
                 url = a.photo.sizes[0].url
                 async with TempUrlFile(url) as tmp:
-                    attachments = await service.client.upload_photo_wall(
+                    photo_attachments_from_msg += await service.client.upload_photo_wall(
                         [tmp]
                     )
+        if photo_attachments_from_msg:
+            posts = await service.client.get_posts(WallItemFilter.POSTPONED)
+            available_posts = [
+                p
+                for p in posts
+                if len(p.attachments) + len(photo_attachments_from_msg) <= 9 and p.post_source['type'] == 'api'
+            ]
+            if not available_posts:
+                logger.info(f'Create new post for {len(photo_attachments_from_msg)} attachments')
                 await service.client.wall_post(
                     post=WallPost(
-                        attachments=','.join(attachments)
+                        attachments=','.join(photo_attachments_from_msg)
                     ),
-                    delay=datetime.timedelta(days=3)
+                    delay=datetime.timedelta(days=2)
                 )
+            else:
+                available_posts.sort(key=lambda x: len(x.attachments), reverse=True)
+                post = available_posts[0]
+
+                logger.info(f"Edit {post.id=} for {len(photo_attachments_from_msg)} new attachments")
+
+                post_attachments = [
+                                       a.photo.attachment_str
+                                       for a in post.attachments if a.photo
+                                   ] + photo_attachments_from_msg
+                await service.client.edit_post(
+                    post_id=post.id,
+                    attachments=','.join(post_attachments),
+                    delay=datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
+                )
+                if len(post_attachments) >= 9:
+                    logger.info(f"{post.id=} ready to publish")
+                    await service.client.send_message(
+                        peer_id=service.config.vk.main_user_id,
+                        message=Message(
+                            text=f"{post.id=} ready to publish"
+                        )
+                    )
+
     except Exception as e:
         logger.exception(e)
         service.ex.append(e)

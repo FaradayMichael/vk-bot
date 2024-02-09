@@ -11,6 +11,10 @@ from models.vk import (
     Message,
     WallPost
 )
+from services.vk_bot.models import (
+    WallItem,
+    WallItemFilter
+)
 
 
 class VkClient:
@@ -144,6 +148,37 @@ class VkClient:
             f"photo{r['owner_id']}_{r['id']}_{r['access_key']}"
             for r in response
         ]
+
+    async def get_posts(
+            self,
+            type_filter: WallItemFilter | None = None
+    ) -> list[WallItem]:
+        response = await self.call_user(
+            'wall.get',
+            dict(
+                owner_id=-self.config.vk.main_group_id,
+                filter=type_filter.value if type_filter else None
+            )
+        )
+        return [WallItem.model_validate(i) for i in response['items']]
+
+    async def edit_post(
+            self,
+            post_id: int,
+            message_text: str = '',
+            attachments: str | None = None,
+            delay: datetime.timedelta | None = None
+    ):
+        await self.call_user(
+            'wall.edit',
+            dict(
+                owner_id=-self.config.vk.main_group_id,
+                post_id=post_id,
+                message=message_text,
+                attachments=attachments,
+                publish_date=(datetime.datetime.now() + delay).timestamp() if delay else None
+            )
+        )
 
     async def call(
             self,
