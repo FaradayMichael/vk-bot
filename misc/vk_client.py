@@ -4,7 +4,6 @@ import datetime
 from vk_api import VkApi, VkUpload
 from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
-from vk_api.vk_api import VkApiMethod
 
 from misc.config import Config
 from models.vk import (
@@ -22,14 +21,12 @@ class VkClient:
             self,
             config: Config,
             session: VkApi,
-            api: VkApiMethod,
             upload: VkUpload,
             user_session: VkApi,
             user_upload: VkUpload
     ):
         self.config: Config = config
         self.session: VkApi = session
-        self.api: VkApiMethod = api
         self.upload: VkUpload = upload
         self.user_session = user_session
         self.user_upload: VkUpload = user_upload
@@ -213,10 +210,9 @@ class VkClient:
     ) -> "VkClient":
         session = VkApi(token=config.vk.vk_token)
         user_session = VkApi(token=config.vk.user_token)
-        api = session.get_api()
         upload = VkUpload(session)
         user_upload = VkUpload(user_session)
-        return cls(config, session, api, upload, user_session, user_upload)
+        return cls(config, session, upload, user_session, user_upload)
 
     async def close(self):
         if self.session:
@@ -226,9 +222,6 @@ class VkClient:
         if self.user_session:
             await asyncio.to_thread(self.user_session.http.close)
             self.user_session = None
-
-        if self.api:
-            self.api = None
 
         if self.upload:
             await asyncio.to_thread(self.upload.http.close)

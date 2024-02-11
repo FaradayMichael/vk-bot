@@ -71,6 +71,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         if success:
             return
 
+    # Find tags of images
     tags_models = await parse_attachments_tags(message_model.attachments)
     logger.info(f"{tags_models=}")
     if tags_models:
@@ -86,6 +87,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             )
         )
 
+    # Find triggers, send answer
     async with service.db_pool.acquire() as conn:
         find_triggers = await triggers_answers_db.get_for_like(
             conn,
@@ -106,6 +108,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             )
 
     try:
+        # Posting on group wall
         photo_attachments_from_msg = []
         for a in message_model.attachments:
             if a.type == 'photo' and a.photo:

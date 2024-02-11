@@ -65,9 +65,7 @@ class VkBotService:
         db_pool = await db.init(config.db)
         redis_conn = await redis.init(config.redis)
 
-        instance = cls(loop, config, db_pool, redis_conn)
-
-        return instance
+        return VkBotService(loop, config, db_pool, redis_conn)
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
@@ -88,9 +86,10 @@ class VkBotService:
                     t: Task = await queue.get()
                     yield t
                     await t.save(self.db_pool)
-                except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                    logger.info("VkBot worker stop called")
-                    break
+                except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt, StopIteration):
+                    if self.stopping:
+                        logger.info("VkBot worker stop called")
+                        break
 
         logging.info(f'Starting VkBot worker')
         while not self.stopping:
@@ -105,7 +104,10 @@ class VkBotService:
                     logger.exception(e)
                     self.ex.append(e)
                     task.errors.append(e)
-                    await self.queue.put(task)
+                    if task.tries <= 3:
+                        await self.queue.put(task)
+                    else:
+                        await task.save(self.db_pool)
                     await self.release()
                     await asyncio.sleep(30)
                     break
@@ -129,8 +131,8 @@ class VkBotService:
         logger.info("Start listening")
         async for event in self.events_generator():
             handler = self.handlers.get(event.type, None)
+            logger.info(event.type)
             if handler:
-                logger.info(event.type)
                 await self.queue.put(Task(handler, self, event))
 
     async def events_generator(self):
@@ -232,11 +234,12 @@ class VkBotService:
                     from_dt=now - datetime.timedelta(days=1),
                     to_dt=now
                 )
-
+            text = f"Daily notify.\n"\
+                   f"service ex: {self.ex}\n"\
+                   f"tasks: {len(tasks)} with ex: {len([t for t in tasks if t.errors])}"
+            self.ex = []
             return self.config.vk.main_user_id, Message(
-                text=f"Daily notify.\n"
-                     f"service ex: {self.ex}\n"
-                     f"tasks: {len(tasks)} with ex: {len([t for t in tasks if t.errors])}"
+                text=text
             )
 
         self.start_background_task(
