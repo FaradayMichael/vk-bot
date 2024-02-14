@@ -1,4 +1,3 @@
-import datetime
 import logging
 import random
 from pprint import pformat
@@ -11,7 +10,8 @@ from db import (
     triggers_answers as triggers_answers_db
 )
 from business_logic.vk import (
-    parse_image_tags
+    parse_image_tags,
+    post_in_group_wall, GroupPostMode
 )
 from misc.files import TempUrlFile
 from models.images import (
@@ -19,15 +19,13 @@ from models.images import (
 )
 from models.triggers_answers import AnswerBase
 from models.vk import (
-    Message,
-    WallPost
+    Message
 )
 from . import callbacks
 from .models import (
     VkMessage,
     VkMessageAttachment,
-    PhotoSize,
-    WallItemFilter
+    PhotoSize
 )
 from .service import VkBotService
 
@@ -40,7 +38,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     async def on_command(command: str) -> bool:
 
         async def on_help():
-            await service.client.send_message(
+            await service.client.messages.send(
                 peer_id=peer_id,
                 message=Message(
                     text=f"{f'@id{from_id} ' if from_chat else ''} help"
@@ -75,7 +73,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     tags_models = await parse_attachments_tags(message_model.attachments)
     logger.info(f"{tags_models=}")
     if tags_models:
-        await service.client.send_message(
+        await service.client.messages.send(
             peer_id=peer_id,
             message=Message(
                 text='\n\n'.join(
@@ -99,7 +97,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         ))
         if answers:
             answer: AnswerBase = random.choice(answers)
-            await service.client.send_message(
+            await service.client.messages.send(
                 peer_id=peer_id,
                 message=Message(
                     text=f"{f'@id{from_id} ' if from_chat else ''} {answer.answer}",
@@ -107,58 +105,23 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 )
             )
 
-    try:
-        # Posting on group wall
-        photo_attachments_from_msg = []
-        for a in message_model.attachments:
-            if a.type == 'photo' and a.photo:
-                url = a.photo.sizes[0].url
-                async with TempUrlFile(url) as tmp:
-                    photo_attachments_from_msg += await service.client.upload_photo_wall(
-                        [tmp]
-                    )
-        if photo_attachments_from_msg:
-            posts = await service.client.get_posts(WallItemFilter.POSTPONED)
-            available_posts = [
-                p
-                for p in posts
-                if len(p.attachments) + len(photo_attachments_from_msg) <= 9 and p.post_source['type'] == 'api'
-            ]
-            if not available_posts:
-                logger.info(f'Create new post for {len(photo_attachments_from_msg)} attachments')
-                await service.client.wall_post(
-                    post=WallPost(
-                        attachments=','.join(photo_attachments_from_msg)
-                    ),
-                    delay=datetime.timedelta(days=2)
+    # Posting on group wall
+    photo_attachments_from_msg = []
+    for a in message_model.attachments:
+        if a.type == 'photo' and a.photo:
+            url = a.photo.sizes[0].url
+            async with TempUrlFile(url) as tmp:
+                photo_attachments_from_msg += await service.client.upload.photo_wall(
+                    [tmp]
                 )
-            else:
-                available_posts.sort(key=lambda x: len(x.attachments), reverse=True)
-                post = available_posts[0]
-
-                logger.info(f"Edit {post.id=} for {len(photo_attachments_from_msg)} new attachments")
-
-                post_attachments = [
-                                       a.photo.attachment_str
-                                       for a in post.attachments if a.photo
-                                   ] + photo_attachments_from_msg
-                await service.client.edit_post(
-                    post_id=post.id,
-                    attachments=','.join(post_attachments),
-                    delay=datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
-                )
-                if len(post_attachments) >= 9:
-                    logger.info(f"{post.id=} ready to publish")
-                    await service.client.send_message(
-                        peer_id=service.config.vk.main_user_id,
-                        message=Message(
-                            text=f"{post.id=} ready to publish"
-                        )
-                    )
-
-    except Exception as e:
-        logger.exception(e)
-        service.ex.append(e)
+    if photo_attachments_from_msg:
+        await post_in_group_wall(
+            service.client,
+            message_text='',
+            attachments=photo_attachments_from_msg,
+            mode=GroupPostMode.COMPILE_9,
+            notify=True
+        )
 
 
 async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):

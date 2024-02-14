@@ -1,8 +1,9 @@
 import asyncio
+import datetime
 import logging
 import os
 import uuid
-from typing import assert_never
+from enum import StrEnum
 from urllib.parse import (
     urljoin,
     unquote,
@@ -16,10 +17,18 @@ from misc.vk_client import VkClient
 from models.images import ImageTags
 from models.vk import (
     AttachmentInput,
-    AttachmentType
+    AttachmentType,
+    WallPost,
+    Message
 )
+from services.vk_bot.models import WallItemFilter
 
 logger = logging.getLogger(__name__)
+
+
+class GroupPostMode(StrEnum):
+    COMPILE_9 = 'compile_post'
+    INSTANT = 'instant'
 
 
 async def base64_to_vk_attachment(
@@ -55,13 +64,13 @@ async def file_to_vk_attachment(
 ) -> str | None:
     match t:
         case AttachmentType.PHOTO:
-            tmp = await client.upload_photos_message(
+            tmp = await client.upload.photos_message(
                 peer_id,
                 [file_path]
             )
             result = tmp[0] if tmp else None
         case AttachmentType.DOC:
-            result = await client.upload_doc_message(
+            result = await client.upload.doc_message(
                 peer_id,
                 file_path
             )
@@ -120,3 +129,65 @@ async def parse_image_tags(
         await asyncio.sleep(3)
 
     return result
+
+
+async def post_in_group_wall(
+        client: VkClient,
+        message_text: str = '',
+        attachments: list[str] | None = None,
+        mode: GroupPostMode = GroupPostMode.COMPILE_9,
+        notify: bool = True
+):
+    if not message_text and not attachments:
+        return None
+
+    post_model = WallPost(
+        message_text=message_text,
+        attachments=','.join(attachments)
+    )
+    if mode is GroupPostMode.COMPILE_9:
+        posts = await client.wall.get(WallItemFilter.POSTPONED)
+        available_posts = [
+            p
+            for p in posts
+            if len(p.attachments) + len(attachments) <= 9 and p.post_source['type'] == 'api'
+        ]
+        if not available_posts:
+            logger.info(f'Create new post {post_model} compile')
+            await client.wall.post(
+                post=post_model,
+                post_time=datetime.datetime.now() + datetime.timedelta(days=2)
+            )
+        else:
+            available_posts.sort(key=lambda x: len(x.attachments), reverse=True)
+            post = available_posts[0]
+
+            logger.info(f"Edit {post.id=} for {len(attachments)} new attachments. {post_model}")
+
+            post_attachments = [
+                                   a.photo.attachment_str
+                                   for a in post.attachments if a.photo
+                               ] + attachments
+            post_model.attachments = ','.join(post_attachments)
+            await client.wall.edit(
+                post_id=post.id,
+                post=post_model,
+                post_time=datetime.datetime.now() + datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
+            )
+            if len(post_attachments) >= 9:
+                logger.info(f"{post.id=} ready to publish")
+                if notify:
+                    await client.messages.send(
+                        peer_id=client.config.vk.main_user_id,
+                        message=Message(
+                            text=f"{post.id=} ready to publish"
+                        )
+                    )
+    elif mode is GroupPostMode.INSTANT:
+        logger.info(f'Create new post {post_model} instant')
+        await client.wall.post(
+            post=post_model,
+            post_time=datetime.datetime.now() + datetime.timedelta(days=2)
+        )
+    else:
+        return None

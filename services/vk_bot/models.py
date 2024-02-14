@@ -47,6 +47,7 @@ class VkMessageAttachment(BaseModel):
     photo: PhotoAttachment | None = None
     video: VideoAttachment | None = None
     wall: WallAttachment | None = None
+    doc: Any | None = None
 
 
 class VkMessage(BaseModel):

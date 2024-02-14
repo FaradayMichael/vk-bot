@@ -57,7 +57,7 @@ async def send_vk_message(
         files: list[UploadFile] = File(...),
         config: Config = Depends(get_conf)
 ):
-    client = await VkClient.create(config)
+    client = VkClient(config)
 
     attachments = []
     if files:
@@ -75,7 +75,7 @@ async def send_vk_message(
                     )
                 )
 
-    await client.send_message(
+    await client.messages.send(
         peer_id,
         Message(
             text=message_text,

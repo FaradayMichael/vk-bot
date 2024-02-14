@@ -35,7 +35,7 @@ async def rest_api_app(event_loop):
 async def rest_api_client(rest_api_app) -> TestClient:
     async with AsyncClient(app=rest_api_app, base_url="http://localhost:8010") as client:
         yield client
-    #return TestClient(rest_api_app)
+    # return TestClient(rest_api_app)
 
 
 @pytest.fixture(scope="session")

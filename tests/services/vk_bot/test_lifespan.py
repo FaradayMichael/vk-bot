@@ -9,7 +9,7 @@ from services.vk_bot.service import VkBotService
 
 @pytest.mark.asyncio
 async def test_vk_client(conf: Config):
-    client = await VkClient.create(conf)
+    client = VkClient(conf)
     await asyncio.sleep(5)
     await client.close()
 

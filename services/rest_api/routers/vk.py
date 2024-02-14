@@ -25,7 +25,7 @@ async def api_send_message_vk(
         data: SendMessageInput,
         config: Config = Depends(get_conf)
 ) -> SendMessageResponse | JSONResponse:
-    client = await VkClient.create(config)
+    client = VkClient(config)
 
     attachments = []
     if data.message.attachments:
@@ -39,7 +39,7 @@ async def api_send_message_vk(
         text=data.message.text,
         attachment=','.join(attachments) if attachments else None
     )
-    await client.send_message(
+    await client.messages.send(
         data.peer_id,
         message
     )

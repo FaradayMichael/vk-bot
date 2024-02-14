@@ -33,7 +33,7 @@ class Message(BaseModel):
 
 
 class WallPost(BaseModel):
-    message: str = ''
+    message_text: str = ''
     attachments: str | None = None
 
 

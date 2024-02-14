@@ -130,8 +130,8 @@ class VkBotService:
     async def bot_listen(self):
         logger.info("Start listening")
         async for event in self.events_generator():
-            handler = self.handlers.get(event.type, None)
             logger.info(event.type)
+            handler = self.handlers.get(event.type, None)
             if handler:
                 await self.queue.put(Task(handler, self, event))
 
@@ -172,19 +172,19 @@ class VkBotService:
 
         peer_id, message = await fetch_message_data_func(*args, **kwargs)
 
-        await self.queue.put(Task(self.client.send_message, peer_id, message))
+        await self.queue.put(Task(self.client.messages.send, peer_id, message))
 
     async def allocate(self, notify: bool = True):
         logger.info("Allocate VkBot Service...")
         if not self.client:
-            self.client = await VkClient.create(self.config)
+            self.client = VkClient(self.config)
         if not self.long_pool:
             self.long_pool = VkBotLongPoll(
-                self.client.session,
+                self.client.session_group,
                 self.config.vk.main_group_id
             )
         if notify:
-            await self.client.send_message(
+            await self.client.messages.send(
                 peer_id=self.config.vk.main_user_id,
                 message=Message(text=f"Starting VkBot Service\nex: {self.ex}\ndebug: {self.config.debug}")
             )
@@ -208,7 +208,7 @@ class VkBotService:
             attachment = await redis.get(self.redis_conn, key)
             logger.info(f'from redis: {attachment=}')
             if not attachment:
-                attachment = await self.client.upload_doc_message(peer_id=peer_id, doc_path='static/test.gif')
+                attachment = await self.client.upload.doc_message(peer_id=peer_id, doc_path='static/test.gif')
                 await redis.set(self.redis_conn, key, {'value': attachment})
             else:
                 attachment = attachment['value']

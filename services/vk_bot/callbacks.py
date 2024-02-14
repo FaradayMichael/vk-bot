@@ -30,7 +30,7 @@ async def help_callback(service: VkBotService, event: VkBotMessageEvent):
     user_id = event.object['user_id']
     mes_id = event.object['conversation_message_id']
 
-    await service.client.delete_message(
+    await service.client.messages.delete(
         peer_id,
         cmids=[mes_id]
     )
@@ -39,12 +39,12 @@ async def help_callback(service: VkBotService, event: VkBotMessageEvent):
     attachment = await redis.get(service.redis_conn, key)
     logger.info(f'from redis: {attachment=}')
     if not attachment:
-        attachment = await service.client.upload_doc_message(peer_id=peer_id, doc_path='static/test2.gif')
+        attachment = await service.client.upload.doc_message(peer_id=peer_id, doc_path='static/test2.gif')
         await redis.set(service.redis_conn, key, {'value': attachment})
     else:
         attachment = attachment['value']
 
-    await service.client.send_message(
+    await service.client.messages.send(
         peer_id,
         message=Message(
             text=f"@id{user_id}",

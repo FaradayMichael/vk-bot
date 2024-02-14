@@ -16,22 +16,51 @@ from services.vk_bot.models import (
 )
 
 
-class VkClient:
+class BaseMethod:
     def __init__(
             self,
             config: Config,
-            session: VkApi,
-            upload: VkUpload,
-            user_session: VkApi,
-            user_upload: VkUpload
+            session_group: VkApi,
+            session_user: VkApi,
+            upload_group: VkUpload,
+            upload_user: VkUpload
     ):
         self.config: Config = config
-        self.session: VkApi = session
-        self.upload: VkUpload = upload
-        self.user_session = user_session
-        self.user_upload: VkUpload = user_upload
+        self.session_group: VkApi = session_group
+        self.session_user = session_user
+        self.upload_group: VkUpload = upload_group
+        self.upload_user: VkUpload = upload_user
 
-    async def send_message(
+    async def call_group(
+            self,
+            method: str,
+            values: dict | None = None,
+            **kwargs
+    ):
+        return await asyncio.to_thread(
+            self.session_group.method,
+            method,
+            values,
+            **kwargs
+        )
+
+    async def call_user(
+            self,
+            method: str,
+            values: dict | None = None,
+            **kwargs
+    ):
+        return await asyncio.to_thread(
+            self.session_user.method,
+            method,
+            values,
+            **kwargs
+        )
+
+
+class Messages(BaseMethod):
+
+    async def send(
             self,
             peer_id: int,
             message: Message,
@@ -40,7 +69,7 @@ class VkClient:
         if isinstance(keyboard, VkKeyboard):
             keyboard = keyboard.get_keyboard()
 
-        await self.call(
+        await self.call_group(
             "messages.send",
             dict(
                 message=message.text,
@@ -51,7 +80,7 @@ class VkClient:
             ),
         )
 
-    async def send_event_message(
+    async def send_event(
             self,
             event_id: str,
             user_id: int,
@@ -60,7 +89,7 @@ class VkClient:
     ):
         pass
 
-    async def delete_message(
+    async def delete(
             self,
             peer_id: int,
             message_ids: list[int] = None,
@@ -76,77 +105,34 @@ class VkClient:
         if cmids:
             data['cmids'] = ','.join([str(i) for i in cmids])
 
-        await self.call(
+        await self.call_group(
             "messages.delete",
             data
         )
 
-    async def wall_post(
+
+class Wall(BaseMethod):
+
+    async def post(
             self,
             post: WallPost,
             owner_id: int | None = None,
             from_group: bool = True,
-            delay: datetime.timedelta | None = None
+            post_time: datetime.datetime | None = None
     ):
         owner_id = owner_id if owner_id is not None else -self.config.vk.main_group_id
         await self.call_user(
             'wall.post',
             dict(
                 owner_id=owner_id,
-                message=post.message,
+                message=post.message_text,
                 attachments=post.attachments,
                 from_group=1 if from_group else 0,
-                publish_date=(datetime.datetime.now() + delay).timestamp() if delay else None
+                publish_date=post_time.timestamp() if post_time else None
             )
         )
 
-    async def upload_photos_message(
-            self,
-            peer_id: int,
-            photo_paths: list[str]
-    ) -> list[str]:  # list 'attachment' str
-        response = await asyncio.to_thread(
-            self.upload.photo_messages,
-            photo_paths,
-            peer_id
-        )
-        return [
-            f"photo{r['owner_id']}_{r['id']}_{r['access_key']}"
-            for r in response
-        ]
-
-    async def upload_doc_message(
-            self,
-            peer_id: int,
-            doc_path: str,
-            **kwargs
-    ):
-        response = await asyncio.to_thread(
-            self.upload.document_message,
-            doc_path,
-            peer_id=peer_id,
-            **kwargs
-        )
-        doc = response['doc']
-        return f"doc{doc['owner_id']}_{doc['id']}"
-
-    async def upload_photo_wall(
-            self,
-            photo_paths: list[str]
-    ) -> list[str]:  # list 'attachment' str
-        response = await asyncio.to_thread(
-            self.user_upload.photo_wall,
-            photo_paths,
-            self.config.vk.main_user_id,
-            self.config.vk.main_group_id,
-            None
-        )
-        return [
-            f"photo{r['owner_id']}_{r['id']}_{r['access_key']}"
-            for r in response
-        ]
-
-    async def get_posts(
+    async def get(
             self,
             type_filter: WallItemFilter | None = None
     ) -> list[WallItem]:
@@ -159,74 +145,108 @@ class VkClient:
         )
         return [WallItem.model_validate(i) for i in response['items']]
 
-    async def edit_post(
+    async def edit(
             self,
             post_id: int,
-            message_text: str = '',
-            attachments: str | None = None,
-            delay: datetime.timedelta | None = None
+            post: WallPost,
+            post_time: datetime.datetime | None = None
     ):
         await self.call_user(
             'wall.edit',
             dict(
                 owner_id=-self.config.vk.main_group_id,
                 post_id=post_id,
-                message=message_text,
-                attachments=attachments,
-                publish_date=(datetime.datetime.now() + delay).timestamp() if delay else None
+                message=post.message_text,
+                attachments=post.attachments,
+                publish_date=post_time.timestamp() if post_time else None
             )
         )
 
-    async def call(
+
+class Upload(BaseMethod):
+
+    async def photos_message(
             self,
-            method: str,
-            values: dict | None = None,
+            peer_id: int,
+            photo_paths: list[str]
+    ) -> list[str]:  # list 'attachment' str
+        response = await asyncio.to_thread(
+            self.upload_group.photo_messages,
+            photo_paths,
+            peer_id
+        )
+        return [
+            f"photo{r['owner_id']}_{r['id']}_{r['access_key']}"
+            for r in response
+        ]
+
+    async def doc_message(
+            self,
+            peer_id: int,
+            doc_path: str,
             **kwargs
     ):
-        return await asyncio.to_thread(
-            self.session.method,
-            method,
-            values,
+        response = await asyncio.to_thread(
+            self.upload_group.document_message,
+            doc_path,
+            peer_id=peer_id,
             **kwargs
         )
+        doc = response['doc']
+        return f"doc{doc['owner_id']}_{doc['id']}"
 
-    async def call_user(
+    async def photo_wall(
             self,
-            method: str,
-            values: dict | None = None,
-            **kwargs
-    ):
-        return await asyncio.to_thread(
-            self.user_session.method,
-            method,
-            values,
-            **kwargs
+            photo_paths: list[str]
+    ) -> list[str]:  # list 'attachment' str
+        response = await asyncio.to_thread(
+            self.upload_user.photo_wall,
+            photo_paths,
+            self.config.vk.main_user_id,
+            self.config.vk.main_group_id,
+            None
         )
+        return [
+            f"photo{r['owner_id']}_{r['id']}_{r['access_key']}"
+            for r in response
+        ]
 
-    @classmethod
-    async def create(
-            cls,
+
+class VkClient:
+    def __init__(
+            self,
             config: Config
-    ) -> "VkClient":
-        session = VkApi(token=config.vk.vk_token)
-        user_session = VkApi(token=config.vk.user_token)
-        upload = VkUpload(session)
-        user_upload = VkUpload(user_session)
-        return cls(config, session, upload, user_session, user_upload)
+    ):
+        self.config: Config = config
+        self.session_group: VkApi = VkApi(token=config.vk.vk_token)
+        self.session_user = VkApi(token=config.vk.user_token)
+        self.upload_group: VkUpload = VkUpload(self.session_group)
+        self.upload_user: VkUpload = VkUpload(self.session_user)
+
+        self.messages = Messages(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
+        self.wall = Wall(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
+        self.upload = Upload(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
 
     async def close(self):
-        if self.session:
-            await asyncio.to_thread(self.session.http.close)
-            self.session = None
+        if self.session_group:
+            await asyncio.to_thread(self.session_group.http.close)
+            self.session_group = None
 
-        if self.user_session:
-            await asyncio.to_thread(self.user_session.http.close)
-            self.user_session = None
+        if self.session_user:
+            await asyncio.to_thread(self.session_user.http.close)
+            self.session_user = None
 
+        if self.upload_group:
+            await asyncio.to_thread(self.upload_group.http.close)
+            self.upload_group = None
+
+        if self.upload_user:
+            await asyncio.to_thread(self.upload_user.http.close)
+            self.upload_user = None
+
+        if self.messages:
+            self.messages = None
+        if self.wall:
+            self.wall = None
         if self.upload:
-            await asyncio.to_thread(self.upload.http.close)
             self.upload = None
-
-        if self.user_upload:
-            await asyncio.to_thread(self.user_upload.http.close)
-            self.user_upload = None
