@@ -183,6 +183,10 @@ def get_photos_urls_from_message(
                     result += get_photos_urls_from_message(
                         attachments=i.wall.attachments
                     )
+                case 'doc':
+                    if i.doc.preview and i.doc.preview.photo:
+                        max_img = extract_max_size_img(i.doc.preview.photo.sizes)
+                        result.append(max_img.src)
                 case _:
                     logger.info(f"Unsupported attachment media: {i}")
     return result

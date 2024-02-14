@@ -12,6 +12,7 @@ class PhotoSize(BaseModel):
     width: int = 0
     type: str = ''
     url: str = ''
+    src: str = ''
 
 
 class PhotoAttachment(BaseModel):
@@ -38,6 +39,19 @@ class VideoAttachment(BaseModel):
     image: list[PhotoSize] = []
 
 
+class DocPreview(BaseModel):
+    photo: PhotoAttachment | None = None
+
+
+class DocAttachment(BaseModel):
+    access_key: str = ''
+    date: int = 0
+    ext: str = ''
+    id: int = 0
+    owner_id: int = 0
+    preview: DocPreview | None = None
+
+
 class WallAttachment(BaseModel):
     attachments: list["VkMessageAttachment"] = []
 
@@ -47,7 +61,7 @@ class VkMessageAttachment(BaseModel):
     photo: PhotoAttachment | None = None
     video: VideoAttachment | None = None
     wall: WallAttachment | None = None
-    doc: Any | None = None
+    doc: DocAttachment | None = None
 
 
 class VkMessage(BaseModel):
