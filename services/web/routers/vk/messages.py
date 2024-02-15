@@ -13,7 +13,9 @@ from fastapi.responses import (
 from jinja2 import Environment
 
 from business_logic.vk import file_to_vk_attachment
-
+from db import (
+    know_ids as know_ids_db
+)
 from misc.config import Config
 from misc.db import Connection
 from misc.depends.db import (
@@ -42,11 +44,13 @@ async def vk_messages_view(
         request: Request,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
-        # conn: Connection = Depends(get_conn)
+        conn: Connection = Depends(get_conn)
 ):
+    know_ids = await know_ids_db.get_all(conn)
     return jinja.get_template('vk/messages.html').render(
         user=session.user,
-        request=request
+        request=request,
+        know_ids=know_ids
     )
 
 

@@ -16,4 +16,21 @@
     </div>
     <button type="submit" class="btn btn-primary">Send</button>
 </form>
+<h1>Know Ids</h1>
+<table id="dtBasicExample" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+    <thead>
+    <tr>
+        <th class="th-sm">Id</th>
+        <th class="th-sm">Name</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for k_i in know_ids %}
+    <tr>
+        <td>{{k_i.id}}</td>
+        <td>{{k_i.name}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
 {% endblock %}

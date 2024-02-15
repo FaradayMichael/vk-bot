@@ -7,7 +7,8 @@ from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
 
 from db import (
-    triggers_answers as triggers_answers_db
+    triggers_answers as triggers_answers_db,
+    know_ids as know_ids_db
 )
 from business_logic.vk import (
     parse_image_tags,
@@ -97,10 +98,12 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         ))
         if answers:
             answer: AnswerBase = random.choice(answers)
+            know_id = await know_ids_db.get(conn, from_id)
+            know_id_place = f"({know_id.name})" if know_id else ''
             await service.client.messages.send(
                 peer_id=peer_id,
                 message=Message(
-                    text=f"{f'@id{from_id} ' if from_chat else ''} {answer.answer}",
+                    text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {answer.answer}",
                     attachment=answer.attachment
                 )
             )
