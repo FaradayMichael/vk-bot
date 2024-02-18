@@ -16,10 +16,12 @@ from bs4 import BeautifulSoup
 from misc.vk_client import VkClient
 from models.images import ImageTags
 from models.vk import (
-    AttachmentInput,
     AttachmentType,
-    WallPost,
-    Message
+    Message,
+    WallPost
+)
+from models.vk.io import (
+    AttachmentInput
 )
 from services.vk_bot.models import WallItemFilter
 

@@ -8,8 +8,13 @@ from typing import (
     Coroutine
 )
 
+from aiokafka import (
+    AIOKafkaConsumer,
+    ConsumerRecord
+)
 import croniter as croniter
 from asyncpg import Pool
+from pydantic import ValidationError
 from redis.asyncio import Redis
 
 from vk_api.bot_longpoll import (
@@ -17,6 +22,9 @@ from vk_api.bot_longpoll import (
     VkBotEventType
 )
 
+from business_logic import (
+    vk as vk_bl
+)
 from db import (
     tasks as tasks_db
 )
@@ -26,8 +34,10 @@ from misc import (
 )
 
 from misc.config import Config
+from misc.files import TempBase64File
 from misc.vk_client import VkClient
 from models.vk import Message
+from .models import KafkaMessage
 from .task import Task
 
 logger = logging.getLogger(__name__)
@@ -174,6 +184,38 @@ class VkBotService:
 
         await self.queue.put(Task(self.client.messages.send, peer_id, message))
 
+    async def listen_kafka(
+            self
+    ):
+        consumer = AIOKafkaConsumer(
+            *self.config.kafka.topics,
+            bootstrap_servers=self.config.kafka.bootstrap_servers,
+            loop=self.loop
+        )
+        await consumer.start()
+        logger.info("Kafka consumer started")
+        try:
+            async for msg in consumer:
+                msg: ConsumerRecord
+                logger.info(msg.key)
+                try:
+                    model = KafkaMessage.model_validate_json(msg.value)
+                    async with TempBase64File(model.base64) as tmp:
+                        attachments = await self.client.upload.photo_wall([tmp])
+                    await self.queue.put(
+                        Task(
+                            vk_bl.post_in_group_wall,
+                            self.client,
+                            attachments=attachments
+                        )
+                    )
+                except ValidationError as e:
+                    logger.exception(e)
+        except Exception as e:
+            logger.exception(e)
+            await consumer.stop()
+            raise
+
     async def allocate(self, notify: bool = True):
         logger.info("Allocate VkBot Service...")
         if not self.client:
@@ -234,8 +276,8 @@ class VkBotService:
                     from_dt=now - datetime.timedelta(days=1),
                     to_dt=now
                 )
-            text = f"Daily notify.\n"\
-                   f"service ex: {self.ex}\n"\
+            text = f"Daily notify.\n" \
+                   f"service ex: {self.ex}\n" \
                    f"tasks: {len(tasks)} with ex: {len([t for t in tasks if t.errors])}"
             self.ex = []
             return self.config.vk.main_user_id, Message(
@@ -247,6 +289,12 @@ class VkBotService:
                 func=self.send_on_schedule,
                 cron="0 6 * * *",
                 fetch_message_data_func=_get_daily_statistic_message_data
+            )
+        )
+
+        self.start_background_task(
+            coro=self.base_background_task(
+                func=self.listen_kafka
             )
         )
 

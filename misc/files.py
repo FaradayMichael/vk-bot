@@ -2,18 +2,26 @@ import asyncio
 import logging
 import os
 import uuid
+from typing import Any
 
 import aiohttp
 from fastapi import UploadFile
 
+from misc.dataurl import DataURL
+
 logger = logging.getLogger(__name__)
+
+url_alias = str
 
 
 class TempFileBase:
 
     def __init__(
-            self
+            self,
+            file_obj: Any
     ):
+        self.file_obj = file_obj
+
         self.filepath = None
 
     async def __aenter__(self) -> str:
@@ -32,15 +40,13 @@ class TempFileBase:
 
 class TempUploadFile(TempFileBase):
 
-    def __init__(self, file: UploadFile):
-        super().__init__()
-        self.file = file
-        self.filepath = None
+    def __init__(self, file_obj: UploadFile):
+        super().__init__(file_obj)
 
     async def __aenter__(self) -> str:
-        self.filepath = f"static/{uuid.uuid4().hex}_{self.file.filename}"
+        self.filepath = f"static/{uuid.uuid4().hex}_{self.file_obj.filename}"
         with open(self.filepath, 'wb') as f:
-            data = await self.file.read()
+            data = await self.file_obj.read()
             await asyncio.to_thread(
                 f.write,
                 data
@@ -50,13 +56,29 @@ class TempUploadFile(TempFileBase):
 
 class TempUrlFile(TempFileBase):
 
-    def __init__(self, url: str):
-        super().__init__()
-        self.url = url
-        self.filepath = None
+    def __init__(self, file_obj: url_alias):
+        super().__init__(file_obj)
 
     async def __aenter__(self) -> str:
-        self.filepath = await download_file(self.url, folder='static', basename=uuid.uuid4().hex)
+        self.filepath = await download_file(self.file_obj, folder='static', basename=uuid.uuid4().hex)
+        return self.filepath
+
+
+class TempBase64File(TempFileBase):
+
+    def __init__(
+            self,
+            file_obj: DataURL,
+    ):
+        super().__init__(file_obj)
+
+    async def __aenter__(self) -> str:
+        self.filepath = f"static/{uuid.uuid4().hex}.{self.file_obj.ext()}"
+        with open(self.filepath, 'wb') as f:
+            await asyncio.to_thread(
+                f.write,
+                self.file_obj.data
+            )
         return self.filepath
 
 

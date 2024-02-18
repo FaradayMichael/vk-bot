@@ -6,6 +6,8 @@ from pydantic import (
     model_validator
 )
 
+from misc.dataurl import DataURL
+
 
 class PhotoSize(BaseModel):
     height: int = 0
@@ -85,3 +87,7 @@ class WallItem(BaseModel):
     id: int
     text: str = ''
     post_source: dict | None = None
+
+
+class KafkaMessage(BaseModel):
+    base64: DataURL

@@ -42,6 +42,11 @@ class VkConfig(BaseModel):
     main_group_id: int
 
 
+class KafkaConfig(BaseModel):
+    bootstrap_servers: str
+    topics: list[str]
+
+
 class Config(BaseModel):
     debug: bool = False
     salt: str
@@ -51,6 +56,7 @@ class Config(BaseModel):
     folders: FoldersConfig
     static_url: str = '/media'
     vk: VkConfig
+    kafka: KafkaConfig
 
 
 def read_config(path: str) -> Config:
