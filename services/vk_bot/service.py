@@ -36,7 +36,7 @@ from misc import (
 from misc.config import Config
 from misc.files import TempBase64File
 from misc.vk_client import VkClient
-from models.vk import Message
+from models.vk import Message, AttachmentType
 from .models import KafkaMessage
 from .task import Task
 
@@ -187,19 +187,26 @@ class VkBotService:
     async def listen_kafka(
             self
     ):
-        consumer = AIOKafkaConsumer(
-            *self.config.kafka.topics,
-            bootstrap_servers=self.config.kafka.bootstrap_servers,
-            loop=self.loop
-        )
-        await consumer.start()
-        logger.info("Kafka consumer started")
+        consumer = None
         try:
+            consumer = AIOKafkaConsumer(
+                *self.config.kafka.topics,
+                bootstrap_servers=self.config.kafka.bootstrap_servers,
+                loop=self.loop
+            )
+            await consumer.start()
+            logger.info("Kafka consumer started")
+
             async for msg in consumer:
                 msg: ConsumerRecord
                 logger.info(msg.key)
                 try:
                     model = KafkaMessage.model_validate_json(msg.value)
+
+                    if AttachmentType.by_content_type(model.base64.mimetype) is not AttachmentType.PHOTO:
+                        logger.info(f"Unsupported media type: {model.base64.mimetype}")
+                        continue
+
                     async with TempBase64File(model.base64) as tmp:
                         attachments = await self.client.upload.photo_wall([tmp])
                     await self.queue.put(
@@ -213,7 +220,11 @@ class VkBotService:
                     logger.exception(e)
         except Exception as e:
             logger.exception(e)
-            await consumer.stop()
+            if consumer:
+                await consumer.stop()
+                consumer = None
+            await asyncio.sleep(30)
+
             raise
 
     async def allocate(self, notify: bool = True):
