@@ -53,7 +53,7 @@ class VkBotService:
         self.redis_conn: Redis = redis_conn
 
         self.stopping: bool = False
-        self.timeout = 60
+        self.timeout = config.vk.timeout
         self.ex: list[Exception] = []
         self.queue: asyncio.Queue = asyncio.Queue()
         self.background_tasks: list[asyncio.Task] = []
