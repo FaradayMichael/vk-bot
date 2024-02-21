@@ -1,7 +1,16 @@
 import asyncio
 import datetime
+from typing import AsyncIterable
 
-from vk_api import VkApi, VkUpload
+from vk_api import (
+    VkApi,
+    VkUpload,
+    VkApiError
+)
+from vk_api.bot_longpoll import (
+    VkBotLongPoll,
+    VkBotEvent
+)
 from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 
@@ -217,31 +226,50 @@ class VkClient:
             self,
             config: Config
     ):
+        self.stopping = False
+
         self.config: Config = config
         self.session_group: VkApi = VkApi(token=config.vk.vk_token)
         self.session_user = VkApi(token=config.vk.user_token)
         self.upload_group: VkUpload = VkUpload(self.session_group)
         self.upload_user: VkUpload = VkUpload(self.session_user)
+        self.bot_long_pool: VkBotLongPoll = VkBotLongPoll(self.session_group, self.config.vk.main_group_id)
 
         self.messages = Messages(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
         self.wall = Wall(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
         self.upload = Upload(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
 
+    async def events_generator(self) -> AsyncIterable[VkBotEvent]:
+        while not self.stopping:
+            try:
+                for event in await asyncio.to_thread(self.bot_long_pool.check):
+                    yield event
+            except VkApiError:
+                raise
+            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                break
+
     async def close(self):
+        self.stopping = True
+
+        if self.bot_long_pool:
+            self.bot_long_pool.session.close()
+            self.bot_long_pool = None
+
         if self.session_group:
-            await asyncio.to_thread(self.session_group.http.close)
+            self.session_group.http.close()
             self.session_group = None
 
         if self.session_user:
-            await asyncio.to_thread(self.session_user.http.close)
+            self.session_user.http.close()
             self.session_user = None
 
         if self.upload_group:
-            await asyncio.to_thread(self.upload_group.http.close)
+            self.upload_group.http.close()
             self.upload_group = None
 
         if self.upload_user:
-            await asyncio.to_thread(self.upload_user.http.close)
+            self.upload_user.http.close()
             self.upload_user = None
 
         if self.messages:

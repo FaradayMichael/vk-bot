@@ -9,7 +9,6 @@ from vk_api.bot_longpoll import VkBotEvent
 from db import tasks as tasks_db
 from models.vk_tasks import VkTask
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,17 +24,17 @@ class Task:
         self.method: Callable = method
         self.args: tuple = args
         self.kwargs: dict = kwargs
-        self.errors: list[Exception] | None = None
+        self.errors: list[Exception] = []
 
         self.created: datetime.datetime = datetime.datetime.now()
         self.started: datetime.datetime | None = None
         self.done: datetime.datetime | None = None
 
-    def __await__(self):
+    async def execute(self):
         self.tries += 1
         if self.started is None:
             self.started = datetime.datetime.now()
-        return self.method(*self.args, **self.kwargs).__await__()
+        return await self.method(*self.args, **self.kwargs)
 
     @property
     def dict(self) -> dict:
@@ -66,11 +65,3 @@ class Task:
     @property
     def model(self) -> VkTask:
         return VkTask.model_validate(self.dict)
-
-    async def save(self, db_pool: Pool):
-        self.done = datetime.datetime.now()
-        async with db_pool.acquire() as conn:
-            try:
-                await tasks_db.create(conn, self.model)
-            except Exception as ex:
-                logger.info(f'Saving task {self.uuid} failed with {ex=}')

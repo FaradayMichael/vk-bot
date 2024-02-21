@@ -39,7 +39,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     async def on_command(command: str) -> bool:
 
         async def on_help():
-            await service.client.messages.send(
+            await service.client_vk.messages.send(
                 peer_id=peer_id,
                 message=Message(
                     text=f"{f'@id{from_id} ' if from_chat else ''} help"
@@ -74,7 +74,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     tags_models = await parse_attachments_tags(message_model.attachments)
     logger.info(f"{tags_models=}")
     if tags_models:
-        await service.client.messages.send(
+        await service.client_vk.messages.send(
             peer_id=peer_id,
             message=Message(
                 text='\n\n'.join(
@@ -100,7 +100,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             answer: AnswerBase = random.choice(answers)
             know_id = await know_ids_db.get(conn, from_id)
             know_id_place = f"({know_id.name})" if know_id else ''
-            await service.client.messages.send(
+            await service.client_vk.messages.send(
                 peer_id=peer_id,
                 message=Message(
                     text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {answer.answer}",
@@ -114,12 +114,12 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         if a.type == 'photo' and a.photo:
             url = a.photo.sizes[0].url
             async with TempUrlFile(url) as tmp:
-                photo_attachments_from_msg += await service.client.upload.photo_wall(
+                photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
                     [tmp]
                 )
     if photo_attachments_from_msg:
         await post_in_group_wall(
-            service.client,
+            service.client_vk,
             message_text='',
             attachments=photo_attachments_from_msg,
             mode=GroupPostMode.COMPILE_9,
