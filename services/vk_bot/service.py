@@ -4,16 +4,18 @@ import logging
 from asyncio import AbstractEventLoop
 from typing import (
     Callable,
-    Coroutine
+    Coroutine,
+    Any,
+    Awaitable
 )
 
+import croniter as croniter
 from aiokafka import (
     AIOKafkaConsumer,
     ConsumerRecord
 )
 from aiokafka.errors import KafkaError
 from asyncpg import Pool
-import croniter as croniter
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from vk_api.bot_longpoll import (
@@ -152,38 +154,6 @@ class VkBotService:
             except Exception as ex:
                 logger.info(f'Saving task {task.uuid} failed with {ex=}')
 
-    async def base_background_task(
-            self,
-            func: Callable,
-            *args,
-            **kwargs,
-    ):
-        while not self.stopping:
-            try:
-                await func(*args, **kwargs)
-            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                break
-            except Exception as e:
-                logger.exception(e)
-                self.ex.append(e)
-
-    async def send_on_schedule(
-            self,
-            cron: str,
-            fetch_message_data_func: Callable,
-            *args,
-            **kwargs
-    ):
-        now = datetime.datetime.now()
-        nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
-        sleep = (nxt - now).total_seconds()
-        logger.info(f"Schedule {sleep=} {fetch_message_data_func=}")
-        await asyncio.sleep(sleep)
-
-        peer_id, message = await fetch_message_data_func(*args, **kwargs)
-
-        await self.queue.put(Task(self.client_vk.messages.send, peer_id, message))
-
     async def listen_kafka(self):
 
         async def handle_message(message: KafkaMessage):
@@ -251,6 +221,43 @@ class VkBotService:
             await self.client_vk.close()
             self.client_vk = None
 
+    async def send_on_schedule(
+            self,
+            cron: str,
+
+            peer_id: int | None = None,
+            message: Message | None = None,
+
+            fetch_message_data_func: Callable[[Any | None], Awaitable[tuple[int, Message]]] | None = None,
+            args: tuple = (),
+            kwargs: dict | None = None
+    ):
+        if kwargs is None:
+            kwargs = {}
+
+        while not self.stopping:
+            try:
+                if (peer_id is None or message is None) and fetch_message_data_func is None:
+                    raise ValueError("One of (peer_id, message) or fetch_message_data_func is required")
+
+                now = datetime.datetime.now()
+                nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
+                sleep = (nxt - now).total_seconds()
+                logger.info(f"Schedule {sleep=} {fetch_message_data_func=}")
+                await asyncio.sleep(sleep)
+
+                peer_id, message = await fetch_message_data_func(
+                    *args, **kwargs
+                ) if fetch_message_data_func else peer_id, message
+
+                await self.queue.put(Task(self.client_vk.messages.send, peer_id, message))
+            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                break
+            except Exception as e:
+                logger.exception(e)
+                self.ex.append(e)
+                await asyncio.sleep(300)
+
     def init_background_tasks(self):
         self.start_background_task(
             coro=self.main_task()
@@ -271,15 +278,14 @@ class VkBotService:
             )
 
         self.start_background_task(
-            coro=self.base_background_task(
-                func=self.send_on_schedule,
+            coro=self.send_on_schedule(
                 cron="0 9 * * 2",
                 fetch_message_data_func=_get_weekly_message_data,
-                peer_id=2000000003
+                args=(2000000003,)
             )
         )
 
-        async def _get_daily_statistic_message_data() -> tuple[int, Message]:
+        async def _get_daily_statistic_message_data(peer_id: int) -> tuple[int, Message]:
             now = datetime.datetime.now()
             async with self.db_pool.acquire() as conn:
                 tasks = await tasks_db.get_list(
@@ -291,15 +297,15 @@ class VkBotService:
                    f"service ex: {self.ex}\n" \
                    f"tasks: {len(tasks)} with ex: {len([t for t in tasks if t.errors])}"
             self.ex = []
-            return self.config.vk.main_user_id, Message(
+            return peer_id, Message(
                 text=text
             )
 
         self.start_background_task(
-            coro=self.base_background_task(
-                func=self.send_on_schedule,
+            coro=self.send_on_schedule(
                 cron="0 6 * * *",
-                fetch_message_data_func=_get_daily_statistic_message_data
+                fetch_message_data_func=_get_daily_statistic_message_data,
+                args=(self.config.vk.main_user_id,)
             )
         )
 

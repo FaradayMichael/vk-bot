@@ -109,22 +109,23 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             )
 
     # Posting on group wall
-    photo_attachments_from_msg = []
-    for a in message_model.attachments:
-        if a.type == 'photo' and a.photo:
-            url = a.photo.sizes[0].url
-            async with TempUrlFile(url) as tmp:
-                photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
-                    [tmp]
-                )
-    if photo_attachments_from_msg:
-        await post_in_group_wall(
-            service.client_vk,
-            message_text='',
-            attachments=photo_attachments_from_msg,
-            mode=GroupPostMode.COMPILE_9,
-            notify=True
-        )
+    if from_chat and peer_id == 2000000001:
+        photo_attachments_from_msg = []
+        for a in message_model.attachments:
+            if a.type == 'photo' and a.photo:
+                url = a.photo.sizes[0].url
+                async with TempUrlFile(url) as tmp:
+                    photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
+                        [tmp]
+                    )
+        if photo_attachments_from_msg:
+            await post_in_group_wall(
+                service.client_vk,
+                message_text='',
+                attachments=photo_attachments_from_msg,
+                mode=GroupPostMode.COMPILE_9,
+                notify=True
+            )
 
 
 async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
