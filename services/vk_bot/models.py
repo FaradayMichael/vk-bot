@@ -90,4 +90,4 @@ class WallItem(BaseModel):
 
 
 class KafkaMessage(BaseModel):
-    base64: DataURL
+    base64: DataURL | None = None

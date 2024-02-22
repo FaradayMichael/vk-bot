@@ -11,8 +11,9 @@ from aiokafka import (
     AIOKafkaConsumer,
     ConsumerRecord
 )
-import croniter as croniter
+from aiokafka.errors import KafkaError
 from asyncpg import Pool
+import croniter as croniter
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from vk_api.bot_longpoll import (
@@ -55,6 +56,7 @@ class VkBotService:
         self.stopping: bool = False
         self.timeout = config.vk.timeout
         self.ex: list[Exception] = []
+        self.last_ex: Exception | None = None
         self.queue: asyncio.Queue = asyncio.Queue()
         self.background_tasks: list[asyncio.Task] = []
 
@@ -98,6 +100,7 @@ class VkBotService:
                 break
             except Exception as e:
                 logger.exception(e)
+                self.last_ex = e
                 self.ex.append(e)
 
                 for task in _tasks:
@@ -181,48 +184,56 @@ class VkBotService:
 
         await self.queue.put(Task(self.client_vk.messages.send, peer_id, message))
 
-    async def listen_kafka(
-            self
-    ):
-        consumer = None
-        try:
+    async def listen_kafka(self):
+
+        async def handle_message(message: KafkaMessage):
+            if message.base64:
+                if AttachmentType.by_content_type(message.base64.mimetype) is not AttachmentType.PHOTO:
+                    logger.info(f"Unsupported media type: {message.base64.mimetype}")
+                    return
+
+                async with TempBase64File(message.base64) as tmp:
+                    attachments = await self.client_vk.upload.photo_wall([tmp])
+                await self.queue.put(
+                    Task(
+                        vk_bl.post_in_group_wall,
+                        self.client_vk,
+                        attachments=attachments
+                    )
+                )
+
+        logger.info("Kafka listener started")
+        while not self.stopping:
             consumer = AIOKafkaConsumer(
                 *self.config.kafka.topics,
                 bootstrap_servers=self.config.kafka.bootstrap_servers,
-                loop=self.loop
+                loop=self.loop,
             )
-            await consumer.start()
-            logger.info("Kafka consumer started")
 
-            async for msg in consumer:
-                msg: ConsumerRecord
-                logger.info(msg.key)
-                try:
-                    model = KafkaMessage.model_validate_json(msg.value)
+            try:
+                await consumer.start()
+                logger.info("Kafka consumer started")
 
-                    if AttachmentType.by_content_type(model.base64.mimetype) is not AttachmentType.PHOTO:
-                        logger.info(f"Unsupported media type: {model.base64.mimetype}")
+                async for msg in consumer:
+                    msg: ConsumerRecord
+                    logger.info(f"{msg.key=} {msg.topic=}")
+
+                    try:
+                        model = KafkaMessage.model_validate_json(msg.value)
+                    except ValidationError as e:
+                        logger.error(f"Invalid message value: {e}")
                         continue
 
-                    async with TempBase64File(model.base64) as tmp:
-                        attachments = await self.client_vk.upload.photo_wall([tmp])
-                    await self.queue.put(
-                        Task(
-                            vk_bl.post_in_group_wall,
-                            self.client_vk,
-                            attachments=attachments
-                        )
-                    )
-                except ValidationError as e:
-                    logger.exception(e)
-        except Exception as e:
-            logger.exception(e)
-            if consumer:
-                await consumer.stop()
-                consumer = None
-            await asyncio.sleep(30)
+                    await handle_message(model)
 
-            raise
+            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                break
+            except KafkaError as e:
+                logger.error(e)
+                await asyncio.sleep(30)
+            finally:
+                await consumer.stop()
+                logger.info("Kafka consumer stopped")
 
     async def allocate_vk(self, notify: bool = True):
         logger.info("Allocate VkBot Service...")
@@ -231,9 +242,9 @@ class VkBotService:
         if notify:
             await self.client_vk.messages.send(
                 peer_id=self.config.vk.main_user_id,
-                message=Message(text=f"Starting VkBot Service\nex: {self.ex}\ndebug: {self.config.debug}")
+                message=Message(text=f"Starting VkBot Service\nex: {self.last_ex}\ndebug: {self.config.debug}")
             )
-            self.ex = []
+            self.last_ex = None
 
     async def release_vk(self):
         if self.client_vk:
@@ -293,9 +304,7 @@ class VkBotService:
         )
 
         self.start_background_task(
-            coro=self.base_background_task(
-                func=self.listen_kafka
-            )
+            coro=self.listen_kafka()
         )
 
     def start_background_task(
@@ -335,8 +344,6 @@ class VkBotService:
 
         for task in self.background_tasks:
             task.cancel()
-        if self.background_tasks:
-            await asyncio.wait(self.background_tasks)
         self.background_tasks = []
 
         self.handlers_vk = {}
