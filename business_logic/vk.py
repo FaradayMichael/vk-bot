@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class GroupPostMode(StrEnum):
-    COMPILE_9 = 'compile_post'
+    COMPILE_9 = 'compile_9'
     INSTANT = 'instant'
 
 

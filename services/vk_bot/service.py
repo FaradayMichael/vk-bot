@@ -248,7 +248,7 @@ class VkBotService:
 
                 peer_id, message = await fetch_message_data_func(
                     *args, **kwargs
-                ) if fetch_message_data_func else peer_id, message
+                ) if fetch_message_data_func else (peer_id, message)
 
                 await self.queue.put(Task(self.client_vk.messages.send, peer_id, message))
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
@@ -303,7 +303,7 @@ class VkBotService:
 
         self.start_background_task(
             coro=self.send_on_schedule(
-                cron="0 6 * * *",
+                cron="15 9 * * *",
                 fetch_message_data_func=_get_daily_statistic_message_data,
                 args=(self.config.vk.main_user_id,)
             )
