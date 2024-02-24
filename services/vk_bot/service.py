@@ -46,14 +46,12 @@ class VkBotService:
     def __init__(
             self,
             loop: AbstractEventLoop,
-            config: Config,
-            db_pool: Pool,
-            redis_conn: Redis
+            config: Config
     ):
         self.loop: AbstractEventLoop = loop
         self.config: Config = config
-        self.db_pool: Pool = db_pool
-        self.redis_conn: Redis = redis_conn
+        self.db_pool: Pool | None = None
+        self.redis_conn: Redis | None = None
 
         self.stopping: bool = False
         self.timeout = config.vk.timeout
@@ -71,16 +69,18 @@ class VkBotService:
             loop: AbstractEventLoop,
             config: Config
     ) -> "VkBotService":
-        db_pool = await db.init(config.db)
-        redis_conn = await redis.init(config.redis)
-        return VkBotService(loop, config, db_pool, redis_conn)
+        instance = VkBotService(loop, config)
+        await instance.init()
+        return instance
+
+    async def init(self):
+        self.db_pool = await db.init(self.config.db)
+        self.redis_conn = await redis.init(self.config.redis)
+        self.register_handlers_vk()
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
         await self.allocate_vk(notify=False)
-
-        self.register_handlers_vk()
-
         self.init_background_tasks()
 
     async def main_task(self):
@@ -303,7 +303,7 @@ class VkBotService:
 
         self.start_background_task(
             coro=self.send_on_schedule(
-                cron="15 9 * * *",
+                cron="0 6 * * *",
                 fetch_message_data_func=_get_daily_statistic_message_data,
                 args=(self.config.vk.main_user_id,)
             )
