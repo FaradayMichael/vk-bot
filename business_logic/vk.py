@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import os
+import random
 import uuid
 from enum import StrEnum
 from urllib.parse import (
@@ -158,7 +159,7 @@ async def post_in_group_wall(
             logger.info(f'Create new post {post_model} compile')
             await client.wall.post(
                 post=post_model,
-                post_time=datetime.datetime.now() + datetime.timedelta(days=2)
+                post_time=randomize_time(datetime.datetime.now() + datetime.timedelta(days=2))
             )
         else:
             available_posts.sort(key=lambda x: len(x.attachments), reverse=True)
@@ -174,7 +175,9 @@ async def post_in_group_wall(
             await client.wall.edit(
                 post_id=post.id,
                 post=post_model,
-                post_time=datetime.datetime.now() + datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
+                post_time=randomize_time(
+                    datetime.datetime.now() + datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
+                )
             )
             if len(post_attachments) >= 9:
                 logger.info(f"{post.id=} ready to publish")
@@ -189,7 +192,16 @@ async def post_in_group_wall(
         logger.info(f'Create new post {post_model} instant')
         await client.wall.post(
             post=post_model,
-            post_time=datetime.datetime.now() + datetime.timedelta(days=2)
+            post_time=randomize_time(datetime.datetime.now() + datetime.timedelta(days=2))
         )
     else:
         return None
+
+
+def randomize_time(
+        dt: datetime.datetime,
+        delta: datetime.timedelta = datetime.timedelta(minutes=600)
+) -> datetime.datetime:
+    delta_seconds = int(delta.total_seconds())
+    rand_seconds = random.randint(-delta_seconds, delta_seconds)
+    return dt + datetime.timedelta(seconds=rand_seconds)
