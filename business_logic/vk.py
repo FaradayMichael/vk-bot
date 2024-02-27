@@ -127,6 +127,27 @@ async def parse_image_tags(
         if desc:
             result.description = desc.text
 
+        products = soup.find_all("li", {"class": "CbirMarketProducts-Item CbirMarketProducts-Item_type_product"})
+        if products:
+            for p in products:
+                try:
+                    price = p.find('span', {"class": "Price-Value"}).get_text()
+                    link = p.find('a').get('href', None)
+                    if "http" not in link:
+                        if "market.yandex" in link:
+                            link = f"https:{link}"
+                        elif "products/product" in link:
+                            link = f"https://yandex.ru{link}"
+                        else:
+                            continue
+                    if price and link:
+                        result.products_data.append(
+                            f"{price} - {link}"
+                        )
+                except Exception as e:
+                    logger.exception(e)
+                    continue
+
         if result.tags:
             break
         await asyncio.sleep(3)

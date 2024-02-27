@@ -79,7 +79,10 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             message=Message(
                 text='\n\n'.join(
                     [
-                        f'tags: {i.tags_text}{backslash_n + i.description if i.description else ""}'
+                        f'''tags: {i.tags_text}
+                        {i.description if i.description else ""}
+                        {i.products_data_text if i.products_data else ''}
+                        '''
                         for i in tags_models
                     ]
                 )

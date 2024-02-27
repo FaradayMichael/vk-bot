@@ -37,7 +37,11 @@ from misc.files import TempBase64File
 from misc.vk_client import VkClient
 from models.vk import Message, AttachmentType
 from .models import KafkaMessage
-from .task import Task
+from .task import (
+    Task,
+    save_task,
+    execute_task
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,21 +120,31 @@ class VkBotService:
         logging.info(f'Starting VkBot worker')
         while not self.stopping:
             task: Task = await self.queue.get()
+
             if not isinstance(task, Task):
                 logger.info(f"Invalid task: {task}")
                 continue
+
             try:
-                await task.execute()
-                await self.save_task(task)
+                await self.handle_task(task)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
-            except Exception as e:
-                task.errors.append(e)
-                if task.tries <= 3:
-                    await self.queue.put(task)
-                else:
-                    await self.save_task(task)
+            except Exception:
                 raise
+
+    async def handle_task(self, task: Task):
+        try:
+            await execute_task(task)
+            await save_task(self.db_pool, task)
+        except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+            raise
+        except Exception as e:
+            task.errors.append(e)
+            if task.tries <= 3:
+                await self.queue.put(task)
+            else:
+                await save_task(self.db_pool, task)
+            raise
 
     async def listen_vk(self):
         logger.info("Start listening vk")
@@ -145,14 +159,6 @@ class VkBotService:
                 return
             except Exception:
                 raise
-
-    async def save_task(self, task: Task):
-        task.done = datetime.datetime.now()
-        async with self.db_pool.acquire() as conn:
-            try:
-                await tasks_db.create(conn, task.model)
-            except Exception as ex:
-                logger.info(f'Saving task {task.uuid} failed with {ex=}')
 
     async def listen_kafka(self):
 

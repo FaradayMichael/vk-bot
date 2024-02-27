@@ -1,9 +1,9 @@
 import datetime
 import logging
 import uuid
-from typing import Callable
+from typing import Callable, Any
 
-from asyncpg import Pool
+import asyncpg
 from vk_api.bot_longpoll import VkBotEvent
 
 from db import tasks as tasks_db
@@ -29,12 +29,6 @@ class Task:
         self.created: datetime.datetime = datetime.datetime.now()
         self.started: datetime.datetime | None = None
         self.done: datetime.datetime | None = None
-
-    async def execute(self):
-        self.tries += 1
-        if self.started is None:
-            self.started = datetime.datetime.now()
-        return await self.method(*self.args, **self.kwargs)
 
     @property
     def dict(self) -> dict:
@@ -65,3 +59,21 @@ class Task:
     @property
     def model(self) -> VkTask:
         return VkTask.model_validate(self.dict)
+
+
+async def execute_task(task: Task) -> Any | None:
+    task.tries += 1
+    if task.started is None:
+        task.started = datetime.datetime.now()
+    return await task.method(*task.args, **task.kwargs)
+
+
+async def save_task(
+        conn: asyncpg.Connection | asyncpg.Pool,
+        task: Task
+) -> VkTask:
+    task.done = datetime.datetime.now()
+    try:
+        return await tasks_db.create(conn, task.model)
+    except Exception as ex:
+        logger.info(f'Saving task {task.uuid} failed with {ex=}')
