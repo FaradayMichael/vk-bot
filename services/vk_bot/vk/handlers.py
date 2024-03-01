@@ -12,7 +12,8 @@ from db import (
 )
 from business_logic.vk import (
     parse_image_tags,
-    post_in_group_wall, GroupPostMode
+    post_in_group_wall,
+    GroupPostMode
 )
 from misc.files import TempUrlFile
 from models.images import (
@@ -23,12 +24,12 @@ from models.vk import (
     Message
 )
 from . import callbacks
-from .models import (
+from services.vk_bot.models import (
     VkMessage,
     VkMessageAttachment,
     PhotoSize
 )
-from .service import VkBotService
+from services.vk_bot.service import VkBotService
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +80,8 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             message=Message(
                 text='\n\n'.join(
                     [
-                        f'''tags: {i.tags_text}
-                        {i.description if i.description else ""}
-                        {i.products_data_text if i.products_data else ''}
-                        '''
-                        for i in tags_models
+                        f"{i + 1}. {m.text()}"
+                        for i, m in enumerate(tags_models)
                     ]
                 )
             )
@@ -181,11 +179,9 @@ def get_photos_urls_from_message(
                 case 'photo':
                     max_img = extract_max_size_img(i.photo.sizes)
                     result.append(max_img.url)
-
                 case 'video':
                     max_img = extract_max_size_img(i.video.image)
                     result.append(max_img.url)
-
                 case 'wall':
                     result += get_photos_urls_from_message(
                         attachments=i.wall.attachments

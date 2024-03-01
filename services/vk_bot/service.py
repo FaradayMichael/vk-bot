@@ -331,7 +331,7 @@ class VkBotService:
         logger.info(f"Register background task {coro} ")
 
     def register_handlers_vk(self):
-        from . import handlers
+        from .vk import handlers
         self.register_handler_vk(VkBotEventType.MESSAGE_NEW, handlers.on_new_message)
         self.register_handler_vk(VkBotEventType.MESSAGE_EVENT, handlers.on_callback_event)
 
