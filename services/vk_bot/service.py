@@ -249,7 +249,7 @@ class VkBotService:
                 now = datetime.datetime.now()
                 nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
                 sleep = (nxt - now).total_seconds()
-                logger.info(f"Schedule {sleep=} {fetch_message_data_func=}")
+                logger.info(f"Schedule {sleep=} {peer_id=} {message=} {fetch_message_data_func=}")
                 await asyncio.sleep(sleep)
 
                 peer_id, message = await fetch_message_data_func(

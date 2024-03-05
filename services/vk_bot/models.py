@@ -75,6 +75,7 @@ class VkMessage(BaseModel):
     fwd_messages: list[Any] = []
     peer_id: int = 0
     text: str = ''
+    from_chat: bool
 
 
 class WallItemFilter(StrEnum):

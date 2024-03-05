@@ -16,6 +16,7 @@ from business_logic.vk import (
     GroupPostMode
 )
 from misc.files import TempUrlFile
+from misc.vk_client import VkClient
 from models.images import (
     ImageTags
 )
@@ -24,6 +25,7 @@ from models.vk import (
     Message
 )
 from . import callbacks
+from . import commands
 from services.vk_bot.models import (
     VkMessage,
     VkMessageAttachment,
@@ -37,55 +39,23 @@ backslash_n = '\n'  # Expression fragments inside f-strings cannot include backs
 
 
 async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
-    async def on_command(command: str) -> bool:
-
-        async def on_help():
-            await service.client_vk.messages.send(
-                peer_id=peer_id,
-                message=Message(
-                    text=f"{f'@id{from_id} ' if from_chat else ''} help"
-                ),
-                keyboard=callbacks.help_kb
-            )
-
-        commands_map = {
-            '/help': on_help
-        }
-        command_call = commands_map.get(command, None)
-        if command_call:
-            await command_call()
-            return True
-        return False
-
     message_model = validate_message(event)
     if not message_model:
         return
 
     logger.info(pformat(message_model.model_dump()))
-    from_chat = event.from_chat
+    from_chat = message_model.from_chat
     peer_id = message_model.peer_id if event.from_chat else message_model.from_id
     from_id = message_model.from_id
 
-    if message_model.text.strip().startswith('/'):
-        success = await on_command(message_model.text.strip().lower())
-        if success:
-            return
+    if await on_command(service, message_model):
+        return
 
     # Find tags of images
     tags_models = await parse_attachments_tags(message_model.attachments)
     logger.info(f"{tags_models=}")
     if tags_models:
-        await service.client_vk.messages.send(
-            peer_id=peer_id,
-            message=Message(
-                text='\n\n'.join(
-                    [
-                        f"{i + 1}. {m.text()}"
-                        for i, m in enumerate(tags_models)
-                    ]
-                )
-            )
-        )
+        await _send_tags(service.client_vk, tags_models, peer_id)
 
     # Find triggers, send answer
     async with service.db_pool.acquire() as conn:
@@ -144,11 +114,30 @@ async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
         logger.info(f"Not found callback for {callback_str}")
 
 
+async def on_command(
+        service: VkBotService,
+        message_model: VkMessage
+) -> bool:
+    command_call = None
+    for k, v in commands.COMMANDS_MAP.items():
+        if message_model.text.strip().startswith(k):
+            command_call = v
+            break
+
+    if command_call:
+        await command_call(service, message_model)
+        return True
+    return False
+
+
 def validate_message(
         event: VkBotMessageEvent
 ) -> VkMessage | None:
     try:
-        return VkMessage.model_validate(dict(event.message))
+        return VkMessage(
+            **dict(event.message),
+            from_chat=event.from_chat
+        )
     except ValidationError as e:
         logger.exception(e)
         logger.info(event.message)
@@ -197,3 +186,21 @@ def get_photos_urls_from_message(
 
 def extract_max_size_img(sizes: list[PhotoSize]):
     return max(sizes, key=lambda x: x.height)
+
+
+async def _send_tags(
+        client: VkClient,
+        tags: list[ImageTags],
+        peer_id: int
+):
+    await client.messages.send(
+        peer_id=peer_id,
+        message=Message(
+            text='\n\n'.join(
+                [
+                    f"{i + 1}. {m.text()}"
+                    for i, m in enumerate(tags)
+                ]
+            )
+        )
+    )

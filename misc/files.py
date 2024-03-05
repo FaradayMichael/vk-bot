@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 url_alias = str
 
+filepath_alias = str
+
 
 class TempFileBase:
 
@@ -24,7 +26,7 @@ class TempFileBase:
 
         self.filepath = None
 
-    async def __aenter__(self) -> str:
+    async def __aenter__(self) -> filepath_alias:
         raise NotImplementedError()
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -43,7 +45,7 @@ class TempUploadFile(TempFileBase):
     def __init__(self, file_obj: UploadFile):
         super().__init__(file_obj)
 
-    async def __aenter__(self) -> str:
+    async def __aenter__(self) -> filepath_alias:
         self.filepath = f"static/{uuid.uuid4().hex}_{self.file_obj.filename}"
         with open(self.filepath, 'wb') as f:
             data = await self.file_obj.read()
@@ -59,7 +61,7 @@ class TempUrlFile(TempFileBase):
     def __init__(self, file_obj: url_alias):
         super().__init__(file_obj)
 
-    async def __aenter__(self) -> str:
+    async def __aenter__(self) -> filepath_alias:
         self.filepath = await download_file(self.file_obj, folder='static', basename=uuid.uuid4().hex)
         return self.filepath
 
@@ -72,7 +74,7 @@ class TempBase64File(TempFileBase):
     ):
         super().__init__(file_obj)
 
-    async def __aenter__(self) -> str:
+    async def __aenter__(self) -> filepath_alias:
         self.filepath = f"static/{uuid.uuid4().hex}.{self.file_obj.ext()}"
         with open(self.filepath, 'wb') as f:
             await asyncio.to_thread(
