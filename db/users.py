@@ -2,15 +2,13 @@ import logging
 from typing import (
     Optional
 )
-from asyncpg import Record
 
 from misc import db
 from misc.db_tables import DBTables
 from models.auth import RegisterModel
 
 from models.users import (
-    User,
-    UserCreate
+    User
 )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +42,7 @@ async def get_user(
         'id = $1 AND en',
         values,
     )
-    return await record_to_model_user(conn, result)
+    return db.record_to_model(User, result)
 
 
 async def get_user_by_credentials(
@@ -78,13 +76,13 @@ async def email_exists(
 async def login_exists(
         conn: db.Connection,
         login: str,
-        id: Optional[int] = None
+        pk: Optional[int] = None
 ) -> bool:
     where = ["username=$1 AND en=True"]
     values = [login]
-    if id:
+    if pk:
         where.append('id <> $2')
-        values.append(id)
+        values.append(pk)
     return await db.exists(
         conn=conn,
         table=TABLE,
@@ -103,11 +101,3 @@ async def set_password(
         email, password
     )
     return data['id'] if data else None
-
-
-async def record_to_model_user(
-        conn: db.Connection,
-        record: Record
-) -> Optional[User]:
-    user = db.record_to_model(User, record)
-    return user

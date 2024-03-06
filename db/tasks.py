@@ -9,6 +9,8 @@ from models.vk_tasks import (
 
 TABLE = DBTables.VK_TASKS
 
+logger = logging.getLogger(__name__)
+
 
 async def create(
         conn: db.Connection,

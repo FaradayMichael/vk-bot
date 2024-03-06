@@ -4,23 +4,18 @@ from fastapi.responses import JSONResponse
 from business_logic import (
     vk as vk_bl
 )
-from misc.config import Config
-from misc.depends.conf import (
-    get as get_conf
+from misc.depends.vk_client import (
+    get as get_vk_client
 )
 from misc.files import TempBase64File
-from misc.handlers import error_400
 from misc.vk_client import VkClient
-from models.base import SuccessResponse
 from models.vk import (
     Message,
-    SendMessage,
-    AttachmentType
+    SendMessage
 )
 from models.vk.io import (
     SendMessageInput,
-    SendMessageResponse,
-    WallPostInput
+    SendMessageResponse
 )
 
 _prefix = '/vk'
@@ -40,27 +35,23 @@ admin_router = APIRouter(
 @admin_router.post('/send_message', response_model=SendMessageResponse)
 async def api_send_message_vk(
         data: SendMessageInput,
-        config: Config = Depends(get_conf)
+        vk_client: VkClient = Depends(get_vk_client)
 ) -> SendMessageResponse | JSONResponse:
-    client = VkClient(config)
-
-    attachments = []
+    vk_attachments = []
     if data.message.attachments:
-        attachments = await vk_bl.base64_to_vk_attachment(
-            client,
-            data.peer_id,
-            data.message.attachments
-        )
+        for attachment in data.message.attachments:
+            async with TempBase64File(attachment.file) as filepath:
+                if a := await vk_bl.file_to_vk_attachment(vk_client, data.peer_id, filepath, attachment.type):
+                    vk_attachments.append(a)
 
     message = Message(
         text=data.message.text,
-        attachment=','.join(attachments) if attachments else None
+        attachment=','.join(vk_attachments) if vk_attachments else None
     )
-    await client.messages.send(
+    await vk_client.messages.send(
         data.peer_id,
         message
     )
-    await client.close()
 
     return SendMessageResponse(
         data=SendMessage(
@@ -68,29 +59,3 @@ async def api_send_message_vk(
             message=message
         )
     )
-
-
-@router.post('/wall_post', response_model=SuccessResponse)
-async def api_wall_post_vk(
-        data: WallPostInput,
-        config: Config = Depends(get_conf)
-) -> SuccessResponse | JSONResponse:
-    for f in data.files:
-        if AttachmentType.by_content_type(f.mimetype) is not AttachmentType.PHOTO:
-            return await error_400(f"Unsupported media type: {f.mimetype}")
-
-    client = VkClient(config)
-
-    attachments = []
-    for f in data.files:
-        async with TempBase64File(f) as filepath:
-            attachments += await client.upload.photo_wall([filepath])
-    await vk_bl.post_in_group_wall(
-        client=client,
-        message_text='',
-        attachments=attachments
-    )
-
-    await client.close()
-
-    return SuccessResponse()

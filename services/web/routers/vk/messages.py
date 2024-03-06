@@ -16,13 +16,12 @@ from business_logic.vk import file_to_vk_attachment
 from db import (
     know_ids as know_ids_db
 )
-from misc.config import Config
 from misc.db import Connection
 from misc.depends.db import (
     get as get_conn
 )
-from misc.depends.conf import (
-    get as get_conf
+from misc.depends.vk_client import (
+    get as get_vk_client
 )
 from misc.depends.session import (
     get as ges_session
@@ -59,10 +58,8 @@ async def send_vk_message(
         peer_id: int = Form(),
         message_text: str = Form(default=''),
         files: list[UploadFile] = File(...),
-        config: Config = Depends(get_conf)
+        vk_client: VkClient = Depends(get_vk_client)
 ):
-    client = VkClient(config)
-
     attachments = []
     if files:
         for f in files:
@@ -72,14 +69,14 @@ async def send_vk_message(
             async with TempUploadFile(f) as file_path:
                 attachments.append(
                     await file_to_vk_attachment(
-                        client,
+                        vk_client,
                         peer_id,
                         file_path,
                         AttachmentType.by_content_type(f.content_type)
                     )
                 )
 
-    await client.messages.send(
+    await vk_client.messages.send(
         peer_id,
         Message(
             text=message_text,
@@ -87,5 +84,4 @@ async def send_vk_message(
         )
     )
 
-    await client.close()
     return RedirectResponse('/vk/messages', status_code=302)

@@ -38,7 +38,7 @@ def factory():
 def main(args, config: Config):
     loop = asyncio.get_event_loop()
     config_dict = config.model_dump()
-    root_path = config_dict.get('rot_path', None)
+    root_path: str | None = config_dict.get('rot_path', None)
     state = State(
         loop=loop,
         config=config

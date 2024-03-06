@@ -46,14 +46,6 @@ class DataURL(str):
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler):
         return core_schema.no_info_after_validator_function(cls, handler(str))
 
-    # @classmethod
-    # @typing_extensions.deprecated(
-    #     'The `validate` method is deprecated; use `model_validate` instead.', category=PydanticDeprecatedSince20
-    # )
-    # def validate(cls: type[Model], value: Any) -> Model:  # noqa: D102
-    #     #warnings.warn('The `validate` method is deprecated; use `model_validate` instead.', DeprecationWarning)
-    #     return cls.model_validate(value)
-
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler):
         json_schema = handler(core_schema)

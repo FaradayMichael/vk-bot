@@ -36,7 +36,6 @@ class TriggerGroup(TriggerBase):
     answers: list[AnswerBase]
 
     @model_validator(mode='before')
-    @classmethod
     def json_to_list(cls, data: dict):
         if data.get('answers', None) is not None:
             data['answers'] = json.loads(data['answers'])

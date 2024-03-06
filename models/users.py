@@ -1,4 +1,3 @@
-from enum import Enum
 from datetime import (
     datetime
 )
@@ -7,16 +6,11 @@ from typing import (
     List
 )
 
-from decimal import Decimal
 from pydantic import (
     BaseModel,
-    Field,
-    constr
+    Field
 )
-from misc.consts import (
-    EMAIL_REGEX,
-    LOGIN
-)
+
 from models.base import (
     SuccessResponse,
     ListData,

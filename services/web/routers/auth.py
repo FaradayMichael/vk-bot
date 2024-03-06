@@ -35,7 +35,6 @@ router = APIRouter(prefix='/auth')
 
 @router.get('/login', response_class=HTMLResponse)
 async def login_view(
-        request: Request,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session)
 ):

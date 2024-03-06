@@ -85,7 +85,6 @@ async def get_session(
         [api_key_header, HEADERS_SESSION],
         [api_key_query, TOKEN_SESSION]
     ]
-    session = None
     for key, session_type in values:
         if key:
             session = await get_from_redis(session_type, key, redis_conn)
@@ -102,7 +101,7 @@ async def get_from_redis(
         session_type: SessionType,
         key: str,
         redis_conn: redis.Connection
-) -> Session:
+) -> Session | None:
     data = await redis.get(
         redis_conn,
         cache_key(key)

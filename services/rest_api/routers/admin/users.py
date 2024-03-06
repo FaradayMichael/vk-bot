@@ -12,9 +12,6 @@ from misc.depends.db import (
 from misc.depends.conf import (
     get as get_conf
 )
-from misc.depends.session import (
-    get as get_session
-)
 from misc.depends.smtp import (
     get as get_smtp
 )
@@ -25,16 +22,13 @@ from misc.config import Config
 from misc.db import (
     Connection
 )
-from misc.session import Session
 from misc.smtp import (
     SMTP as SMTPConnection
 )
 from misc.handlers import error_400
 from misc.password import generate_password, get_password_hash
 from models.auth import (
-    RegisterModel,
-    MeSuccessResponse,
-    MeResponse
+    RegisterModel
 )
 from models.users import UsersSuccessResponse
 

@@ -100,7 +100,7 @@ async def get(
     query = f'SELECT {select_fields} FROM {table} WHERE id = $1'
     try:
         return await conn.fetchrow(query, pk)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -109,10 +109,13 @@ async def get_by_where(
         conn: Connection,
         table: str,
         where: str,
-        values: Optional[list] = [],
+        values: Optional[list] = None,
         fields: Optional[list[str]] = None,
         return_rows: bool = False
 ) -> Optional[asyncpg.Record | list[asyncpg.Record]]:
+    if values is None:
+        values = []
+
     select_fields = ', '.join(fields) if fields else '*'
     query = f'SELECT {select_fields} FROM {table} WHERE {where}'
     if return_rows:
@@ -121,7 +124,7 @@ async def get_by_where(
         execute = conn.fetchrow
     try:
         return await execute(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -130,13 +133,16 @@ async def get_list(
         conn: Connection,
         table: str,
         where: Optional[str] = None,
-        values: list = [],
+        values: list | None = None,
         limit: Optional[int] = None,
         page: Optional[int] = None,
         order: Optional[list[str]] = None,
         group: Optional[list[str]] = None,
-        fields: list[str] = [],
+        fields: list[str] | None = None,
 ) -> list[asyncpg.Record]:
+    if values is None:
+        values = []
+
     select_fields = ', '.join(fields) if fields else '*'
     where_query, limit_query, offset_query, order_query, group_query = '', '', '', '', ''
     if where:
@@ -149,10 +155,14 @@ async def get_list(
         order_query = 'ORDER BY ' + ', '.join([f'{i[1:]} DESC' if i.startswith('-') else i for i in order])
     if group:
         group_query = f"GROUP BY {','.join(group)}"
-    query = f'SELECT {select_fields} FROM {table} {where_query} {order_query} {group_query} {limit_query} {offset_query}'
+
+    query = f'''
+        SELECT 
+            {select_fields} 
+        FROM {table} {where_query} {order_query} {group_query} {limit_query} {offset_query}'''
     try:
         return await conn.fetch(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -161,9 +171,12 @@ async def get_total(
         conn: Connection,
         table: str,
         where: Optional[str] = None,
-        values: list = [],
+        values: list | None = None,
         group_by: Optional[list[str]] = None
 ) -> int:
+    if values is None:
+        values = []
+
     where_query = ''
     if where:
         where_query = f'WHERE {where}'
@@ -173,7 +186,7 @@ async def get_total(
     try:
         result = await conn.fetchrow(query, *values)
         return result['count']
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -193,7 +206,7 @@ async def exists(
             query,
             *values
         ))
-    except:
+    except Exception:
         logger.exception(f"Query {query} failed")
         raise
 
@@ -204,7 +217,7 @@ async def create(
         data: dict[str, Any],
         insert_fields: Optional[list[str]] = None,
         ignore_fields: Optional[list[str]] = None,
-        fields: Optional[list[str]] = []
+        fields: Optional[list[str]] = None
 ) -> Optional[asyncpg.Record]:
     return_fields = ', '.join(fields) if fields else '*'
     field_names = []
@@ -222,10 +235,13 @@ async def create(
         placeholders.append(f"${idx}")
         values.append(data[key])
         idx += 1
-    query = f'INSERT INTO {table} ({", ".join(field_names)}) VALUES ({", ".join(placeholders)}) RETURNING {return_fields}'
+
+    query = f'''
+        INSERT INTO {table} ({", ".join(field_names)}) 
+        VALUES ({", ".join(placeholders)}) RETURNING {return_fields}'''
     try:
         return await conn.fetchrow(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} with values {values} failed')
         raise
 
@@ -234,7 +250,7 @@ async def create_many(
         conn: Connection,
         table: str,
         data: list[dict],
-        insert_fields: list[str] = []
+        insert_fields: list[str] | None = None
 ) -> None:
     """Creates a list of objects in database"""
     if not data:
@@ -252,7 +268,7 @@ async def create_many(
     query = f'INSERT INTO {table} ({str_insert_fields}) VALUES ({placeholders})'
     try:
         await conn.executemany(query, values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -263,7 +279,7 @@ async def create_list(
         data: dict[str, list[Any]],
         fillvalue: Any = None,
         fields: Optional[list[str]] = None,
-) -> Optional[asyncpg.Record]:
+) -> Optional[list[asyncpg.Record]]:
     # Добавляет несколько значений в БД за раз
     # Значения передаются в словаре, ключ - список (длины списков должны совпадать)
     # fillvalue - значение, которым будет заполнятся список, если длины списков не совпадают.
@@ -279,10 +295,13 @@ async def create_list(
             placeholders.append(f'${idx}')
             idx += 1
         val.append(f'({", ".join(placeholders)})')
-    query = f'INSERT INTO {table} ({", ".join(data.keys())}) VALUES {", ".join(val)} RETURNING {", ".join(fields) if fields else "*"}'
+    query = f'''
+        INSERT INTO {table} ({", ".join(data.keys())}) 
+        VALUES {", ".join(val)} 
+        RETURNING {", ".join(fields) if fields else "*"}'''
     try:
         return await conn.fetch(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -294,7 +313,7 @@ async def update(
         data: dict[str, Any],
         update_fields: Optional[list[str]] = None,
         ignore_fields: Optional[list[str]] = None,
-        fields: Optional[list[str]] = [],
+        fields: Optional[list[str]] = None,
         with_atime: bool = False
 ) -> Optional[asyncpg.Record]:
     if not data:
@@ -318,12 +337,12 @@ async def update(
         idx += 1
     if with_atime:
         placeholders.append("atime = (now() at time zone 'utc')")
-    update = ', '.join(placeholders)
-    query = f'UPDATE {table} SET {update} WHERE id = ${len(values) + 1} RETURNING {return_fields}'
+    upd = ', '.join(placeholders)
+    query = f'UPDATE {table} SET {upd} WHERE id = ${len(values) + 1} RETURNING {return_fields}'
     values.append(pk)
     try:
         return await conn.fetchrow(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -333,13 +352,16 @@ async def update_by_where(
         table: str,
         data: dict[str, Any],
         where: str,
-        values: Optional[list] = [],
+        values: Optional[list] = None,
         update_fields: Optional[list[str]] = None,
         ignore_fields: Optional[list[str]] = None,
-        fields: Optional[list[str]] = [],
+        fields: Optional[list[str]] = None,
         with_atime: bool = False,
         return_rows: bool = False
 ) -> Optional[asyncpg.Record]:
+    if values is None:
+        values = []
+
     return_fields = ', '.join(fields) if fields else '*'
     placeholders = []
     update_values = []
@@ -359,9 +381,9 @@ async def update_by_where(
         idx += 1
     if with_atime:
         placeholders.append("atime = (now() at time zone 'utc')")
-    update = ', '.join(placeholders)
+    upd = ', '.join(placeholders)
     values.extend(update_values)
-    query = f'UPDATE {table} SET {update} WHERE {where} RETURNING {return_fields}'
+    query = f'UPDATE {table} SET {upd} WHERE {where} RETURNING {return_fields}'
 
     execute = conn.fetchrow
 
@@ -370,7 +392,7 @@ async def update_by_where(
 
     try:
         return await execute(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -402,7 +424,7 @@ async def disable_by_where(
             query,
             *values
         )
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -412,7 +434,7 @@ async def delete_by_where(
         table: str,
         where: str,
         values: Optional[list] = None,
-        fields: list[str] = [],
+        fields: list[str] | None = None,
         return_rows: bool = False
 ) -> Optional[asyncpg.Record]:
     values = values if values else []
@@ -424,7 +446,7 @@ async def delete_by_where(
         execute = conn.fetchrow
     try:
         return await execute(query, *values)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -433,13 +455,13 @@ async def delete(
         conn: Connection,
         table: str,
         pk: int,
-        fields: list[str] = []
+        fields: list[str] | None = None
 ) -> Optional[asyncpg.Record]:
     return_fields = ', '.join(fields) if fields else '*'
     query = f'DELETE FROM {table} WHERE id = $1 RETURNING {return_fields}'
     try:
         return await conn.fetchrow(query, pk)
-    except:
+    except Exception:
         logger.exception(f'Query {query} failed')
         raise
 
@@ -457,8 +479,8 @@ def chain_filters(
         filters: list, values: list,
         *chained_filters
 ) -> tuple[list, list]:
-    for filter in chained_filters:
-        func, *args = filter
+    for f in chained_filters:
+        func, *args = f
         filters, values = func(*args, filters, values)
     return filters, values
 

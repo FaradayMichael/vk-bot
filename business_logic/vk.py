@@ -34,31 +34,6 @@ class GroupPostMode(StrEnum):
     INSTANT = 'instant'
 
 
-async def base64_to_vk_attachment(
-        client: VkClient,
-        peer_id: int,
-        attachments: list[AttachmentInput]
-) -> list[str]:
-    result = []
-    for a in attachments:
-        file_path = f"static/{uuid.uuid4().hex}.{a.file.ext()}"
-        with open(file_path, 'wb') as f:
-            await asyncio.to_thread(
-                f.write,
-                a.file.data
-            )
-        r = await file_to_vk_attachment(client, peer_id, file_path, a.type)
-        if r:
-            result.append(r)
-
-        try:
-            os.remove(file_path)
-        except FileNotFoundError:
-            pass
-
-    return result
-
-
 async def file_to_vk_attachment(
         client: VkClient,
         peer_id: int,
@@ -130,23 +105,19 @@ async def parse_image_tags(
         products = soup.find_all("li", {"class": "CbirMarketProducts-Item CbirMarketProducts-Item_type_product"})
         if products:
             for p in products:
-                try:
-                    price = p.find('span', {"class": "Price-Value"}).get_text()
-                    link = p.find('a').get('href', None)
-                    if "http" not in link:
-                        if "market.yandex" in link:
-                            link = f"https:{link}"
-                        elif "products/product" in link:
-                            link = f"https://yandex.ru{link}"
-                        else:
-                            continue
-                    if price and link:
-                        result.products_data.append(
-                            f"{price} - {link}"
-                        )
-                except Exception as e:
-                    logger.exception(e)
-                    continue
+                price = p.find('span', {"class": "Price-Value"}).get_text()
+                link = p.find('a').get('href', None)
+                if "http" not in link:
+                    if "market.yandex" in link:
+                        link = f"https:{link}"
+                    elif "products/product" in link:
+                        link = f"https://yandex.ru{link}"
+                    else:
+                        continue
+                if price and link:
+                    result.products_data.append(
+                        f"{price} - {link}"
+                    )
 
         if result.tags:
             break
