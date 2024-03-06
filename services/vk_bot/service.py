@@ -184,6 +184,7 @@ class VkBotService:
                 *self.config.kafka.topics,
                 bootstrap_servers=self.config.kafka.bootstrap_servers,
                 loop=self.loop,
+                retry_backoff_ms=30000
             )
 
             try:
