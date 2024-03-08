@@ -39,7 +39,7 @@ backslash_n = '\n'  # Expression fragments inside f-strings cannot include backs
 
 
 async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
-    message_model = validate_message(event)
+    message_model = _validate_message(event)
     if not message_model:
         return
 
@@ -48,11 +48,11 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     peer_id = message_model.peer_id if event.from_chat else message_model.from_id
     from_id = message_model.from_id
 
-    if await on_command(service, message_model):
+    if await _on_command(service, message_model):
         return
 
     # Find tags of images
-    tags_models = await parse_attachments_tags(message_model.attachments)
+    tags_models = await _parse_attachments_tags(message_model.attachments)
     logger.info(f"{tags_models=}")
     if tags_models:
         await _send_tags(service.client_vk, tags_models, peer_id)
@@ -114,7 +114,7 @@ async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
         logger.info(f"Not found callback for {callback_str}")
 
 
-async def on_command(
+async def _on_command(
         service: VkBotService,
         message_model: VkMessage
 ) -> bool:
@@ -130,7 +130,7 @@ async def on_command(
     return False
 
 
-def validate_message(
+def _validate_message(
         event: VkBotMessageEvent
 ) -> VkMessage | None:
     try:
@@ -144,12 +144,12 @@ def validate_message(
         return None
 
 
-async def parse_attachments_tags(
+async def _parse_attachments_tags(
         attachments: list[VkMessageAttachment]
 ) -> list[ImageTags]:
     if not attachments:
         return []
-    images_urls = get_photos_urls_from_message(attachments)
+    images_urls = _get_photos_urls_from_message(attachments)
     result = []
     for i in images_urls:
         tags_model = await parse_image_tags(i)
@@ -158,7 +158,7 @@ async def parse_attachments_tags(
     return result
 
 
-def get_photos_urls_from_message(
+def _get_photos_urls_from_message(
         attachments: list[VkMessageAttachment]
 ) -> list[str]:
     result = []
@@ -166,25 +166,25 @@ def get_photos_urls_from_message(
         for i in attachments:
             match i.type:
                 case 'photo':
-                    max_img = extract_max_size_img(i.photo.sizes)
+                    max_img = _extract_max_size_img(i.photo.sizes)
                     result.append(max_img.url)
                 case 'video':
-                    max_img = extract_max_size_img(i.video.image)
+                    max_img = _extract_max_size_img(i.video.image)
                     result.append(max_img.url)
                 case 'wall':
-                    result += get_photos_urls_from_message(
+                    result += _get_photos_urls_from_message(
                         attachments=i.wall.attachments
                     )
                 case 'doc':
                     if i.doc.preview and i.doc.preview.photo:
-                        max_img = extract_max_size_img(i.doc.preview.photo.sizes)
+                        max_img = _extract_max_size_img(i.doc.preview.photo.sizes)
                         result.append(max_img.src)
                 case _:
                     logger.info(f"Unsupported attachment media: {i}")
     return result
 
 
-def extract_max_size_img(sizes: list[PhotoSize]):
+def _extract_max_size_img(sizes: list[PhotoSize]):
     return max(sizes, key=lambda x: x.height)
 
 

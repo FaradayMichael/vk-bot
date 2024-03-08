@@ -4,10 +4,6 @@ from typing import Tuple
 
 import pytest
 
-from db import (
-    users as users_db
-)
-
 from misc import db
 from models.users import User
 from tests.fixtures.app import reset_table

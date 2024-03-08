@@ -6,13 +6,13 @@ from pydantic import BaseModel
 class VkTaskFilterModel(BaseModel):
     from_dt: datetime.datetime | None = None
     to_dt: datetime.datetime | None = None
-    methods_in: list[str] | None = None
+    funcs_in: list[str] | None = None
     uuid_in: list[str] | None = None
 
 
 class VkTask(BaseModel):
     uuid: str
-    method: str
+    func: str
     args: dict | None
     kwargs: dict | None
     errors: str | None

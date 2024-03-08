@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 class Task:
     def __init__(
             self,
-            method: Callable,
+            func: Callable,
             *args,
             **kwargs
     ):
         self.tries: int = 0
         self.uuid: str = uuid.uuid4().hex
-        self.method: Callable = method
+        self.func: Callable = func
         self.args: tuple = args
         self.kwargs: dict = kwargs
         self.errors: list[Exception] = []
@@ -46,7 +46,7 @@ class Task:
 
         return {
             'uuid': self.uuid,
-            'method': self.method.__name__,
+            'func': self.func.__name__,
             'args': parse_args(self.args),
             'kwargs': self.kwargs,
             'errors': str(self.errors) if self.errors else None,
@@ -65,7 +65,7 @@ async def execute_task(task: Task) -> Any | None:
     task.tries += 1
     if task.started is None:
         task.started = datetime.datetime.now()
-    return await task.method(*task.args, **task.kwargs)
+    return await task.func(*task.args, **task.kwargs)
 
 
 async def save_task(

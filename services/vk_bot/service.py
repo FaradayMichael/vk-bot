@@ -57,15 +57,15 @@ class VkBotService:
         self.db_pool: Pool | None = None
         self.redis_conn: Redis | None = None
 
-        self.stopping: bool = False
-        self.timeout = config.vk.timeout
+        self._stopping: bool = False
+        self._timeout = config.vk.timeout
         self.ex: list[Exception] = []
         self.last_ex: Exception | None = None
-        self.queue: asyncio.Queue = asyncio.Queue()
-        self.background_tasks: list[asyncio.Task] = []
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._background_tasks: list[asyncio.Task] = []
 
         self.client_vk: VkClient | None = None
-        self.handlers_vk: dict[VkBotEventType, Callable] = {}
+        self._handlers_vk: dict[VkBotEventType, Callable] = {}
 
     @classmethod
     async def create(
@@ -80,24 +80,24 @@ class VkBotService:
     async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
-        self.register_handlers_vk()
+        self._register_handlers_vk()
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
-        await self.allocate_vk(notify=False)
-        self.init_background_tasks()
+        await self._allocate_vk(notify=False)
+        self._init_background_tasks()
 
-    async def main_task(self):
+    async def _main_task(self):
         logger.info("Starting main task")
 
         _tasks = []
-        while not self.stopping:
+        while not self._stopping:
             try:
-                await self.allocate_vk()
+                await self._allocate_vk()
 
                 _tasks = [
-                    self.loop.create_task(self.listen_vk()),
-                    self.loop.create_task(self.worker()),
+                    self.loop.create_task(self._listen_vk()),
+                    self.loop.create_task(self._worker()),
                 ]
                 await asyncio.gather(*_tasks)
 
@@ -113,54 +113,55 @@ class VkBotService:
                     task.cancel()
                 _tasks = []
 
-                await self.release_vk()
-                await asyncio.sleep(self.timeout)
+                await self._release_vk()
+                await asyncio.sleep(self._timeout)
 
-    async def worker(self):
+    async def _worker(self):
         logging.info(f'Starting VkBot worker')
-        while not self.stopping:
-            task: Task = await self.queue.get()
+        while not self._stopping:
+            task: Task = await self._queue.get()
 
             if not isinstance(task, Task):
-                logger.info(f"Invalid task: {task}")
-                continue
+                raise TypeError(f"Invalid queue item: {task}")
 
             try:
-                await self.handle_task(task)
+                await execute_task(task)
+                await save_task(self.db_pool, task)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
-            except Exception:
+            except Exception as e:
+                task.errors.append(e)
+                if task.tries <= 3:
+                    await self._queue.put(task)
+                else:
+                    await save_task(self.db_pool, task)
                 raise
 
-    async def handle_task(self, task: Task):
-        try:
-            await execute_task(task)
-            await save_task(self.db_pool, task)
-        except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-            raise
-        except Exception as e:
-            task.errors.append(e)
-            if task.tries <= 3:
-                await self.queue.put(task)
-            else:
-                await save_task(self.db_pool, task)
-            raise
+    async def execute_in_worker(
+            self,
+            func: Callable,
+            *args,
+            **kwargs
+    ):
+        await self._queue.put(
+            Task(func, *args, **kwargs)
+        )
 
-    async def listen_vk(self):
+    async def _listen_vk(self):
         logger.info("Start listening vk")
-        while not self.stopping:
+        while not self._stopping:
             try:
                 async for event in self.client_vk.events_generator():
                     logger.info(event.type)
-                    handler = self.handlers_vk.get(event.type, None)
+                    handler = self._handlers_vk.get(event.type, None)
                     if handler:
-                        await self.queue.put(Task(handler, self, event))
+                        await self.execute_in_worker(handler, self, event)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 return
             except Exception:
                 raise
 
-    async def listen_kafka(self):
+    async def _listen_kafka(self):
 
         async def handle_message(message: KafkaMessage):
             if message.base64:
@@ -170,16 +171,14 @@ class VkBotService:
 
                 async with TempBase64File(message.base64) as tmp:
                     attachments = await self.client_vk.upload.photo_wall([tmp])
-                await self.queue.put(
-                    Task(
-                        vk_bl.post_in_group_wall,
-                        self.client_vk,
-                        attachments=attachments
-                    )
+                await self.execute_in_worker(
+                    vk_bl.post_in_group_wall,
+                    self.client_vk,
+                    attachments=attachments
                 )
 
         logger.info("Kafka listener started")
-        while not self.stopping:
+        while not self._stopping:
             consumer = AIOKafkaConsumer(
                 *self.config.kafka.topics,
                 bootstrap_servers=self.config.kafka.bootstrap_servers,
@@ -212,10 +211,10 @@ class VkBotService:
                 await consumer.stop()
                 logger.info("Kafka consumer stopped")
 
-    async def allocate_vk(self, notify: bool = True):
+    async def _allocate_vk(self, notify: bool = True):
         logger.info("Allocate VkBot Service...")
         if not self.client_vk:
-            self.client_vk = VkClient(self.config)
+            self.client_vk = VkClient(self.config.vk)
         if notify:
             await self.client_vk.messages.send(
                 peer_id=self.config.vk.main_user_id,
@@ -223,7 +222,7 @@ class VkBotService:
             )
             self.last_ex = None
 
-    async def release_vk(self):
+    async def _release_vk(self):
         if self.client_vk:
             await self.client_vk.close()
             self.client_vk = None
@@ -242,7 +241,7 @@ class VkBotService:
         if kwargs is None:
             kwargs = {}
 
-        while not self.stopping:
+        while not self._stopping:
             try:
                 if (peer_id is None or message is None) and fetch_message_data_func is None:
                     raise ValueError("One of (peer_id, message) or fetch_message_data_func is required")
@@ -257,7 +256,7 @@ class VkBotService:
                     *args, **kwargs
                 ) if fetch_message_data_func else (peer_id, message)
 
-                await self.queue.put(Task(self.client_vk.messages.send, peer_id, message))
+                await self.execute_in_worker(self.client_vk.messages.send, peer_id, message)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
             except Exception as e:
@@ -265,9 +264,9 @@ class VkBotService:
                 self.ex.append(e)
                 await asyncio.sleep(300)
 
-    def init_background_tasks(self):
+    def _init_background_tasks(self):
         self.start_background_task(
-            coro=self.main_task()
+            coro=self._main_task()
         )
 
         async def _get_weekly_message_data(peer_id: int) -> tuple[int, Message]:
@@ -317,49 +316,49 @@ class VkBotService:
         )
 
         self.start_background_task(
-            coro=self.listen_kafka()
+            coro=self._listen_kafka()
         )
 
     def start_background_task(
             self,
             coro: Coroutine
     ):
-        self.background_tasks.append(
+        self._background_tasks.append(
             self.loop.create_task(
                 coro
             )
         )
         logger.info(f"Register background task {coro} ")
 
-    def register_handlers_vk(self):
+    def _register_handlers_vk(self):
         from .vk import handlers
         self.register_handler_vk(VkBotEventType.MESSAGE_NEW, handlers.on_new_message)
         self.register_handler_vk(VkBotEventType.MESSAGE_EVENT, handlers.on_callback_event)
 
     def register_handler_vk(self, method: VkBotEventType, handler: Callable):
-        self.handlers_vk[method] = handler
+        self._handlers_vk[method] = handler
 
     def stop(self):
-        if not self.stopping:
+        if not self._stopping:
             logger.info(f"VkBot Service stopping was planned")
-            self.stopping = True
+            self._stopping = True
 
-            self.loop.create_task(self.safe_close())
+            self.loop.create_task(self._safe_close())
 
-    async def safe_close(self):
+    async def _safe_close(self):
         try:
-            await self.close()
+            await self._close()
         except Exception as e:
             logger.exception(f'Closed with exception {e}')
 
-    async def close(self):
-        self.stopping = True
+    async def _close(self):
+        self._stopping = True
 
-        for task in self.background_tasks:
+        for task in self._background_tasks:
             task.cancel()
-        self.background_tasks = []
+        self._background_tasks = []
 
-        self.handlers_vk = {}
+        self._handlers_vk = {}
 
         if self.db_pool:
             await self.db_pool.close()
@@ -369,4 +368,4 @@ class VkBotService:
             await redis.close(self.redis_conn)
             self.redis_conn = None
 
-        await self.release_vk()
+        await self._release_vk()

@@ -14,7 +14,7 @@ from vk_api.bot_longpoll import (
 from vk_api.keyboard import VkKeyboard
 from vk_api.utils import get_random_id
 
-from misc.config import Config
+from misc.config import VkConfig
 from models.vk import (
     Message,
     WallPost
@@ -28,39 +28,39 @@ from services.vk_bot.models import (
 class BaseMethod:
     def __init__(
             self,
-            config: Config,
+            config: VkConfig,
             session_group: VkApi,
             session_user: VkApi,
             upload_group: VkUpload,
             upload_user: VkUpload
     ):
-        self.config: Config = config
-        self.session_group: VkApi = session_group
-        self.session_user = session_user
-        self.upload_group: VkUpload = upload_group
-        self.upload_user: VkUpload = upload_user
+        self._config: VkConfig = config
+        self._session_group: VkApi = session_group
+        self._session_user = session_user
+        self._upload_group: VkUpload = upload_group
+        self._upload_user: VkUpload = upload_user
 
-    async def call_group(
+    async def _call_group(
             self,
             method: str,
             values: dict | None = None,
             **kwargs
     ):
         return await asyncio.to_thread(
-            self.session_group.method,
+            self._session_group.method,
             method,
             values,
             **kwargs
         )
 
-    async def call_user(
+    async def _call_user(
             self,
             method: str,
             values: dict | None = None,
             **kwargs
     ):
         return await asyncio.to_thread(
-            self.session_user.method,
+            self._session_user.method,
             method,
             values,
             **kwargs
@@ -78,7 +78,7 @@ class Messages(BaseMethod):
         if isinstance(keyboard, VkKeyboard):
             keyboard = keyboard.get_keyboard()
 
-        await self.call_group(
+        await self._call_group(
             "messages.send",
             dict(
                 message=message.text,
@@ -114,7 +114,7 @@ class Messages(BaseMethod):
         if cmids:
             data['cmids'] = ','.join([str(i) for i in cmids])
 
-        await self.call_group(
+        await self._call_group(
             "messages.delete",
             data
         )
@@ -129,8 +129,8 @@ class Wall(BaseMethod):
             from_group: bool = True,
             post_time: datetime.datetime | None = None
     ):
-        owner_id = owner_id if owner_id is not None else -self.config.vk.main_group_id
-        await self.call_user(
+        owner_id = owner_id if owner_id is not None else -self._config.main_group_id
+        await self._call_user(
             'wall.post',
             dict(
                 owner_id=owner_id,
@@ -145,10 +145,10 @@ class Wall(BaseMethod):
             self,
             type_filter: WallItemFilter | None = None
     ) -> list[WallItem]:
-        response = await self.call_user(
+        response = await self._call_user(
             'wall.get',
             dict(
-                owner_id=-self.config.vk.main_group_id,
+                owner_id=-self._config.main_group_id,
                 filter=type_filter.value if type_filter else None
             )
         )
@@ -160,10 +160,10 @@ class Wall(BaseMethod):
             post: WallPost,
             post_time: datetime.datetime | None = None
     ):
-        await self.call_user(
+        await self._call_user(
             'wall.edit',
             dict(
-                owner_id=-self.config.vk.main_group_id,
+                owner_id=-self._config.main_group_id,
                 post_id=post_id,
                 message=post.message_text,
                 attachments=post.attachments,
@@ -180,7 +180,7 @@ class Upload(BaseMethod):
             photo_paths: list[str]
     ) -> list[str]:  # list 'attachment' str
         response = await asyncio.to_thread(
-            self.upload_group.photo_messages,
+            self._upload_group.photo_messages,
             photo_paths,
             peer_id
         )
@@ -196,7 +196,7 @@ class Upload(BaseMethod):
             **kwargs
     ):
         response = await asyncio.to_thread(
-            self.upload_group.document_message,
+            self._upload_group.document_message,
             doc_path,
             peer_id=peer_id,
             **kwargs
@@ -209,10 +209,10 @@ class Upload(BaseMethod):
             photo_paths: list[str]
     ) -> list[str]:  # list 'attachment' str
         response = await asyncio.to_thread(
-            self.upload_user.photo_wall,
+            self._upload_user.photo_wall,
             photo_paths,
-            self.config.vk.main_user_id,
-            self.config.vk.main_group_id,
+            self._config.main_user_id,
+            self._config.main_group_id,
             None
         )
         return [
@@ -224,25 +224,27 @@ class Upload(BaseMethod):
 class VkClient:
     def __init__(
             self,
-            config: Config
+            config: VkConfig
     ):
-        self.stopping = False
+        self._config: VkConfig = config
+        self._stopping = False
+        self.user_id = config.main_user_id
+        self.group_id = config.main_group_id
 
-        self.config: Config = config
-        self.session_group: VkApi = VkApi(token=config.vk.vk_token)
-        self.session_user = VkApi(token=config.vk.user_token)
-        self.upload_group: VkUpload = VkUpload(self.session_group)
-        self.upload_user: VkUpload = VkUpload(self.session_user)
-        self.bot_long_pool: VkBotLongPoll = VkBotLongPoll(self.session_group, self.config.vk.main_group_id)
+        self._session_group: VkApi = VkApi(token=config.vk_token)
+        self._session_user = VkApi(token=config.user_token)
+        self._upload_group: VkUpload = VkUpload(self._session_group)
+        self._upload_user: VkUpload = VkUpload(self._session_user)
+        self._bot_long_pool: VkBotLongPoll = VkBotLongPoll(self._session_group, self.group_id)
 
-        self.messages = Messages(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
-        self.wall = Wall(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
-        self.upload = Upload(config, self.session_group, self.session_user, self.upload_group, self.upload_user)
+        self.messages = Messages(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
+        self.wall = Wall(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
+        self.upload = Upload(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
 
     async def events_generator(self) -> AsyncIterable[VkBotEvent]:
-        while not self.stopping:
+        while not self._stopping:
             try:
-                for event in await asyncio.to_thread(self.bot_long_pool.check):
+                for event in await asyncio.to_thread(self._bot_long_pool.check):
                     yield event
             except VkApiError:
                 raise
@@ -250,27 +252,27 @@ class VkClient:
                 break
 
     async def close(self):
-        self.stopping = True
+        self._stopping = True
 
-        if self.bot_long_pool:
-            self.bot_long_pool.session.close()
-            self.bot_long_pool = None
+        if self._bot_long_pool:
+            self._bot_long_pool.session.close()
+            self._bot_long_pool = None
 
-        if self.session_group:
-            self.session_group.http.close()
-            self.session_group = None
+        if self._session_group:
+            self._session_group.http.close()
+            self._session_group = None
 
-        if self.session_user:
-            self.session_user.http.close()
-            self.session_user = None
+        if self._session_user:
+            self._session_user.http.close()
+            self._session_user = None
 
-        if self.upload_group:
-            self.upload_group.http.close()
-            self.upload_group = None
+        if self._upload_group:
+            self._upload_group.http.close()
+            self._upload_group = None
 
-        if self.upload_user:
-            self.upload_user.http.close()
-            self.upload_user = None
+        if self._upload_user:
+            self._upload_user.http.close()
+            self._upload_user = None
 
         if self.messages:
             self.messages = None

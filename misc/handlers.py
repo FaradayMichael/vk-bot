@@ -171,7 +171,7 @@ def register_exception_handler(app: FastAPI):
             for i in errors:
                 validation_error.append(
                     ValidationError(
-                        field='.'.join([str(l) for l in i['loc'][1:]]),
+                        field='.'.join([str(l_) for l_ in i['loc'][1:]]),
                         message=i['msg']
                     )
                 )

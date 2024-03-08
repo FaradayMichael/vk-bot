@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from fastapi import (
     Request,
@@ -14,7 +13,6 @@ from fastapi.security.api_key import (
 )
 
 from db.users import get_user
-from models.users import Anonymous
 from misc import (
     db,
     redis
@@ -33,6 +31,7 @@ from misc.session import (
     Session,
     SessionType
 )
+from models.users import Anonymous
 
 logger = logging.getLogger(__name__)
 

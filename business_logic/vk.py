@@ -1,9 +1,7 @@
 import asyncio
 import datetime
 import logging
-import os
 import random
-import uuid
 from enum import StrEnum
 from urllib.parse import (
     urljoin,
@@ -20,9 +18,6 @@ from models.vk import (
     AttachmentType,
     Message,
     WallPost
-)
-from models.vk.io import (
-    AttachmentInput
 )
 from services.vk_bot.models import WallItemFilter
 
@@ -175,7 +170,7 @@ async def post_in_group_wall(
                 logger.info(f"{post.id=} ready to publish")
                 if notify:
                     await client.messages.send(
-                        peer_id=client.config.vk.main_user_id,
+                        peer_id=client.user_id,
                         message=Message(
                             text=f"{post.id=} ready to publish"
                         )

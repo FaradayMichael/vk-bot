@@ -1,5 +1,3 @@
-import asyncpg
-
 from misc import db
 from misc.db_tables import DBTables
 from models.triggers_answers import (

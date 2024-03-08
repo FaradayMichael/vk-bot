@@ -24,7 +24,7 @@ async def get_list(
         conn: db.Connection,
         from_dt: datetime.datetime | None = None,
         to_dt: datetime.datetime | None = None,
-        methods_in: list[str] | None = None,
+        funcs_in: list[str] | None = None,
         uuid_in: list[str] | None = None
 ) -> list[VkTask]:
     where = []
@@ -39,9 +39,9 @@ async def get_list(
         where.append(f"ctime <= ${idx}")
         values.append(to_dt)
         idx += 1
-    if methods_in is not None:
-        where.append(f"method = ANY (${idx})")
-        values.append(methods_in)
+    if funcs_in is not None:
+        where.append(f"func = ANY (${idx})")
+        values.append(funcs_in)
         idx += 1
     if uuid_in:
         where.append(f"uuid = ANY (${idx})")
