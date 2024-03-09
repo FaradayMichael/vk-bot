@@ -74,18 +74,30 @@ class VkBotService:
             config: Config
     ) -> "VkBotService":
         instance = VkBotService(loop, config)
-        await instance.init()
+        await instance._init()
         return instance
-
-    async def init(self):
-        self.db_pool = await db.init(self.config.db)
-        self.redis_conn = await redis.init(self.config.redis)
-        self._register_handlers_vk()
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
+        self._stopping = False
         await self._allocate_vk(notify=False)
         self._init_background_tasks()
+
+    async def stop(self):
+        logger.info(f"VkBot Service stop calling")
+        if not self._stopping:
+            self._stopping = True
+
+            for task in self._background_tasks:
+                task.cancel()
+            self._background_tasks = []
+
+            await self._release_vk()
+
+    async def _init(self):
+        self.db_pool = await db.init(self.config.db)
+        self.redis_conn = await redis.init(self.config.redis)
+        self._register_handlers_vk()
 
     async def _main_task(self):
         logger.info("Starting main task")
@@ -102,7 +114,7 @@ class VkBotService:
                 await asyncio.gather(*_tasks)
 
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt, StopIteration):
-                self.stop()
+                self.close()
                 break
             except Exception as e:
                 logger.exception(e)
@@ -117,7 +129,7 @@ class VkBotService:
                 await asyncio.sleep(self._timeout)
 
     async def _worker(self):
-        logging.info(f'Starting VkBot worker')
+        logger.info(f'Starting VkBot worker')
         while not self._stopping:
             task: Task = await self._queue.get()
 
@@ -178,10 +190,11 @@ class VkBotService:
                 )
 
         logger.info("Kafka listener started")
+        config = self.config.kafka
         while not self._stopping:
             consumer = AIOKafkaConsumer(
-                *self.config.kafka.topics,
-                bootstrap_servers=self.config.kafka.bootstrap_servers,
+                *config.topics,
+                bootstrap_servers=config.bootstrap_servers,
                 loop=self.loop,
                 retry_backoff_ms=30000
             )
@@ -338,26 +351,18 @@ class VkBotService:
     def register_handler_vk(self, method: VkBotEventType, handler: Callable):
         self._handlers_vk[method] = handler
 
-    def stop(self):
-        if not self._stopping:
-            logger.info(f"VkBot Service stopping was planned")
-            self._stopping = True
+    def close(self) -> asyncio.Task:
+        logger.info(f"VkBot Service closing was planned")
+        return self.loop.create_task(self.save_close())
 
-            self.loop.create_task(self._safe_close())
-
-    async def _safe_close(self):
+    async def save_close(self):
         try:
+            await self.stop()
             await self._close()
         except Exception as e:
-            logger.exception(f'Closed with exception {e}')
+            logger.error(f"Closed with ex {e}")
 
     async def _close(self):
-        self._stopping = True
-
-        for task in self._background_tasks:
-            task.cancel()
-        self._background_tasks = []
-
         self._handlers_vk = {}
 
         if self.db_pool:
@@ -367,5 +372,3 @@ class VkBotService:
         if self.redis_conn:
             await redis.close(self.redis_conn)
             self.redis_conn = None
-
-        await self._release_vk()
