@@ -86,9 +86,10 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             if a.type == 'photo' and a.photo:
                 url = a.photo.sizes[0].url
                 async with TempUrlFile(url) as tmp:
-                    photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
-                        [tmp]
-                    )
+                    if tmp:
+                        photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
+                            [tmp.filepath]
+                        )
         if photo_attachments_from_msg:
             await post_in_group_wall(
                 service.client_vk,

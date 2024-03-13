@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from typing import AsyncIterable
+from typing import AsyncIterable, Mapping
 
 from vk_api import (
     VkApi,
@@ -219,6 +219,31 @@ class Upload(BaseMethod):
             f"photo{r['owner_id']}_{r['id']}_{r['access_key']}"
             for r in response
         ]
+
+    async def video_wall_and_post(
+            self,
+            path: str,
+            name: str | None = None
+    ) -> Mapping:
+        args = dict(
+            video_file=path,
+            link=None,
+            name=name,
+            description=None,
+            is_private=0,
+            wallpost=True,
+            group_id=self._config.main_group_id,
+            album_id=None,
+            privacy_view=None,
+            privacy_comment=None,
+            no_comments=None,
+            repeat=None
+        )
+        response = await asyncio.to_thread(
+            self._upload_user.video,
+            **args
+        )
+        return response
 
 
 class VkClient:

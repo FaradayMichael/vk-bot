@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class AttachmentType(StrEnum):
     PHOTO = "photo"
     DOC = "doc"
+    VIDEO = "video"
 
     @staticmethod
     def by_content_type(
@@ -19,6 +20,12 @@ class AttachmentType(StrEnum):
                 return AttachmentType.PHOTO
             case "image/bmp":
                 return AttachmentType.PHOTO
+            case "video/mp4":
+                return AttachmentType.VIDEO
+            case "video/quicktime":
+                return AttachmentType.VIDEO
+            case "video/webm":
+                return AttachmentType.VIDEO
             case _ as arg:
                 logging.info(f"{arg=}")
                 return AttachmentType.DOC

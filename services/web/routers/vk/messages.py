@@ -66,12 +66,12 @@ async def send_vk_message(
             if f.size == 0:
                 continue
 
-            async with TempUploadFile(f) as file_path:
+            async with TempUploadFile(f) as tmp:
                 attachments.append(
                     await file_to_vk_attachment(
                         vk_client,
                         peer_id,
-                        file_path,
+                        tmp.filepath,
                         AttachmentType.by_content_type(f.content_type)
                     )
                 )

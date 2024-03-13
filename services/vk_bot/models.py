@@ -3,7 +3,8 @@ from typing import Any
 
 from pydantic import (
     BaseModel,
-    model_validator
+    model_validator,
+    AnyUrl
 )
 
 from misc.dataurl import DataURL
@@ -38,6 +39,13 @@ class PhotoAttachment(BaseModel):
 
 
 class VideoAttachment(BaseModel):
+    id: int = 0
+    owner_id: int = 0
+    user_id: int | None = 0
+    type: str | None = None
+    access_key: str = ''
+    can_add: int = 0
+    title: str | None = ''
     image: list[PhotoSize] = []
 
 
@@ -92,3 +100,4 @@ class WallItem(BaseModel):
 
 class KafkaMessage(BaseModel):
     base64: DataURL | None = None
+    video_url: AnyUrl | None = None

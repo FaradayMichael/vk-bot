@@ -33,7 +33,7 @@ from misc import (
     redis
 )
 from misc.config import Config
-from misc.files import TempBase64File
+from misc.files import TempBase64File, TempUrlFile
 from misc.vk_client import VkClient
 from models.vk import Message, AttachmentType
 from .models import KafkaMessage
@@ -80,7 +80,7 @@ class VkBotService:
     async def start(self):
         logging.info(f'Starting VkBot Service')
         self._stopping = False
-        await self._allocate_vk(notify=False)
+        # await self._allocate_vk(notify=False)
         self._init_background_tasks()
 
     async def stop(self):
@@ -105,7 +105,7 @@ class VkBotService:
         _tasks = []
         while not self._stopping:
             try:
-                await self._allocate_vk()
+                await self._allocate_vk(notify=True)
 
                 _tasks = [
                     self.loop.create_task(self._listen_vk()),
@@ -176,18 +176,31 @@ class VkBotService:
     async def _listen_kafka(self):
 
         async def handle_message(message: KafkaMessage):
-            if message.base64:
-                if AttachmentType.by_content_type(message.base64.mimetype) is not AttachmentType.PHOTO:
-                    logger.info(f"Unsupported media type: {message.base64.mimetype}")
-                    return
+            if not message.model_dump():
+                logger.info("Empty kafka message")
+                return
 
-                async with TempBase64File(message.base64) as tmp:
-                    attachments = await self.client_vk.upload.photo_wall([tmp])
-                await self.execute_in_worker(
-                    vk_bl.post_in_group_wall,
-                    self.client_vk,
-                    attachments=attachments
-                )
+            if message.base64:
+                if AttachmentType.by_content_type(message.base64.mimetype) is AttachmentType.PHOTO:
+                    async with TempBase64File(message.base64) as tmp:
+                        attachments = await self.client_vk.upload.photo_wall([tmp.filepath])
+                    await self.execute_in_worker(
+                        vk_bl.post_in_group_wall,
+                        self.client_vk,
+                        attachments=attachments
+                    )
+                else:
+                    logger.info(f"Unsupported media type: {message.base64.mimetype}")
+
+            if message.video_url:
+                logger.info(f"{message.video_url=}")
+                async with TempUrlFile(str(message.video_url)) as tmp:
+                    if tmp:
+                        logger.info(tmp)
+                        if AttachmentType.by_content_type(tmp.content_type) is AttachmentType.VIDEO:
+                            await self.client_vk.upload.video_wall_and_post(tmp.filepath)
+                        else:
+                            logger.info(f"Unsupported media type: {tmp.content_type}")
 
         logger.info("Kafka listener started")
         config = self.config.kafka
@@ -220,11 +233,13 @@ class VkBotService:
             except KafkaError as e:
                 logger.error(e)
                 await asyncio.sleep(30)
+            except Exception as e:
+                logger.exception(e)
             finally:
                 await consumer.stop()
                 logger.info("Kafka consumer stopped")
 
-    async def _allocate_vk(self, notify: bool = True):
+    async def _allocate_vk(self, notify: bool = False):
         logger.info("Allocate VkBot Service...")
         if not self.client_vk:
             self.client_vk = VkClient(self.config.vk)

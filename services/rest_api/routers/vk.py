@@ -40,8 +40,8 @@ async def api_send_message_vk(
     vk_attachments = []
     if data.message.attachments:
         for attachment in data.message.attachments:
-            async with TempBase64File(attachment.file) as filepath:
-                if a := await vk_bl.file_to_vk_attachment(vk_client, data.peer_id, filepath, attachment.type):
+            async with TempBase64File(attachment.file) as tmp:
+                if a := await vk_bl.file_to_vk_attachment(vk_client, data.peer_id, tmp.filepath, attachment.type):
                     vk_attachments.append(a)
 
     message = Message(
