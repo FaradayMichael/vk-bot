@@ -115,7 +115,6 @@ async def download_file(
             if resp.status >= 400:
                 return None
 
-            logger.info(resp.headers)
             length = int(resp.headers.get('Content-Length', 0))
             content_type = resp.headers.get('Content-Type', None)
             if not length:

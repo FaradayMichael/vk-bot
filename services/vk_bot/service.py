@@ -176,7 +176,7 @@ class VkBotService:
     async def _listen_kafka(self):
 
         async def handle_message(message: KafkaMessage):
-            if not message.model_dump():
+            if not message.model_dump(exclude_none=True):
                 logger.info("Empty kafka message")
                 return
 

@@ -101,3 +101,10 @@ class WallItem(BaseModel):
 class KafkaMessage(BaseModel):
     base64: DataURL | None = None
     video_url: AnyUrl | None = None
+
+    @model_validator(mode='before')
+    def validate_empty(cls, data):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                data[k] = v or None
+        return data
