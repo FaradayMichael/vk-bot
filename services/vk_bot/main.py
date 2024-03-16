@@ -9,10 +9,13 @@ def main(args, config: Config):
     logging.info(f'Creating VkBot Service')
     loop = asyncio.get_event_loop()
 
+    service: VkBotService | None = None
     try:
-        loop.run_until_complete(init(args, config=config, loop=loop))
+        service = loop.run_until_complete(init(args, config=config, loop=loop))
         loop.run_forever()
     except Exception as exc:
+        if service:
+            service.close()
         logging.exception(exc)
 
 

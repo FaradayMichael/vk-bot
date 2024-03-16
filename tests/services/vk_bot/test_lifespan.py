@@ -21,4 +21,3 @@ async def test_vk_service(conf: Config, event_loop):
     await service.start()
     await asyncio.sleep(15)
     await service.close()
-

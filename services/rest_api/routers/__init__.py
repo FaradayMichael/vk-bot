@@ -9,7 +9,8 @@ from . import (
     admin,
     triggers_answers,
     vk,
-    images
+    images,
+    vk_service
 )
 from services.rest_api.depends.auth import (
     check_auth,
@@ -47,6 +48,15 @@ def register_routers(app: FastAPI):
 
     router.include_router(
         images.router
+    )
+
+    router.include_router(
+        vk_service.router,
+        dependencies=[Depends(check_auth)] if not app.debug else []
+    )
+    router.include_router(
+        vk_service.admin_router,
+        dependencies=[Depends(check_auth), Depends(check_is_admin)] if not app.debug else []
     )
 
     app.include_router(router)

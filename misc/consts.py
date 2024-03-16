@@ -21,3 +21,6 @@ class LangsEnum(StrEnum):
     RU = 'ru'
     ES = 'es'
     CN = 'cn'
+
+
+VK_SERVICE_REDIS_QUEUE = "vk_service_redis_queue"

@@ -18,6 +18,7 @@ from aiokafka.errors import KafkaError
 from asyncpg import Pool
 from pydantic import ValidationError
 from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
 from vk_api.bot_longpoll import (
     VkBotEventType
 )
@@ -33,9 +34,20 @@ from misc import (
     redis
 )
 from misc.config import Config
-from misc.files import TempBase64File, TempUrlFile
+from misc.consts import VK_SERVICE_REDIS_QUEUE
+from misc.files import (
+    TempBase64File,
+    TempUrlFile
+)
 from misc.vk_client import VkClient
-from models.vk import Message, AttachmentType
+from models.vk import (
+    Message,
+    AttachmentType
+)
+from models.vk.redis import (
+    RedisMessage,
+    RedisCommands
+)
 from .models import KafkaMessage
 from .task import (
     Task,
@@ -57,12 +69,16 @@ class VkBotService:
         self.db_pool: Pool | None = None
         self.redis_conn: Redis | None = None
 
-        self._stopping: bool = False
+        self._pubsub: PubSub | None = None
+        self._commands_redis: dict[RedisCommands, Callable] = {}
+
+        self._stopping: bool = True
         self._timeout = config.vk.timeout
         self.ex: list[Exception] = []
         self.last_ex: Exception | None = None
         self._queue: asyncio.Queue = asyncio.Queue()
         self._background_tasks: list[asyncio.Task] = []
+        self._listen_redis_task: asyncio.Task | None = None
 
         self.client_vk: VkClient | None = None
         self._handlers_vk: dict[VkBotEventType, Callable] = {}
@@ -79,9 +95,10 @@ class VkBotService:
 
     async def start(self):
         logging.info(f'Starting VkBot Service')
-        self._stopping = False
-        # await self._allocate_vk(notify=False)
-        self._init_background_tasks()
+        if self._stopping:
+            self._stopping = False
+
+            self._init_background_tasks()
 
     async def stop(self):
         logger.info(f"VkBot Service stop calling")
@@ -97,7 +114,13 @@ class VkBotService:
     async def _init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
+
         self._register_handlers_vk()
+        self._register_commands_redis()
+
+        self._pubsub = self.redis_conn.pubsub()
+        await self._pubsub.subscribe(VK_SERVICE_REDIS_QUEUE)
+        self._listen_redis_task = self.loop.create_task(self._listen_redis())
 
     async def _main_task(self):
         logger.info("Starting main task")
@@ -114,7 +137,7 @@ class VkBotService:
                 await asyncio.gather(*_tasks)
 
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt, StopIteration):
-                self.close()
+                # self.close()
                 break
             except Exception as e:
                 logger.exception(e)
@@ -208,7 +231,6 @@ class VkBotService:
             consumer = AIOKafkaConsumer(
                 *config.topics,
                 bootstrap_servers=config.bootstrap_servers,
-                loop=self.loop,
                 retry_backoff_ms=30000
             )
 
@@ -223,7 +245,7 @@ class VkBotService:
                     try:
                         model = KafkaMessage.model_validate_json(msg.value)
                     except ValidationError as e:
-                        logger.error(f"Invalid message value: {e}")
+                        logger.error(f"Invalid kafka message value: {e}")
                         continue
 
                     await handle_message(model)
@@ -238,6 +260,43 @@ class VkBotService:
             finally:
                 await consumer.stop()
                 logger.info("Kafka consumer stopped")
+
+    async def _listen_redis(self):
+
+        async def handle_message(message: RedisMessage):
+            if not message.model_dump(exclude_none=True):
+                logger.info("Empty redis message")
+                return
+            data = message.data or {}
+            match message.command:
+                case _:
+                    command_call = self._commands_redis.get(message.command, None)
+
+            if command_call:
+                await command_call(**data)
+
+        logger.info("Redis listener started")
+        while True:
+            try:
+
+                async for msg in self._pubsub.listen():
+                    logger.info(msg)
+                    if msg['data'] == 1:
+                        continue
+
+                    try:
+                        model = RedisMessage.model_validate_json(msg['data'])
+                    except ValidationError as e:
+                        logger.error(f"Invalid redis message value: {e}")
+                        continue
+
+                    await handle_message(model)
+
+            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                logger.info("Cancelling redis listener")
+                break
+            except Exception as e:
+                logger.exception(e)
 
     async def _allocate_vk(self, notify: bool = False):
         logger.info("Allocate VkBot Service...")
@@ -366,6 +425,17 @@ class VkBotService:
     def register_handler_vk(self, method: VkBotEventType, handler: Callable):
         self._handlers_vk[method] = handler
 
+    def _register_commands_redis(self):
+        self._commands_redis[RedisCommands.SERVICE_START] = self.start
+        self._commands_redis[RedisCommands.SERVICE_STOP] = self.stop
+        self._commands_redis[RedisCommands.SERVICE_RESTART] = self.restart
+
+    async def restart(self, timeout_seconds: int = 30):
+        logger.info(f"Restart Srvice. Timeout seconds: {timeout_seconds}")
+        await self.stop()
+        await asyncio.sleep(timeout_seconds)
+        await self.start()
+
     def close(self) -> asyncio.Task:
         logger.info(f"VkBot Service closing was planned")
         return self.loop.create_task(self.save_close())
@@ -379,6 +449,16 @@ class VkBotService:
 
     async def _close(self):
         self._handlers_vk = {}
+
+        if self._listen_redis_task:
+            self._listen_redis_task.cancel()
+            self._listen_redis_task = None
+
+        self._commands_redis = {}
+
+        if self._pubsub:
+            await self._pubsub.aclose()
+            self._pubsub = None
 
         if self.db_pool:
             await self.db_pool.close()

@@ -1,11 +1,13 @@
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from redis.asyncio import from_url, Redis
 
 from misc.config import RedisConfig
-from misc.env import get as get_from_env
+from misc.env import (
+    get as get_from_env
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,7 @@ async def close(pool: Connection):
     await pool.aclose()
 
 
-async def get(conn: Connection, key: str) -> Optional[dict]:
+async def get(conn: Connection, key: str) -> dict | None:
     data = await conn.get(key)
     if data is not None:
         try:
@@ -54,5 +56,5 @@ async def publish(
         conn: Connection,
         queue_name: str,
         data: Any
-):
-    await conn.publish(queue_name, json.dumps(data))
+) -> int | Any:
+    return await conn.publish(queue_name, json.dumps(data))
