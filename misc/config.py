@@ -44,6 +44,7 @@ class VkConfig(BaseModel):
 class KafkaConfig(BaseModel):
     bootstrap_servers: str
     topics: list[str]
+    disable_logger: bool = True
 
 
 class Config(BaseModel):

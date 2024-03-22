@@ -26,10 +26,10 @@ from models.vk import (
 )
 from . import callbacks
 from . import commands
-from services.vk_bot.models import (
-    VkMessage,
+from services.vk_bot.models.vk import (
+    PhotoSize,
     VkMessageAttachment,
-    PhotoSize
+    VkMessage
 )
 from services.vk_bot.service import VkBotService
 

@@ -27,7 +27,8 @@ from business_logic import (
     vk as vk_bl
 )
 from db import (
-    tasks as tasks_db
+    tasks as tasks_db,
+    send_on_schedule as send_on_schedule_db
 )
 from misc import (
     db,
@@ -48,7 +49,10 @@ from models.vk.redis import (
     RedisMessage,
     RedisCommands
 )
-from .models import KafkaMessage
+from .models.service import (
+    KafkaMessage,
+    BackgroundTasks
+)
 from .task import (
     Task,
     save_task,
@@ -77,8 +81,7 @@ class VkBotService:
         self.ex: list[Exception] = []
         self.last_ex: Exception | None = None
         self._queue: asyncio.Queue = asyncio.Queue()
-        self._background_tasks: list[asyncio.Task] = []
-        self._listen_redis_task: asyncio.Task | None = None
+        self._background_tasks: BackgroundTasks = BackgroundTasks()
 
         self.client_vk: VkClient | None = None
         self._handlers_vk: dict[VkBotEventType, Callable] = {}
@@ -98,16 +101,18 @@ class VkBotService:
         if self._stopping:
             self._stopping = False
 
-            self._init_background_tasks()
+            await self._init_background_tasks()
 
     async def stop(self):
         logger.info(f"VkBot Service stop calling")
         if not self._stopping:
             self._stopping = True
 
-            for task in self._background_tasks:
+            self.stop_schedule_tasks()
+
+            for task in self._background_tasks.tasks:
                 task.cancel()
-            self._background_tasks = []
+                self._background_tasks.tasks = []
 
             await self._release_vk()
 
@@ -120,7 +125,7 @@ class VkBotService:
 
         self._pubsub = self.redis_conn.pubsub()
         await self._pubsub.subscribe(VK_SERVICE_REDIS_QUEUE)
-        self._listen_redis_task = self.loop.create_task(self._listen_redis())
+        self._background_tasks.redis_listener = self.loop.create_task(self._listen_redis())
 
     async def _main_task(self):
         logger.info("Starting main task")
@@ -199,7 +204,7 @@ class VkBotService:
     async def _listen_kafka(self):
 
         async def handle_message(message: KafkaMessage):
-            if not message.model_dump(exclude_none=True):
+            if message.is_empty():
                 logger.info("Empty kafka message")
                 return
 
@@ -264,11 +269,16 @@ class VkBotService:
     async def _listen_redis(self):
 
         async def handle_message(message: RedisMessage):
-            if not message.model_dump(exclude_none=True):
+            if message.is_empty():
                 logger.info("Empty redis message")
                 return
+
+            command_call = None
             data = message.data or {}
             match message.command:
+                case RedisCommands.SEND_ON_SCHEDULE_RESTART:
+                    self.stop_schedule_tasks()
+                    await self.start_schedule_tasks()
                 case _:
                     command_call = self._commands_redis.get(message.command, None)
 
@@ -351,32 +361,29 @@ class VkBotService:
                 self.ex.append(e)
                 await asyncio.sleep(300)
 
-    def _init_background_tasks(self):
+    async def _init_background_tasks(self):
         self.start_background_task(
             coro=self._main_task()
         )
 
-        async def _get_weekly_message_data(peer_id: int) -> tuple[int, Message]:
-            key = "get_weekly_message_data-attachment"
-            attachment = await redis.get(self.redis_conn, key)
-            logger.info(f'from redis: {attachment=}')
-            if not attachment:
-                attachment = await self.client_vk.upload.doc_message(peer_id=peer_id, doc_path='static/test.gif')
-                await redis.set(self.redis_conn, key, {'value': attachment})
-            else:
-                attachment = attachment['value']
-            return peer_id, Message(
-                text='',
-                attachment=attachment
-            )
-
         self.start_background_task(
-            coro=self.send_on_schedule(
-                cron="0 9 * * 2",
-                fetch_message_data_func=_get_weekly_message_data,
-                args=(2000000003,)
-            )
+            coro=self._listen_kafka()
         )
+
+        await self.start_schedule_tasks()
+
+    async def start_schedule_tasks(self):
+        logger.info("Starting send on schedule tasks")
+
+        schedule_tasks = await send_on_schedule_db.get_list(self.db_pool)
+        for s_t in schedule_tasks:
+            self.start_schedule_task(
+                coro=self.send_on_schedule(
+                    cron=s_t.cron,
+                    peer_id=s_t.message_data.peer_id,
+                    message=s_t.message_data.message
+                )
+            )
 
         async def _get_daily_statistic_message_data(peer_id: int) -> tuple[int, Message]:
             now = datetime.datetime.now()
@@ -394,7 +401,7 @@ class VkBotService:
                 text=text
             )
 
-        self.start_background_task(
+        self.start_schedule_task(
             coro=self.send_on_schedule(
                 cron="0 6 * * *",
                 fetch_message_data_func=_get_daily_statistic_message_data,
@@ -402,20 +409,33 @@ class VkBotService:
             )
         )
 
-        self.start_background_task(
-            coro=self._listen_kafka()
-        )
+    def stop_schedule_tasks(self):
+        logger.info("Send on schedule stop called")
+        for task in self._background_tasks.schedule_tasks:
+            task.cancel()
+            self._background_tasks.schedule_tasks = []
 
     def start_background_task(
             self,
             coro: Coroutine
     ):
-        self._background_tasks.append(
+        self._background_tasks.tasks.append(
             self.loop.create_task(
                 coro
             )
         )
-        logger.info(f"Register background task {coro} ")
+        logger.info(f"Register background task: {coro.__qualname__} {coro.cr_frame.f_locals}")
+
+    def start_schedule_task(
+            self,
+            coro: Coroutine
+    ):
+        self._background_tasks.schedule_tasks.append(
+            self.loop.create_task(
+                coro
+            )
+        )
+        logger.info(f"Register schedule task: {coro.__qualname__} {coro.cr_frame.f_locals}")
 
     def _register_handlers_vk(self):
         from .vk import handlers
@@ -450,9 +470,9 @@ class VkBotService:
     async def _close(self):
         self._handlers_vk = {}
 
-        if self._listen_redis_task:
-            self._listen_redis_task.cancel()
-            self._listen_redis_task = None
+        if self._background_tasks.redis_listener:
+            self._background_tasks.redis_listener.cancel()
+            self._background_tasks.redis_listener = None
 
         self._commands_redis = {}
 
