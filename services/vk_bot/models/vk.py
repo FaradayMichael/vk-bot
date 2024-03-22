@@ -1,13 +1,7 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import (
-    BaseModel,
-    model_validator,
-    AnyUrl
-)
-
-from misc.dataurl import DataURL
+from pydantic import BaseModel, model_validator
 
 
 class PhotoSize(BaseModel):
@@ -96,15 +90,3 @@ class WallItem(BaseModel):
     id: int
     text: str = ''
     post_source: dict | None = None
-
-
-class KafkaMessage(BaseModel):
-    base64: DataURL | None = None
-    video_url: AnyUrl | None = None
-
-    @model_validator(mode='before')
-    def validate_empty(cls, data):
-        if isinstance(data, dict):
-            for k, v in data.items():
-                data[k] = v or None
-        return data

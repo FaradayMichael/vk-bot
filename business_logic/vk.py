@@ -19,7 +19,7 @@ from models.vk import (
     Message,
     WallPost
 )
-from services.vk_bot.models import WallItemFilter
+from services.vk_bot.models.vk import WallItemFilter
 
 logger = logging.getLogger(__name__)
 
