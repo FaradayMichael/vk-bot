@@ -29,6 +29,14 @@ async def delete(
     return db.record_to_model(TriggerAnswer, record)
 
 
+async def get(
+        conn: db.Connection,
+        pk: int
+) -> TriggerAnswer | None:
+    record = await db.get(conn, TABLE, pk)
+    return db.record_to_model(TriggerAnswer, record)
+
+
 async def get_list(
         conn: db.Connection,
         trigger_q: str = '',
@@ -74,7 +82,8 @@ async def get_for_like(
             trigger,
             json_agg(
                 json_build_object(
-                    'answer', answer,
+                    'id', {TABLE.value}.id,
+                    'answer', {TABLE.value}.answer,
                     'attachment', attachment
                 )
             ) as answers

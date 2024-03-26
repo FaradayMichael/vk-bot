@@ -8,7 +8,8 @@ from vk_api.bot_longpoll import VkBotMessageEvent
 
 from db import (
     triggers_answers as triggers_answers_db,
-    know_ids as know_ids_db
+    know_ids as know_ids_db,
+    triggers_history as triggers_history_db
 )
 from business_logic.vk import (
     parse_image_tags,
@@ -20,7 +21,8 @@ from misc.vk_client import VkClient
 from models.images import (
     ImageTags
 )
-from models.triggers_answers import AnswerBase
+from models.triggers_answers import Answer
+from models.triggers_history import TriggersHistoryNew
 from models.vk import (
     Message
 )
@@ -68,7 +70,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             sum([i.answers for i in find_triggers], [])
         ))
         if answers:
-            answer: AnswerBase = random.choice(answers)
+            answer: Answer = random.choice(answers)
             know_id = await know_ids_db.get(conn, from_id)
             know_id_place = f"({know_id.name})" if know_id else ''
             await service.client_vk.messages.send(
@@ -78,6 +80,17 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                     attachment=answer.attachment
                 )
             )
+            try:
+                await triggers_history_db.create(
+                    conn,
+                    TriggersHistoryNew(
+                        trigger_answer_id=answer.id,
+                        vk_id=from_id,
+                        message_data=message_model.model_dump()
+                    )
+                )
+            except Exception as e:
+                logger.error(e)
 
     # Posting on group wall
     if from_chat and peer_id == 2000000001:

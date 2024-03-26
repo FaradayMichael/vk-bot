@@ -31,9 +31,13 @@ class TriggerAnswer(TriggerAnswerCreateBase):
     ctime: datetime.datetime
 
 
+class Answer(AnswerBase):
+    id: int
+
+
 class TriggerGroup(TriggerBase):
     trigger: str
-    answers: list[AnswerBase]
+    answers: list[Answer]
 
     @model_validator(mode='before')
     def json_to_list(cls, data: dict):

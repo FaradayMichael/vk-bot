@@ -7,3 +7,4 @@ class DBTables(StrEnum):
     VK_TASKS = 'vk_tasks'
     KNOW_IDS = 'know_ids'
     SEND_ON_SCHEDULE = 'send_on_schedule'
+    TRIGGERS_HISTORY = 'triggers_history'
