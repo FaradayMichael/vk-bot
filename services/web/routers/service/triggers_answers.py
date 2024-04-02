@@ -39,7 +39,7 @@ async def triggers_answers_view(
         conn: Connection = Depends(get_conn)
 ):
     rows = await triggers_answers_db.get_list(conn)
-    return jinja.get_template('triggers_answers.html').render(
+    return jinja.get_template('service/triggers_answers.html').render(
         user=session.user,
         request=request,
         rows=rows
@@ -63,7 +63,7 @@ async def triggers_answers_create(
                 attachment=attachment
             )
         )
-    return RedirectResponse('/triggers_answers', status_code=302)
+    return RedirectResponse('/service/triggers_answers', status_code=302)
 
 
 @router.post('/delete', response_class=RedirectResponse)
@@ -72,4 +72,4 @@ async def triggers_answers_delete(
         conn: Connection = Depends(get_conn)
 ):
     await triggers_answers_db.delete(conn, pk)
-    return RedirectResponse('/triggers_answers', status_code=302)
+    return RedirectResponse('/service/triggers_answers', status_code=302)

@@ -12,6 +12,7 @@ from models.triggers_history import (
 )
 
 TABLE = DBTables.TRIGGERS_HISTORY
+TRIGGERS_ANSWERS_TABLE = triggers_answers_db.TABLE
 
 
 async def create(
@@ -31,13 +32,37 @@ async def get(
 
 
 async def get_list(
-        conn: db.Connection
+        conn: db.Connection,
+        q: str | None = None
 ) -> list[TriggersHistory]:
-    records = await db.get_list(
-        conn=conn,
-        table=TABLE,
-        order=['-ctime']
-    )
+    where = []
+    values = []
+    idx = 1
+
+    query = f"""
+        SELECT 
+            t1.*
+        FROM {TABLE} t1
+        LEFT JOIN {TRIGGERS_ANSWERS_TABLE} t2
+            ON t1.trigger_answer_id = t2.id 
+    """
+
+    if q is not None:
+        search_fields = {
+            "t2.trigger",
+            "t2.answer",
+            "t1.vk_id",
+        }
+        where.append(
+            "(" + " OR ".join([f"LOWER({s_f}::TEXT) LIKE ${idx}" for s_f in search_fields]) + ")"
+        )
+        values.append(f"%{q.strip().lower()}%")
+
+    if where:
+        query += f"WHERE {' AND '.join(where)}"
+
+    query += "ORDER BY ctime DESC"
+    records = await conn.fetch(query, *values)
     return await _record_to_model_list(conn, records)
 
 

@@ -86,7 +86,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                     TriggersHistoryNew(
                         trigger_answer_id=answer.id,
                         vk_id=from_id,
-                        message_data=message_model.model_dump()
+                        message_data=message_model
                     )
                 )
             except Exception as e:

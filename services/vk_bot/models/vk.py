@@ -67,6 +67,19 @@ class VkMessageAttachment(BaseModel):
     wall: WallAttachment | None = None
     doc: DocAttachment | None = None
 
+    @property
+    def short_str(self) -> str:
+        if self.photo:
+            return f"photo: {self.photo.sizes[0].url}"
+        elif self.video:
+            return f"video: {self.video.image[0].url}"
+        elif self.wall:
+            return f"wall: {[w.short_str for w in self.wall.attachments]}"
+        elif self.doc:
+            return f"doc: {self.doc.preview.photo.sizes[0].url}"
+        else:
+            return ''
+
 
 class VkMessage(BaseModel):
     date: int = 0
@@ -78,6 +91,10 @@ class VkMessage(BaseModel):
     peer_id: int = 0
     text: str = ''
     from_chat: bool
+
+    @property
+    def short_str(self) -> str:
+        return f"text='{self.text}' attachments={[a.short_str for a in self.attachments]}"
 
 
 class WallItemFilter(StrEnum):

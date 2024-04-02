@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Triggers history</h1>
+<form class="form-inline" method="post" action="/service/triggers_history">
+    <div class="form-group mb-2 mr-2">
+        <input type="text" class="form-control" placeholder="Search" name="search">
+    </div>
+    <input type="submit" class="btn btn-primary mb-2" value="Search">
+</form>
+
+<table id="dtBasicExample" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">
+    <thead>
+    <tr>
+        <th class="th-sm">Date</th>
+        <th class="th-sm">Vk id</th>
+        <th class="th-sm">trigger_answer</th>
+        <th class="th-sm">message</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        <td>{{r.ctime.strftime("%Y-%m-%d %H:%M:%S")}}</td>
+        <td>{{r.know_id if r.know_id else r.vk_id}}</td>
+        <td>{{r.trigger_answer.trigger + ' | ' + r.trigger_answer.answer}}</td>
+        <td>{{r.message_data.short_str}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

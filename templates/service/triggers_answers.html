@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Triggers-Answers</h1>
-<form class="form-inline" method="post" action="/triggers_answers">
+<form class="form-inline" method="post" action="/service/triggers_answers">
     <div class="form-group mb-2 mr-2">
         <input type="text" class="form-control" placeholder="Trigger" name="trigger" required>
     </div>
@@ -34,7 +34,7 @@
         <td>{{r.attachment}}</td>
         <td>{{r.ctime}}</td>
         <td>
-            <form class="form-inline" action="/triggers_answers/delete" method="post">
+            <form class="form-inline" action="/service/triggers_answers/delete" method="post">
                 <input type="hidden" name="pk" value={{r.id}}>
                 <input type="submit" class="btn btn-primary mb-2" value="Delete">
             </form>
