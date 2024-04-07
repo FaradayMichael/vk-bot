@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 from typing import AsyncIterable, Mapping
 
 from vk_api import (
@@ -24,6 +25,22 @@ from services.vk_bot.models.vk import (
     WallItem
 )
 
+logger = logging.getLogger(__name__)
+
+
+def with_retries(f):
+    async def wrapper(*args, **kwargs):
+        max_tries = 3
+        for _ in range(max_tries - 1):
+            try:
+                return await f(*args, **kwargs)
+            except Exception as e:
+                logger.error(e)
+                await asyncio.sleep(5)
+        return await f(*args, **kwargs)
+
+    return wrapper
+
 
 class BaseMethod:
     def __init__(
@@ -40,6 +57,7 @@ class BaseMethod:
         self._upload_group: VkUpload = upload_group
         self._upload_user: VkUpload = upload_user
 
+    @with_retries
     async def _call_group(
             self,
             method: str,
@@ -53,6 +71,7 @@ class BaseMethod:
             **kwargs
         )
 
+    @with_retries
     async def _call_user(
             self,
             method: str,
@@ -174,6 +193,7 @@ class Wall(BaseMethod):
 
 class Upload(BaseMethod):
 
+    @with_retries
     async def photos_message(
             self,
             peer_id: int,
@@ -189,6 +209,7 @@ class Upload(BaseMethod):
             for r in response
         ]
 
+    @with_retries
     async def doc_message(
             self,
             peer_id: int,
@@ -204,6 +225,7 @@ class Upload(BaseMethod):
         doc = response['doc']
         return f"doc{doc['owner_id']}_{doc['id']}"
 
+    @with_retries
     async def photo_wall(
             self,
             photo_paths: list[str]
@@ -220,6 +242,7 @@ class Upload(BaseMethod):
             for r in response
         ]
 
+    @with_retries
     async def video_wall_and_post(
             self,
             path: str,

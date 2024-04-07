@@ -66,6 +66,7 @@ class VkMessageAttachment(BaseModel):
     video: VideoAttachment | None = None
     wall: WallAttachment | None = None
     doc: DocAttachment | None = None
+    story: dict | None = None
 
     @property
     def short_str(self) -> str:
