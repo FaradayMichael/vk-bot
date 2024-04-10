@@ -12,7 +12,8 @@ from models.triggers_history import (
 )
 
 TABLE = DBTables.TRIGGERS_HISTORY
-TRIGGERS_ANSWERS_TABLE = triggers_answers_db.TABLE
+TRIGGERS_ANSWERS_TABLE = DBTables.TRIGGERS_ANSWERS
+KNOW_IDS_TABLE = DBTables.KNOW_IDS
 
 
 async def create(
@@ -45,13 +46,16 @@ async def get_list(
         FROM {TABLE} t1
         LEFT JOIN {TRIGGERS_ANSWERS_TABLE} t2
             ON t1.trigger_answer_id = t2.id 
+        LEFT JOIN {KNOW_IDS_TABLE} t3 
+            ON t1.vk_id = t3.id 
     """
 
     if q is not None:
         search_fields = {
+            "t1.vk_id",
             "t2.trigger",
             "t2.answer",
-            "t1.vk_id",
+            "t3.name",
         }
         where.append(
             "(" + " OR ".join([f"LOWER({s_f}::TEXT) LIKE ${idx}" for s_f in search_fields]) + ")"
