@@ -47,6 +47,10 @@ class KafkaConfig(BaseModel):
     disable_logger: bool = True
 
 
+class DiscordConfig(BaseModel):
+    token: str
+
+
 class Config(BaseModel):
     debug: bool = False
     salt: str
@@ -57,6 +61,7 @@ class Config(BaseModel):
     static_url: str = '/media'
     vk: VkConfig
     kafka: KafkaConfig
+    discord: DiscordConfig
 
 
 def read_config(path: str) -> Config:

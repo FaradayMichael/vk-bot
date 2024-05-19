@@ -30,5 +30,8 @@
   "kafka": {
     "bootstrap_servers": "qwe",
     "topics": ["qwe"]
+  },
+    "discord": {
+    "token": "qwe"
   }
 }
