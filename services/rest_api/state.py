@@ -9,6 +9,12 @@ from misc import db, redis, smtp
 from misc.config import Config
 
 
+class App(FastAPI):
+    def __init__(self, *args, **kwargs):
+        self.state: State | None = None
+        super().__init__(*args, **kwargs)
+
+
 class State(object):
     def __init__(self, loop: asyncio.BaseEventLoop | asyncio.AbstractEventLoop, config: Config):
         super().__init__()

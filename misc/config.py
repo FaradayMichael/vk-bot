@@ -47,8 +47,13 @@ class KafkaConfig(BaseModel):
     disable_logger: bool = True
 
 
+class TgConfig(BaseModel):
+    token: str
+
+
 class Config(BaseModel):
     debug: bool = False
+    root_path: str | None = None
     salt: str
     db: PostgresqlConfig
     redis: RedisConfig
@@ -57,6 +62,7 @@ class Config(BaseModel):
     static_url: str = '/media'
     vk: VkConfig
     kafka: KafkaConfig
+    tg: TgConfig
 
 
 def read_config(path: str) -> Config:

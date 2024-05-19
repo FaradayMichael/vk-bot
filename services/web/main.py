@@ -36,8 +36,6 @@ def factory():
 
 def main(args, config: Config):
     loop = asyncio.get_event_loop()
-    config_dict = config.model_dump()
-    root_path: str | None = config_dict.get('rot_path', None)
     state = State(
         loop=loop,
         config=config
@@ -45,7 +43,7 @@ def main(args, config: Config):
     app = FastAPI(
         title='VK Bot WEB',
         debug=config.debug,
-        root_path=root_path,
+        root_path=config.root_path,
         responses=responses(),
         dependencies=[Depends(get_session)],
         lifespan=lifespan
