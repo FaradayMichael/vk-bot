@@ -40,6 +40,11 @@ from misc.files import (
     TempBase64File,
     TempUrlFile
 )
+from misc.messages_broker import (
+    BaseConsumer,
+    MBProvider,
+    MBMessage
+)
 from misc.vk_client import VkClient
 from models.vk import (
     Message,
@@ -50,7 +55,6 @@ from models.vk.redis import (
     RedisCommands
 )
 from .models.service import (
-    KafkaMessage,
     BackgroundTasks
 )
 from .task import (
@@ -112,7 +116,7 @@ class VkBotService:
 
             for task in self._background_tasks.tasks:
                 task.cancel()
-                self._background_tasks.tasks = []
+            self._background_tasks.tasks = []
 
             await self._release_vk()
 
@@ -203,9 +207,9 @@ class VkBotService:
 
     async def _listen_kafka(self):
 
-        async def handle_message(message: KafkaMessage):
+        async def handle_message(message: MBMessage):
             if message.is_empty():
-                logger.info("Empty kafka message")
+                logger.info("Empty MB message")
                 return
 
             if message.base64:
@@ -230,41 +234,31 @@ class VkBotService:
                         else:
                             logger.info(f"Unsupported media type: {tmp.content_type}")
 
-        logger.info("Kafka listener started")
-        config = self.config.kafka
+        logger.info("MB listener started")
         while not self._stopping:
-            consumer = AIOKafkaConsumer(
-                *config.topics,
-                bootstrap_servers=config.bootstrap_servers,
-                retry_backoff_ms=30000
-            )
+            try:
+                consumer: BaseConsumer = await BaseConsumer.create(self.config, MBProvider.KAFKA)
+                logger.info("MB consumer started")
+            except Exception as e:
+                logger.exception(e)
+                await asyncio.sleep(30)
+                continue
 
             try:
-                await consumer.start()
-                logger.info("Kafka consumer started")
-
-                async for msg in consumer:
-                    msg: ConsumerRecord
-                    logger.info(f"{msg.key=} {msg.topic=}")
-
-                    try:
-                        model = KafkaMessage.model_validate_json(msg.value)
-                    except ValidationError as e:
-                        logger.error(f"Invalid kafka message value: {e}")
-                        continue
-
-                    await handle_message(model)
+                async for msg in consumer.lister():
+                    msg: MBMessage
+                    await handle_message(msg)
 
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
-            except KafkaError as e:
+            except consumer.base_ex as e:
                 logger.error(e)
                 await asyncio.sleep(30)
             except Exception as e:
                 logger.exception(e)
             finally:
-                await consumer.stop()
-                logger.info("Kafka consumer stopped")
+                await consumer.close()
+                logger.info("MB consumer stopped")
 
     async def _listen_redis(self):
 
@@ -413,7 +407,7 @@ class VkBotService:
         logger.info("Send on schedule stop called")
         for task in self._background_tasks.schedule_tasks:
             task.cancel()
-            self._background_tasks.schedule_tasks = []
+        self._background_tasks.schedule_tasks = []
 
     def start_background_task(
             self,
