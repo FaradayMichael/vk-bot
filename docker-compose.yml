@@ -73,6 +73,30 @@ services:
     env_file:
       - .env
 
+
+  discord:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: discord
+    command: python3 discord_service.py
+    volumes:
+      - .:/code
+    links:
+      - redis
+      - db
+      - dbmate
+      - mailhog
+    depends_on:
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+
   db:
     image: postgres
     container_name: db
