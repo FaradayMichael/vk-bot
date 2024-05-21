@@ -88,7 +88,7 @@ class DiscordService:
             self.loop.create_task(
                 send_on_schedule(
                     self,
-                    "* * * * *",
+                    "0 9 * * 2",
                     937785108696551546,
                     filepaths=["static/test.gif"]
                 )
