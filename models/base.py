@@ -1,3 +1,5 @@
+import logging
+from enum import StrEnum
 from types import NoneType
 from typing import (
     Optional,
@@ -72,3 +74,30 @@ def round_decimal(
     if value is None:
         return None
     return value.quantize(template, rounding=round_str)
+
+
+class AttachmentType(StrEnum):
+    PHOTO = "photo"
+    DOC = "doc"
+    VIDEO = "video"
+
+    @staticmethod
+    def by_content_type(
+            content_type: str
+    ) -> "AttachmentType":
+        match content_type:
+            case 'image/png':
+                return AttachmentType.PHOTO
+            case "image/jpeg":
+                return AttachmentType.PHOTO
+            case "image/bmp":
+                return AttachmentType.PHOTO
+            case "video/mp4":
+                return AttachmentType.VIDEO
+            case "video/quicktime":
+                return AttachmentType.VIDEO
+            case "video/webm":
+                return AttachmentType.VIDEO
+            case _ as arg:
+                logging.info(f"{arg=}")
+                return AttachmentType.DOC

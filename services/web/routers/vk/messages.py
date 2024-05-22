@@ -33,7 +33,8 @@ from misc.files import TempUploadFile
 from misc.session import Session
 from misc.vk_client import VkClient
 
-from models.vk import AttachmentType, Message
+from models.vk import Message
+from models.base import AttachmentType
 
 router = APIRouter(prefix='/messages')
 

@@ -100,16 +100,11 @@ class DiscordService:
         self._bot.add_command(commands.test)
 
     def _register_events(self) -> None:
+        from . import events
 
         async def on_message(message: Message):
-            if not message.author.bot:
-                await self._bot.process_commands(message)
-                logger.info(f"{message=}")
-                logger.info(f"{message.content=}")
-                logger.info(f"{message.attachments=}")
-                logger.info(f"{message.stickers=}")
+            return await events.on_message(self, message)
 
-        from . import events
         self._bot.event(events.on_ready)
         self._bot.event(on_message)
         self._bot.event(events.on_presence_update)

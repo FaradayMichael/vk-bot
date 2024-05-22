@@ -12,9 +12,11 @@ from db import (
     triggers_history as triggers_history_db
 )
 from business_logic.vk import (
-    parse_image_tags,
     post_in_group_wall,
     GroupPostMode
+)
+from business_logic.images import (
+    parse_image_tags
 )
 from misc.files import TempUrlFile
 from misc.vk_client import VkClient

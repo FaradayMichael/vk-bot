@@ -1,8 +1,14 @@
-from pydantic import BaseModel, model_validator
+from pydantic import (
+    BaseModel,
+    model_validator
+)
 
 from misc.dataurl import DataURL
-from models.base import SuccessResponse
-from models.vk import AttachmentType, SendMessage
+from models.base import (
+    SuccessResponse,
+    AttachmentType
+)
+from models.vk import SendMessage
 
 
 class AttachmentInput(BaseModel):
