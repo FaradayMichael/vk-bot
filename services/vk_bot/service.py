@@ -47,9 +47,9 @@ from misc.messages_broker import (
 )
 from misc.vk_client import VkClient
 from models.vk import (
-    Message,
-    AttachmentType
+    Message
 )
+from models.base import AttachmentType
 from models.vk.redis import (
     RedisMessage,
     RedisCommands

@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-from business_logic.vk import parse_image_tags
+from business_logic.images import (
+    parse_image_tags
+)
 from models.images import (
     ImageUrl,
     ImageTagsResponse
