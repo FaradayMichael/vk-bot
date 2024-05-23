@@ -26,13 +26,13 @@ async def play(
 
     logger.info(repr(ctx.message.author.voice))
 
-    test_id = 1241728108768264216
-    channel = discord.utils.get(ctx.bot.get_all_channels(), id=test_id)
+    # test_id = 1241728108768264216
+    # channel = discord.utils.get(ctx.bot.get_all_channels(), id=test_id)
 
-    # voice = ctx.message.author.voice
-    # if voice is None:
-    #     return None
-    # channel = voice.channel
+    voice = ctx.message.author.voice
+    if voice is None:
+        return None
+    channel = voice.channel
     logger.info(repr(channel))
     voice_client: VoiceClient = await channel.connect(reconnect=False)
     try:
