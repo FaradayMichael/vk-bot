@@ -54,7 +54,7 @@ class DiscordService:
 
         self._intents = Intents.all()
         self._intents.messages = True
-        self._bot = Bot(command_prefix=">", intents=self._intents)
+        self._bot = Bot(command_prefix="/", intents=self._intents)
         self._register_commands()
         self._register_events()
 
@@ -98,6 +98,7 @@ class DiscordService:
     def _register_commands(self) -> None:
         from . import commands
         self._bot.add_command(commands.test)
+        self._bot.add_command(commands.play)
 
     def _register_events(self) -> None:
         from . import events
