@@ -106,9 +106,13 @@ class DiscordService:
         async def on_message(message: Message):
             return await events.on_message(self, message)
 
+        async def on_voice_state_update(member, before, after):
+            return await events.on_voice_state_update(self, member, before, after)
+
         self._bot.event(events.on_ready)
         self._bot.event(on_message)
         self._bot.event(events.on_presence_update)
+        self._bot.event(on_voice_state_update)
 
     async def stop_bot(self) -> None:
         logger.info("Stopping Discord Bot")

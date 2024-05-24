@@ -1,7 +1,13 @@
 import logging
 
-from discord import Message
-from discord.member import Member
+from discord import (
+    Message,
+    VoiceClient
+)
+from discord.member import (
+    Member,
+    VoiceState
+)
 
 from business_logic.images import parse_image_tags
 from models.base import AttachmentType
@@ -13,6 +19,8 @@ logger = logging.getLogger(__name__)
 DISCORD_MEDIA_PREFIX = 'https://media'
 IMG_EXT = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
 
+
+# https://discordpy.readthedocs.io/en/stable/api.html?highlight=event#event-reference
 
 async def on_message(service: DiscordService, message: Message):
     if message.author.bot:
@@ -56,6 +64,43 @@ async def on_presence_update(before: Member, after: Member):
     logger.info(after.status)
 
 
+async def on_voice_state_update(
+        service: DiscordService,
+        member: Member,
+        before: VoiceState,
+        after: VoiceState
+):
+    async def on_leave_channel():
+        channel = before.channel
+        logger.info(f"Member {member.display_name} has left the voice channel {channel.name}")
+        logger.info(bot.voice_clients)
+        for v_c in bot.voice_clients:
+            v_c: VoiceClient
+            if v_c.channel.id == channel.id and len(v_c.channel.members) == 1:
+                await v_c.disconnect()
+
+    async def on_join_channel():
+        channel = after.channel
+        logger.info(f"Member {member.display_name} joined voice channel {channel.name}")
+
+    async def on_move():
+        from_channel = before.channel
+        to_channel = after.channel
+        logger.info(f"Member {member.display_name} moved from {from_channel.name} to {to_channel.name}")
+
+    bot = service.bot
+    if before.channel and after.channel:
+        if before.channel.id == after.channel.id:
+            return None
+        await on_move()
+    else:
+        if before.channel:
+            await on_leave_channel()
+        if after.channel:
+            await on_join_channel()
+    return None
+
+
 def log_message(message: Message):
     logger.info(f"{message=}")
     logger.info(f"{message.content=}")
@@ -74,4 +119,3 @@ def _get_image_urls_from_text(text: str) -> list[str]:
             if any(ext in word for ext in IMG_EXT):
                 urls.append(word)
     return urls
-
