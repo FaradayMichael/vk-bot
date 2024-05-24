@@ -24,20 +24,39 @@ async def play(
     if url is None:
         return None
 
-    logger.info(repr(ctx.message.author.voice))
+    bot = ctx.bot
+    voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+    if not voice:
+        voice = ctx.message.author.voice
+        if not voice:
+            logger.info(f"No voice client found for {ctx.message.author}")
+            return None
+        else:
+            channel = ctx.message.author.voice.channel
+            await channel.connect()
 
-    # test_id = 1241728108768264216
-    # channel = discord.utils.get(ctx.bot.get_all_channels(), id=test_id)
-
-    voice = ctx.message.author.voice
-    if voice is None:
-        return None
-    channel = voice.channel
-    logger.info(repr(channel))
-    voice_client: VoiceClient = await channel.connect(reconnect=False)
+    voice_client: VoiceClient = ctx.message.guild.voice_client  # noqa
+    if voice_client.is_playing():
+        voice_client.stop()
     try:
         player = await YTDLSource.from_url(url, loop=ctx.bot.loop, stream=True)
         voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
+        logger.info(f"Now playing: {url}")
     except Exception as e:
         logger.exception(e)
         return None
+
+
+@command(name="stop")
+async def stop(ctx: Context):
+    voice_client: VoiceClient = ctx.message.guild.voice_client  # noqa
+    if voice_client.is_playing():
+        logger.info(f"Stopped playing in {voice_client.channel}")
+        voice_client.stop()
+        try:
+            await voice_client.disconnect()
+        except Exception as e:
+            logger.exception(e)
+
+
+

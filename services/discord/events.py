@@ -57,11 +57,12 @@ async def on_ready():
 
 
 async def on_presence_update(before: Member, after: Member):
-    logger.info(before.activities)
-    logger.info(before.status)
-
-    logger.info(after.activities)
-    logger.info(after.status)
+    pass
+    # logger.info(before.activities)
+    # logger.info(before.status)
+    #
+    # logger.info(after.activities)
+    # logger.info(after.status)
 
 
 async def on_voice_state_update(
@@ -102,7 +103,7 @@ async def on_voice_state_update(
 
 
 def log_message(message: Message):
-    logger.info(f"{message=}")
+    logger.info(f"{message.author=}")
     logger.info(f"{message.content=}")
     logger.info(f"{message.attachments=}")
     logger.info(f"{message.stickers=}")

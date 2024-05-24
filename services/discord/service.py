@@ -99,6 +99,7 @@ class DiscordService:
         from . import commands
         self._bot.add_command(commands.test)
         self._bot.add_command(commands.play)
+        self._bot.add_command(commands.stop)
 
     def _register_events(self) -> None:
         from . import events
