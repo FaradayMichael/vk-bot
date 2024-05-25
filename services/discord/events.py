@@ -2,8 +2,10 @@ import logging
 
 from discord import (
     Message,
-    VoiceClient
+    VoiceClient,
+    ActivityType
 )
+from discord.ext.commands import Bot
 from discord.member import (
     Member,
     VoiceState
@@ -25,6 +27,9 @@ IMG_EXT = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
 async def on_message(service: DiscordService, message: Message):
     if message.author.bot:
         return None
+
+    if message.author.id in (292615364448223233,):
+        await message.add_reaction("🤡")
 
     await service.bot.process_commands(message)
     log_message(message)
@@ -57,12 +62,22 @@ async def on_ready():
 
 
 async def on_presence_update(before: Member, after: Member):
-    pass
-    # logger.info(before.activities)
-    # logger.info(before.status)
-    #
-    # logger.info(after.activities)
-    # logger.info(after.status)
+    before_playing_activities = sorted(
+        [a.name for a in before.activities if a.type is ActivityType.playing],
+    )
+    after_playing_activities = sorted(
+        [a.name for a in after.activities if a.type is ActivityType.playing]
+    )
+    before_playing_activities = set(before_playing_activities)
+    after_playing_activities = set(after_playing_activities)
+    if before_playing_activities != after_playing_activities:
+        if len(before_playing_activities) > len(after_playing_activities):
+            pass
+        elif len(before_playing_activities) < len(after_playing_activities):
+            new_activities = after_playing_activities - before_playing_activities
+            logger.info(f"{before.name} start playing {new_activities}")
+        else:
+            pass
 
 
 async def on_voice_state_update(
@@ -74,11 +89,6 @@ async def on_voice_state_update(
     async def on_leave_channel():
         channel = before.channel
         logger.info(f"Member {member.display_name} has left the voice channel {channel.name}")
-        logger.info(bot.voice_clients)
-        for v_c in bot.voice_clients:
-            v_c: VoiceClient
-            if v_c.channel.id == channel.id and len(v_c.channel.members) == 1:
-                await v_c.disconnect()
 
     async def on_join_channel():
         channel = after.channel
@@ -90,6 +100,7 @@ async def on_voice_state_update(
         logger.info(f"Member {member.display_name} moved from {from_channel.name} to {to_channel.name}")
 
     bot = service.bot
+    await leave_from_empty_channel(bot)
     if before.channel and after.channel:
         if before.channel.id == after.channel.id:
             return None
@@ -100,6 +111,16 @@ async def on_voice_state_update(
         if after.channel:
             await on_join_channel()
     return None
+
+
+async def leave_from_empty_channel(bot: Bot):
+    for v_c in bot.voice_clients:
+        v_c: VoiceClient
+        channel = v_c.channel
+        members = channel.members
+        bots_members = list(filter(lambda m: m.bot, members))
+        if len(members) == len(bots_members):
+            await v_c.disconnect()
 
 
 def log_message(message: Message):

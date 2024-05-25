@@ -50,7 +50,7 @@ async def play(
 @command(name="stop")
 async def stop(ctx: Context):
     voice_client: VoiceClient = ctx.message.guild.voice_client  # noqa
-    if voice_client.is_playing():
+    if voice_client and voice_client.is_playing():
         logger.info(f"Stopped playing in {voice_client.channel}")
         voice_client.stop()
         try:
