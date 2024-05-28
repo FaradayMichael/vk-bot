@@ -15,6 +15,16 @@ async def get(
     )
 
 
+async def get_by_vk_id(
+        conn: db.Connection,
+        vk_id: int
+) -> KnowIds | None:
+    return db.record_to_model(
+        KnowIds,
+        await db.get_by_where(conn, TABLE, "vl_id=$1", [vk_id])
+    )
+
+
 async def get_all(
         conn: db.Connection
 ) -> list[KnowIds]:

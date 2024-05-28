@@ -28,14 +28,14 @@ async def on_message(service: DiscordService, message: Message):
     if message.author.bot:
         return None
 
+    log_message(message)
+
     if message.author.id in (292615364448223233,):
         await message.add_reaction("🤡")
 
     await service.bot.process_commands(message)
-    log_message(message)
 
     image_urls = _get_image_urls_from_text(message.content)
-
     if message.attachments:
         logger.info(message.attachments)
         for attachment in message.attachments:
@@ -99,10 +99,16 @@ async def on_voice_state_update(
         to_channel = after.channel
         logger.info(f"Member {member.display_name} moved from {from_channel.name} to {to_channel.name}")
 
+    async def on_start_stream():
+        channel = after.channel
+        logger.info(f"Member {member.display_name} started streaming in {channel.name}")
+
     bot = service.bot
     await leave_from_empty_channel(bot)
     if before.channel and after.channel:
         if before.channel.id == after.channel.id:
+            if not before.self_stream and after.self_stream:
+                await on_start_stream()
             return None
         await on_move()
     else:

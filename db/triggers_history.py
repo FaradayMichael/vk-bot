@@ -84,7 +84,7 @@ async def _record_to_model(
     if not record:
         return None
 
-    know_id = await know_ids_db.get(conn, record.get('vk_id', 0))
+    know_id = await know_ids_db.get_by_vk_id(conn, record.get('vk_id', 0))
     trigger_answer = await triggers_answers_db.get(conn, record.get('trigger_answer_id', 0))
 
     return TriggersHistory(

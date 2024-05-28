@@ -31,7 +31,8 @@
     "bootstrap_servers": "qwe",
     "topics": ["qwe"]
   },
-    "discord": {
-    "token": "qwe"
+  "discord": {
+    "token": "qwe",
+    "main_user_id": 1
   }
 }

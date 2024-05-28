@@ -49,6 +49,7 @@ class KafkaConfig(BaseModel):
 
 class DiscordConfig(BaseModel):
     token: str
+    main_user_id: int = 358590015531646977
 
 
 class Config(BaseModel):

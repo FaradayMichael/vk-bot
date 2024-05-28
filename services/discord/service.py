@@ -9,6 +9,7 @@ from discord import (
     File
 )
 from discord.ext.commands import Bot
+from discord.ext.commands.core import Command
 from redis.asyncio import Redis
 
 from misc import (
@@ -95,11 +96,20 @@ class DiscordService:
             )
         )
 
+    # noinspection PyTypeChecker
     def _register_commands(self) -> None:
+        command_names = [
+            'test',
+            'play',
+            'stop',
+            'clown',
+        ]
         from . import commands
-        self._bot.add_command(commands.test)
-        self._bot.add_command(commands.play)
-        self._bot.add_command(commands.stop)
+
+        for command_name in command_names:
+            call = getattr(commands, command_name)
+            command = Command(call, extras={'service': self})
+            self._bot.add_command(command)
 
     def _register_events(self) -> None:
         from . import events

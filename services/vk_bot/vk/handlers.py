@@ -73,7 +73,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         ))
         if answers:
             answer: Answer = random.choice(answers)
-            know_id = await know_ids_db.get(conn, from_id)
+            know_id = await know_ids_db.get_by_vk_id(conn, from_id)
             know_id_place = f"({know_id.name})" if know_id else ''
             await service.client_vk.messages.send(
                 peer_id=peer_id,
