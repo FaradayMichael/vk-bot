@@ -21,7 +21,7 @@ async def get_by_vk_id(
 ) -> KnowIds | None:
     return db.record_to_model(
         KnowIds,
-        await db.get_by_where(conn, TABLE, "vl_id=$1", [vk_id])
+        await db.get_by_where(conn, TABLE, "vk_id=$1", [vk_id])
     )
 
 
