@@ -8,3 +8,4 @@ class DBTables(StrEnum):
     KNOW_IDS = 'know_ids'
     SEND_ON_SCHEDULE = 'send_on_schedule'
     TRIGGERS_HISTORY = 'triggers_history'
+    DYNAMIC_CONFIG = 'dynamic_config'

@@ -63,10 +63,9 @@ async def stop(ctx: Context):
 
 async def clown(ctx: Context, user_id: int | None = None):
     service: DiscordService = ctx.command.extras['service']
-    if ctx.author.id != service.config.discord.main_user_id:
+
+    if user_id == service.config.discord.main_user_id:
         return None
-    if user_id is None:
-        user_id = ctx.author.id
 
     for guild in ctx.bot.guilds:
         guild: Guild
