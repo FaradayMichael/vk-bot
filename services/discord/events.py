@@ -3,7 +3,9 @@ import logging
 from discord import (
     Message,
     VoiceClient,
-    ActivityType
+    ActivityType,
+    utils,
+    FFmpegPCMAudio
 )
 from discord.ext.commands import Bot
 from discord.member import (
@@ -12,6 +14,9 @@ from discord.member import (
 )
 
 from business_logic.images import parse_image_tags
+from db import (
+    dynamic_config as dynamic_config_db
+)
 from models.base import AttachmentType
 from models.images import ImageTags
 from .models import (
@@ -65,7 +70,7 @@ async def on_ready():
     logger.info('Ready')
 
 
-async def on_presence_update(before: Member, after: Member):
+async def on_presence_update(service: DiscordService, before: Member, after: Member):
     def get_activities_state() -> ActivitiesState:
         state_dict = {}
         for a_type in ActivityType:
@@ -96,6 +101,26 @@ async def on_presence_update(before: Member, after: Member):
     state = get_activities_state()
     if state.playing.has_changes:
         log_activities(state.playing)
+        if state.playing.started:
+            await execute_cyberbool(service, state, after)
+
+
+async def execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):
+    async with service.db_pool.acquire() as conn:
+        d_conf = await dynamic_config_db.get(conn)
+        print(d_conf)
+    if any([i in state.playing.started for i in d_conf.get('cyberbool', [])]):
+        if voice := member.voice:
+            bot_voice: VoiceClient = utils.get(service.bot.voice_clients, channel=voice.channel)  # noqa
+            if not bot_voice:
+                bot_voice = await voice.channel.connect()
+            if bot_voice.is_playing():
+                bot_voice.stop()
+            try:
+                source = FFmpegPCMAudio(source='static/1.mp4')
+                bot_voice.play(source)
+            except Exception as e:
+                logger.error(e)
 
 
 async def on_voice_state_update(

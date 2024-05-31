@@ -120,9 +120,12 @@ class DiscordService:
         async def on_voice_state_update(member, before, after):
             return await events.on_voice_state_update(self, member, before, after)
 
+        async def on_presence_update(before, after):
+            return await events.on_presence_update(self, before, after)
+
         self._bot.event(events.on_ready)
         self._bot.event(on_message)
-        self._bot.event(events.on_presence_update)
+        self._bot.event(on_presence_update)
         self._bot.event(on_voice_state_update)
 
     async def stop_bot(self) -> None:
