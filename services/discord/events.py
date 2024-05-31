@@ -1,5 +1,4 @@
 import logging
-from pprint import pprint
 
 from discord import (
     Message,
@@ -15,7 +14,10 @@ from discord.member import (
 from business_logic.images import parse_image_tags
 from models.base import AttachmentType
 from models.images import ImageTags
-from .models import ActivitiesState, BaseActivities
+from .models import (
+    ActivitiesState,
+    BaseActivities
+)
 from .service import DiscordService
 
 logger = logging.getLogger(__name__)
