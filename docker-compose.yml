@@ -73,7 +73,6 @@ services:
     env_file:
       - .env
 
-
   discord:
     build:
       context: .
@@ -97,8 +96,25 @@ services:
     env_file:
       - .env
 
+  db_dumper:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: db_dumper
+    command: python3 db_dumper.py
+    volumes:
+      - .:/code
+    links:
+      - db
+      - dbmate
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+
   db:
-    image: postgres
+    image: postgres:15
     container_name: db
     #    ports:
     #      - "5433:5432"

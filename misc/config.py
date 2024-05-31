@@ -52,6 +52,14 @@ class DiscordConfig(BaseModel):
     main_user_id: int = 358590015531646977
 
 
+class DumperConfig(BaseModel):
+    cron: str
+    yd_token: str
+    user: str
+    db: str
+    base_folder: str
+
+
 class Config(BaseModel):
     debug: bool = False
     salt: str
@@ -63,6 +71,7 @@ class Config(BaseModel):
     vk: VkConfig
     kafka: KafkaConfig
     discord: DiscordConfig
+    dumper: DumperConfig
 
 
 def read_config(path: str) -> Config:

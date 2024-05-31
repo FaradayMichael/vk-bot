@@ -34,5 +34,12 @@
   "discord": {
     "token": "qwe",
     "main_user_id": 1
+  },
+  "dumper": {
+    "cron": "0 23 * * 7",
+    "yd_token": "qwe",
+    "user": "postgres",
+    "db": "vk_bot",
+    "base_folder": "/dev/vk-bot/dumps"
   }
 }
