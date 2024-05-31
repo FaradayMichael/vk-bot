@@ -1,4 +1,5 @@
 import logging
+from pprint import pprint
 
 from discord import (
     Message,
@@ -14,6 +15,7 @@ from discord.member import (
 from business_logic.images import parse_image_tags
 from models.base import AttachmentType
 from models.images import ImageTags
+from .models import ActivitiesState, BaseActivities
 from .service import DiscordService
 
 logger = logging.getLogger(__name__)
@@ -62,22 +64,36 @@ async def on_ready():
 
 
 async def on_presence_update(before: Member, after: Member):
-    before_playing_activities = sorted(
-        [a.name for a in before.activities if a.type is ActivityType.playing],
-    )
-    after_playing_activities = sorted(
-        [a.name for a in after.activities if a.type is ActivityType.playing]
-    )
-    before_playing_activities = set(before_playing_activities)
-    after_playing_activities = set(after_playing_activities)
-    if before_playing_activities != after_playing_activities:
-        if len(before_playing_activities) > len(after_playing_activities):
-            pass
-        elif len(before_playing_activities) < len(after_playing_activities):
-            new_activities = after_playing_activities - before_playing_activities
-            logger.info(f"{before.name} start playing {new_activities}")
-        else:
-            pass
+    def get_activities_state() -> ActivitiesState:
+        state_dict = {}
+        for a_type in ActivityType:
+            a_type_name = a_type.name.lower()
+
+            before_activities = set([a.name for a in before.activities if a.type is a_type])
+            after_activities = set([a.name for a in after.activities if a.type is a_type])
+            started_activities = after_activities.difference(before_activities)
+            finished_activities = before_activities.difference(after_activities)
+            unmodified_activities = before_activities.intersection(after_activities)
+
+            state_dict[a_type_name] = {
+                'before': before_activities,
+                'after': after_activities,
+                'started': started_activities,
+                'finished': finished_activities,
+                'unmodified': unmodified_activities
+            }
+        return ActivitiesState.model_validate(state_dict)
+
+    def log_activities(activity_model: BaseActivities) -> None:
+        activity = activity_model.rel_name
+        if activity_model.started:
+            logger.info(f"{before.name} start {activity=} {activity_model.started}")
+        if activity_model.finished:
+            logger.info(f"{before.name} finish {activity=} {activity_model.finished}")
+
+    state = get_activities_state()
+    if state.playing.has_changes:
+        log_activities(state.playing)
 
 
 async def on_voice_state_update(
