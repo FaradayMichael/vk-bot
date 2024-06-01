@@ -3,11 +3,8 @@ import logging
 from discord import (
     Message,
     VoiceClient,
-    ActivityType,
-    utils,
-    FFmpegPCMAudio
+    ActivityType
 )
-from discord.ext.commands import Bot
 from discord.member import (
     Member,
     VoiceState
@@ -19,6 +16,12 @@ from db import (
 )
 from models.base import AttachmentType
 from models.images import ImageTags
+from .utils.messages import log_message
+from .utils.voice_channels import (
+    leave_from_empty_voice_channel,
+    connect_to_voice_channel,
+    play_file
+)
 from .models import (
     ActivitiesState,
     BaseActivities
@@ -102,25 +105,7 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
     if state.playing.has_changes:
         log_activities(state.playing)
         if state.playing.started:
-            await execute_cyberbool(service, state, after)
-
-
-async def execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):
-    async with service.db_pool.acquire() as conn:
-        d_conf = await dynamic_config_db.get(conn)
-        print(d_conf)
-    if any([i in state.playing.started for i in d_conf.get('cyberbool', [])]):
-        if voice := member.voice:
-            bot_voice: VoiceClient = utils.get(service.bot.voice_clients, channel=voice.channel)  # noqa
-            if not bot_voice:
-                bot_voice = await voice.channel.connect()
-            if bot_voice.is_playing():
-                bot_voice.stop()
-            try:
-                source = FFmpegPCMAudio(source='static/1.mp4')
-                bot_voice.play(source)
-            except Exception as e:
-                logger.error(e)
+            await _execute_cyberbool(service, state, after)
 
 
 async def on_voice_state_update(
@@ -147,7 +132,7 @@ async def on_voice_state_update(
         logger.info(f"Member {member.display_name} started streaming in {channel.name}")
 
     bot = service.bot
-    await leave_from_empty_channel(bot)
+    await leave_from_empty_voice_channel(bot)
     if before.channel and after.channel:
         if before.channel.id == after.channel.id:
             if not before.self_stream and after.self_stream:
@@ -162,21 +147,17 @@ async def on_voice_state_update(
     return None
 
 
-async def leave_from_empty_channel(bot: Bot):
-    for v_c in bot.voice_clients:
-        v_c: VoiceClient
-        channel = v_c.channel
-        members = channel.members
-        bots_members = list(filter(lambda m: m.bot, members))
-        if len(members) == len(bots_members):
-            await v_c.disconnect()
-
-
-def log_message(message: Message):
-    logger.info(f"{message.author=}")
-    logger.info(f"{message.content=}")
-    logger.info(f"{message.attachments=}")
-    logger.info(f"{message.stickers=}")
+async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):
+    async with service.db_pool.acquire() as conn:
+        d_conf = await dynamic_config_db.get(conn)
+        print(d_conf)
+    if any([i in state.playing.started for i in d_conf.get('cyberbool', [])]):
+        if voice := member.voice:
+            bot_voice: VoiceClient = await connect_to_voice_channel(service.bot, voice.channel)
+            try:
+                await play_file(bot_voice, 'static/boris.mp4')
+            except Exception as e:
+                logger.error(e)
 
 
 def _get_image_urls_from_text(text: str) -> list[str]:

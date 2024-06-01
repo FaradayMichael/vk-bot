@@ -18,6 +18,8 @@ from misc import (
 )
 from misc.config import Config
 
+# https://discordpy.readthedocs.io/en/stable/api.html
+
 logger = logging.getLogger(__name__)
 
 
@@ -103,6 +105,7 @@ class DiscordService:
             'play',
             'stop',
             'clown',
+            'boris'
         ]
         from . import commands
 

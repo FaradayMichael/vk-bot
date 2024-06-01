@@ -1,7 +1,6 @@
 import logging
 from pprint import pformat
 
-import discord
 from discord import (
     VoiceClient,
     Guild,
@@ -9,8 +8,14 @@ from discord import (
 )
 from discord.ext.commands import Context
 
-from services.discord.misc.yt import YTDLSource
-from services.discord.service import DiscordService
+from .utils.voice_channels import (
+    connect_to_voice_channel,
+    play_yt_url,
+    play_file
+)
+from .service import (
+    DiscordService
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,22 +33,16 @@ async def play(
         return None
 
     bot = ctx.bot
-    voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-    if not voice:
-        voice = ctx.message.author.voice
-        if not voice:
-            logger.info(f"No voice client found for {ctx.message.author}")
-            return None
-        else:
-            channel = ctx.message.author.voice.channel
-            await channel.connect()
+    if not ctx.message.author.voice:
+        return None
 
-    voice_client: VoiceClient = ctx.message.guild.voice_client  # noqa
+    await connect_to_voice_channel(bot, ctx.message.author.voice.channel)
+
+    voice_client: VoiceClient | None = ctx.voice_client
     if voice_client.is_playing():
         voice_client.stop()
     try:
-        player = await YTDLSource.from_url(url, loop=ctx.bot.loop, stream=True)
-        voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
+        await play_yt_url(voice_client, url)
         logger.info(f"Now playing: {url}")
     except Exception as e:
         logger.exception(e)
@@ -51,7 +50,7 @@ async def play(
 
 
 async def stop(ctx: Context):
-    voice_client: VoiceClient = ctx.message.guild.voice_client  # noqa
+    voice_client: VoiceClient | None = ctx.voice_client
     if voice_client and voice_client.is_playing():
         logger.info(f"Stopped playing in {voice_client.channel}")
         voice_client.stop()
@@ -74,3 +73,13 @@ async def clown(ctx: Context, user_id: int | None = None):
                 async for message in channel.history():
                     if message.author.id == user_id:
                         await message.add_reaction("🤡")
+
+
+async def boris(ctx: Context):
+    voice_client: VoiceClient | None = ctx.voice_client
+    if voice_client:
+        await connect_to_voice_channel(ctx.bot, voice_client.channel)
+        try:
+            await play_file(voice_client, 'static/boris.mp4')
+        except Exception as e:
+            logger.exception(e)
