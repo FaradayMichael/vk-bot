@@ -1,6 +1,8 @@
+import logging
+
 from discord import Message
 
-from services.discord.events import logger
+logger = logging.getLogger(__name__)
 
 
 def log_message(message: Message):
