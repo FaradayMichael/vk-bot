@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from discord import (
@@ -12,7 +13,8 @@ from discord.member import (
 
 from business_logic.images import parse_image_tags
 from db import (
-    dynamic_config as dynamic_config_db
+    dynamic_config as dynamic_config_db,
+    activity_sessions as activity_sessions_db
 )
 from models.base import AttachmentType
 from models.images import ImageTags
@@ -24,7 +26,10 @@ from .utils.voice_channels import (
 )
 from .models import (
     ActivitiesState,
-    BaseActivities
+    BaseActivities,
+    ActivitySession,
+    ActivitySessionCreate,
+    ActivitySessionUpdate
 )
 from .service import DiscordService
 
@@ -105,7 +110,23 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
     if state.playing.has_changes:
         log_activities(state.playing)
         if state.playing.started:
+            for a in state.playing.started:
+                await activity_sessions_db.create(
+                    service.db_pool,
+                    ActivitySessionCreate(
+                        user_id=after.id,
+                        user_name=after.name,
+                        activity_name=a
+                    )
+                )
             await _execute_cyberbool(service, state, after)
+        if state.playing.finished:
+            for a in state.playing.finished:
+                activity_db = await activity_sessions_db.get_unfinished(service.db_pool, after.id, a)
+                if activity_db:
+                    await activity_sessions_db.update(
+                        service.db_pool, activity_db.id, ActivitySessionUpdate(finished_at=datetime.datetime.utcnow())
+                    )
 
 
 async def on_voice_state_update(

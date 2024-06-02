@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import (
     BaseModel,
     Field
@@ -25,3 +27,25 @@ class PlayingActivities(BaseActivities):
 
 class ActivitiesState(BaseModel):
     playing: PlayingActivities = PlayingActivities()
+
+
+class ActivitySessionCreate(BaseModel):
+    started_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    finished_at: datetime.datetime | None = None
+    user_id: int
+    user_name: str
+    activity_name: str
+    extra_data: dict = Field(default_factory=dict)
+
+
+class ActivitySessionUpdate(BaseModel):
+    started_at: datetime.datetime | None = None
+    finished_at: datetime.datetime | None = None
+    user_id: int | None = None
+    user_name: str | None = None
+    activity_name: str | None = None
+    extra_data: dict | None = None
+
+
+class ActivitySession(BaseModel):
+    id: int

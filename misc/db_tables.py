@@ -9,3 +9,4 @@ class DBTables(StrEnum):
     SEND_ON_SCHEDULE = 'send_on_schedule'
     TRIGGERS_HISTORY = 'triggers_history'
     DYNAMIC_CONFIG = 'dynamic_config'
+    DISCORD_ACTIVITY_SESSIONS = 'discord_activity_sessions'
