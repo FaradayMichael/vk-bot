@@ -47,5 +47,5 @@ class ActivitySessionUpdate(BaseModel):
     extra_data: dict | None = None
 
 
-class ActivitySession(BaseModel):
+class ActivitySession(ActivitySessionCreate):
     id: int

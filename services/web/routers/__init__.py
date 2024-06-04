@@ -7,7 +7,8 @@ from . import (
     index,
     auth,
     vk,
-    service
+    service,
+    discord
 )
 from services.web.depends.auth import check_auth
 
@@ -28,6 +29,10 @@ def register_routers(app):
     )
     router.include_router(
         vk.router,
+        dependencies=[Depends(check_auth)] if not app.debug else []
+    )
+    router.include_router(
+        discord.router,
         dependencies=[Depends(check_auth)] if not app.debug else []
     )
 
