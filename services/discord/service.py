@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from pprint import pformat
 
 from asyncpg import Pool
 from discord import (
@@ -12,6 +11,9 @@ from discord.ext.commands import Bot
 from discord.ext.commands.core import Command
 from redis.asyncio import Redis
 
+from db import (
+    reply_commands as reply_commands_db
+)
 from misc import (
     db,
     redis
@@ -58,7 +60,7 @@ class DiscordService:
         self._intents = Intents.all()
         self._intents.messages = True
         self._bot = Bot(command_prefix="/", intents=self._intents)
-        self._register_commands()
+        await self._register_commands()
         self._register_events()
 
     async def start(self):
@@ -99,7 +101,7 @@ class DiscordService:
         )
 
     # noinspection PyTypeChecker
-    def _register_commands(self) -> None:
+    async def _register_commands(self) -> None:
         command_names = [
             'test',
             'play',
@@ -107,11 +109,19 @@ class DiscordService:
             'clown',
             'boris'
         ]
-        from . import commands
+        reply_commands = await reply_commands_db.get_all(self.db_pool)
 
-        for command_name in command_names:
-            call = getattr(commands, command_name)
-            command = Command(call, extras={'service': self})
+        from . import commands
+        commands_map = {
+            c: getattr(commands, c)
+            for c in command_names
+        } | {
+            r_c.command: commands.reply
+            for r_c in reply_commands
+        }
+
+        for command_name, call in commands_map.items():
+            command = Command(call, name=command_name, extras={'service': self})
             self._bot.add_command(command)
 
     def _register_events(self) -> None:

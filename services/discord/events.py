@@ -24,10 +24,9 @@ from .utils.voice_channels import (
     connect_to_voice_channel,
     play_file
 )
-from .models import (
+from services.discord.models.activities import (
     ActivitiesState,
     BaseActivities,
-    ActivitySession,
     ActivitySessionCreate,
     ActivitySessionUpdate
 )
@@ -84,8 +83,8 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
         for a_type in ActivityType:
             a_type_name = a_type.name.lower()
 
-            before_activities = set([a.name for a in before.activities if a.type is a_type])
-            after_activities = set([a.name for a in after.activities if a.type is a_type])
+            before_activities = set([act.name for act in before.activities if act.type is a_type])
+            after_activities = set([act.name for act in after.activities if act.type is a_type])
             started_activities = after_activities.difference(before_activities)
             finished_activities = before_activities.difference(after_activities)
             unmodified_activities = before_activities.intersection(after_activities)

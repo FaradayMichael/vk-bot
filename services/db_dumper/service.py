@@ -31,7 +31,7 @@ class DumperService:
                 logger.info(f"Schedule {sleep=}")
                 await asyncio.sleep(sleep)
 
-                filename = f"dump_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.sql"
+                filename = f"dump_{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}.sql"
                 for _ in range(self.tries):
                     success = await self.dump_db(
                         filename=filename
@@ -47,8 +47,7 @@ class DumperService:
                     logger.info(f"Sent {send_success=}")
                     if send_success:
                         break
-                else:
-                    continue
+                os.remove(filename)
             except (StopIteration, GeneratorExit, asyncio.CancelledError):
                 break
             except Exception as e:
@@ -91,7 +90,7 @@ class DumperService:
 
     @staticmethod
     def get_seconds_to_next_event_by_cron(cron: str) -> float:
-        now = datetime.datetime.now()
+        now = datetime.datetime.utcnow()
         nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
         return (nxt - now).total_seconds()
 

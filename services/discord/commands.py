@@ -8,6 +8,9 @@ from discord import (
 )
 from discord.ext.commands import Context
 
+from db import (
+    reply_commands as reply_commands_db
+)
 from .utils.voice_channels import (
     connect_to_voice_channel,
     play_yt_url,
@@ -83,3 +86,16 @@ async def boris(ctx: Context):
             await play_file(voice_client, 'static/boris.mp4')
         except Exception as e:
             logger.exception(e)
+
+
+async def reply(ctx: Context):
+    service: DiscordService = ctx.command.extras['service']
+    command_db = await reply_commands_db.get(
+        service.db_pool,
+        ctx.command.name
+    )
+    if command_db:
+        if command_db.reply:
+            await ctx.reply(command_db.text)
+        else:
+            await ctx.send(command_db.text)

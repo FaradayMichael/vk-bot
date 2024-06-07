@@ -10,3 +10,4 @@ class DBTables(StrEnum):
     TRIGGERS_HISTORY = 'triggers_history'
     DYNAMIC_CONFIG = 'dynamic_config'
     DISCORD_ACTIVITY_SESSIONS = 'discord_activity_sessions'
+    DISCORD_REPLY_COMMANDS = 'discord_reply_commands'

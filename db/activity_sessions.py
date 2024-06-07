@@ -4,7 +4,7 @@ import asyncpg
 
 from misc import db
 from misc.db_tables import DBTables
-from services.discord.models import (
+from services.discord.models.activities import (
     ActivitySession,
     ActivitySessionCreate,
     ActivitySessionUpdate
