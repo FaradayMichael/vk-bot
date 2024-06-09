@@ -102,4 +102,7 @@ async def reply(ctx: Context):
                 channel = service.bot.get_channel(command_db.channel_id)
                 if channel:
                     await channel.send(command_db.text)
-            await ctx.send(command_db.text)
+                else:
+                    logger.error(f"Channel {command_db.channel_id} not found")
+            else:
+                await ctx.send(command_db.text)
