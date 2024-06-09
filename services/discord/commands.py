@@ -98,4 +98,8 @@ async def reply(ctx: Context):
         if command_db.reply:
             await ctx.reply(command_db.text)
         else:
+            if command_db.channel_id:
+                channel = service.bot.get_channel(command_db.channel_id)
+                if channel:
+                    await channel.send(command_db.text)
             await ctx.send(command_db.text)
