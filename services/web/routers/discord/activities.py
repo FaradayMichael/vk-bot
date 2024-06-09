@@ -1,6 +1,7 @@
 import base64
 import datetime
 import logging
+import random
 
 from fastapi import (
     APIRouter,
@@ -13,6 +14,7 @@ from fastapi.responses import (
 from jinja2 import Environment
 import plotly.figure_factory as ff
 from plotly.graph_objs import Figure
+from plotly.tools import DEFAULT_PLOTLY_COLORS
 
 from misc.db import Connection
 from misc.depends.db import (
@@ -40,6 +42,7 @@ async def vk_messages_view(
         user_id: int = None,
         from_date: datetime.date = None,
         to_date: datetime.date = None,
+        group: bool = False,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
         conn: Connection = Depends(get_conn),
@@ -56,16 +59,32 @@ async def vk_messages_view(
             to_dt=to_date,
         )
         if activities:
-            df = [
-                {'Task': a.activity_name, 'Start': a.started_at, 'Finish': a.finished_at or now}
-                for a in activities
-            ]
+            act_names = set([a.activity_name for a in activities])
+            colors = DEFAULT_PLOTLY_COLORS.copy()
+            if len_diff := len(act_names) - len(colors) > 0:
+                for _ in range(len_diff):
+                    r = int(random.random() * 255)
+                    b = int(random.random() * 255)
+                    g = int(random.random() * 255)
+                    colors.append(f"rgb({r}, {g}, {b})")
+
+            df = []
+            plot_colors = {}
+            i = iter(colors)
+            for a in activities:
+                df.append({'Task': a.activity_name, 'Start': a.started_at, 'Finish': a.finished_at or now})
+                plot_colors[a.activity_name] = plot_colors.get(a.activity_name) or next(i)
+
             fig: Figure = ff.create_gantt(
                 df,
+                title="1984",
                 show_colorbar=True,
                 showgrid_x=True,
                 showgrid_y=True,
                 width=1900,
+                group_tasks=group,
+                colors=plot_colors,
+                index_col='Task'
             )
             img_bytes = fig.to_image(format='png')
             base64_encoded_image = base64.b64encode(img_bytes).decode("utf-8")
@@ -80,4 +99,5 @@ async def vk_messages_view(
         from_date_default=from_date_default.strftime('%Y-%m-%d'),
         to_date_default=to_date_default.strftime('%Y-%m-%d'),
         user_id=user_id,
+        group=group
     )

@@ -32,6 +32,17 @@
     <div class="form-group">
         <input type="number" id="user_id" name="user_id" value={{user_id}} required>
     </div>
+    <div class="form-group">
+        <label>Group</label>
+        <input
+                type="checkbox"
+                id="group"
+                name="group"
+                {% if group %}
+                checked
+                {% endif %}
+        >
+    </div>
     <button type="submit" class="btn btn-primary">Send</button>
 </form>
 <img src="data:image/jpeg;base64,{{ image | safe }}">
