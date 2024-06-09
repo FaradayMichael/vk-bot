@@ -60,7 +60,13 @@ async def vk_messages_view(
                 {'Task': a.activity_name, 'Start': a.started_at, 'Finish': a.finished_at or now}
                 for a in activities
             ]
-            fig: Figure = ff.create_gantt(df, show_colorbar=True)
+            fig: Figure = ff.create_gantt(
+                df,
+                show_colorbar=True,
+                showgrid_x=True,
+                showgrid_y=True,
+                width=1900,
+            )
             img_bytes = fig.to_image(format='png')
             base64_encoded_image = base64.b64encode(img_bytes).decode("utf-8")
 
