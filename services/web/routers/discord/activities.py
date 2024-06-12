@@ -89,6 +89,10 @@ async def vk_messages_view(
             img_bytes = fig.to_image(format='png')
             base64_encoded_image = base64.b64encode(img_bytes).decode("utf-8")
 
+        u_d = list(filter(lambda a: a[0] == user_id, users_data))
+        if u_d:
+            users_data.insert(0, users_data.pop(users_data.index(u_d[0])))
+
     from_date_default = from_date or now
     to_date_default = to_date or (now + datetime.timedelta(days=1))
     return jinja.get_template('discord/activities.html').render(
