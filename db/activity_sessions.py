@@ -56,6 +56,7 @@ async def get_all(
         user_name: str | None = None,
         from_dt: datetime.datetime | None = None,
         to_dt: datetime.datetime | None = None,
+        with_tz: datetime.tzinfo | None = None,
 ) -> list[ActivitySession]:
     where = []
     values = []
@@ -77,8 +78,16 @@ async def get_all(
         values.append(to_dt)
         idx += 1
 
+    select = ['*']
+    if with_tz:
+        select += [
+            f'timezone({with_tz.tzname(None)}, started_at) as started_at_tz',
+            f'timezone({with_tz.tzname(None)}, finished_at) as finished_at_tz'
+        ]
     query = f"""
-        SELECT * FROM {TABLE} 
+        SELECT 
+            {', '.join(select)}
+        FROM {TABLE} 
         """
     if where:
         query += f" WHERE {' AND '.join(where)}"

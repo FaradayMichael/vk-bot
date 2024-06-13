@@ -49,3 +49,5 @@ class ActivitySessionUpdate(BaseModel):
 
 class ActivitySession(ActivitySessionCreate):
     id: int
+    started_at_tz: datetime.datetime | None = None
+    finished_at_tz: datetime.datetime | None = None

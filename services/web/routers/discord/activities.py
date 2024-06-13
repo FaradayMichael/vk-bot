@@ -3,6 +3,7 @@ import datetime
 import logging
 import random
 
+import pytz
 from fastapi import (
     APIRouter,
     Depends,
@@ -47,7 +48,8 @@ async def vk_messages_view(
         session: Session = Depends(ges_session),
         conn: Connection = Depends(get_conn),
 ):
-    now = datetime.datetime.utcnow()
+    tz = pytz.timezone('Europe/Moscow')
+    now = datetime.datetime.now(tz=tz)
     users_data = await activity_sessions_db.get_users_data(conn)
 
     base64_encoded_image = None
@@ -57,6 +59,7 @@ async def vk_messages_view(
             user_id=user_id,
             from_dt=from_date,
             to_dt=to_date,
+            with_tz=tz
         )
         if activities:
             act_names = set([a.activity_name for a in activities])
@@ -72,7 +75,11 @@ async def vk_messages_view(
             plot_colors = {}
             i = iter(colors)
             for a in activities:
-                df.append({'Task': a.activity_name, 'Start': a.started_at, 'Finish': a.finished_at or now})
+                df.append({
+                    'Task': a.activity_name,
+                    'Start': a.started_at_tz or a.started_at,
+                    'Finish': a.finished_at_tz or a.finished_at or now
+                })
                 plot_colors[a.activity_name] = plot_colors.get(a.activity_name) or next(i)
 
             fig: Figure = ff.create_gantt(
