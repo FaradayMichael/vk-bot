@@ -81,8 +81,8 @@ async def get_all(
     select = ['*']
     if with_tz:
         select += [
-            f'timezone({with_tz.tzname(None)}, started_at) as started_at_tz',
-            f'timezone({with_tz.tzname(None)}, finished_at) as finished_at_tz'
+            f"timezone('{with_tz.tzname(None)}', started_at) as started_at_tz",
+            f"timezone('{with_tz.tzname(None)}', finished_at) as finished_at_tz"
         ]
     query = f"""
         SELECT 
