@@ -178,3 +178,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  nginx:
+    container_name: nginx
+    image: nginx
+    volumes:
+     - ./nginx.conf:/etc/nginx/nginx.conf
+     - ./static/:/static/files/
+    ports:
+     - "8080:80"
+    #environment:
+     #- NGINX_PORT=80
