@@ -1,8 +1,8 @@
 import base64
 import datetime
 import logging
-import random
 
+import pandas as pd
 import pytz
 from fastapi import (
     APIRouter,
@@ -13,9 +13,9 @@ from fastapi.responses import (
     HTMLResponse
 )
 from jinja2 import Environment
-import plotly.figure_factory as ff
-from plotly.graph_objs import Figure
-from plotly.tools import DEFAULT_PLOTLY_COLORS
+from plotly import (
+    express as px
+)
 
 from misc.db import Connection
 from misc.depends.db import (
@@ -43,13 +43,14 @@ async def vk_messages_view(
         user_id: int = None,
         from_date: datetime.date = None,
         to_date: datetime.date = None,
-        group: bool = False,
+        # group: bool = False,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
         conn: Connection = Depends(get_conn),
 ):
     tz = pytz.timezone('Europe/Moscow')
     now = datetime.datetime.now(tz=tz)
+    # utcnow = datetime.datetime.utcnow()
     users_data = await activity_sessions_db.get_users_data(conn)
 
     base64_encoded_image = None
@@ -62,41 +63,36 @@ async def vk_messages_view(
             with_tz=tz
         )
         if activities:
-            act_names = set([a.activity_name for a in activities])
-            colors = DEFAULT_PLOTLY_COLORS.copy()
-            if len_diff := len(act_names) - len(colors) > 0:
-                for _ in range(len_diff):
-                    r = int(random.random() * 255)
-                    b = int(random.random() * 255)
-                    g = int(random.random() * 255)
-                    colors.append(f"rgb({r}, {g}, {b})")
+            hours_data: dict = {}
+            for activity in activities:
+                hours = hours_data.get(activity.activity_name, 0)
+                finished_at = activity.finished_at or now
+                hours_data[
+                    activity.activity_name
+                ] = round(hours + (finished_at - activity.started_at).total_seconds() / 3600, 1)
 
-            df = []
-            plot_colors = {}
-            i = iter(colors)
+            df_list = []
             for a in activities:
-                df.append({
-                    'Task': a.activity_name,
-                    'Start': a.started_at_tz or a.started_at,
-                    'Finish': a.finished_at_tz or a.finished_at or now
+                df_list.append({
+                    'Activity': a.activity_name,
+                    'Start': (a.started_at_tz or a.started_at).strftime("%Y-%m-%d %H:%M:%S"),
+                    'Finish': (a.finished_at_tz or a.finished_at or now).strftime("%Y-%m-%d %H:%M:%S"),
+                    f'Total hours': f"{a.activity_name} — {hours_data[a.activity_name]}"
                 })
-                plot_colors[a.activity_name] = plot_colors.get(a.activity_name) or next(i)
-
-            fig: Figure = ff.create_gantt(
+            df = pd.DataFrame(df_list)
+            fig = px.timeline(
                 df,
-                title="1984",
-                show_colorbar=True,
-                showgrid_x=True,
-                showgrid_y=True,
+                x_start="Start",
+                x_end="Finish",
+                y="Activity",
+                color='Total hours',
                 width=1900,
-                group_tasks=group,
-                colors=plot_colors,
-                index_col='Task'
+                title='1984',
             )
             img_bytes = fig.to_image(format='png')
             base64_encoded_image = base64.b64encode(img_bytes).decode("utf-8")
 
-        u_d = list(filter(lambda a: a[0] == user_id, users_data))
+        u_d = list(filter(lambda x: x[0] == user_id, users_data))
         if u_d:
             users_data.insert(0, users_data.pop(users_data.index(u_d[0])))
 
@@ -110,5 +106,5 @@ async def vk_messages_view(
         from_date_default=from_date_default.strftime('%Y-%m-%d'),
         to_date_default=to_date_default.strftime('%Y-%m-%d'),
         user_id=user_id,
-        group=group
+        # group=group
     )

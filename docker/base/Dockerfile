@@ -22,4 +22,4 @@ COPY requirements/tests.txt requirements/tests.txt
 
 RUN pip3 install -r requirements/base.txt
 RUN pip3 install -r requirements/tests.txt
-RUN pip3 install --upgrade --force-reinstall "git+https://github.com/ytdl-org/youtube-dl.git"
+RUN pip3 install "git+https://github.com/ytdl-org/youtube-dl.git"
