@@ -88,7 +88,10 @@ class DiscordService:
             return
 
     def _start_schedule_tasks(self) -> None:
-        from .scheduled import send_on_schedule
+        from .scheduled import (
+            send_on_schedule,
+            drop_broken_activities
+        )
         self._tasks.append(
             self.loop.create_task(
                 send_on_schedule(
@@ -96,6 +99,14 @@ class DiscordService:
                     "0 9 * * 2",
                     937785108696551546,
                     filepaths=["static/test.gif"]
+                )
+            )
+        )
+        self._tasks.append(
+            self.loop.create_task(
+                drop_broken_activities(
+                    self,
+                    "0 * * * *"
                 )
             )
         )

@@ -57,6 +57,7 @@ async def get_all(
         from_dt: datetime.datetime | None = None,
         to_dt: datetime.datetime | None = None,
         with_tz: datetime.tzinfo | None = None,
+        unfinished: bool | None = None,
 ) -> list[ActivitySession]:
     where = []
     values = []
@@ -77,6 +78,11 @@ async def get_all(
         where.append(f"(finished_at IS NULL OR finished_at <= ${idx})")
         values.append(to_dt)
         idx += 1
+    if unfinished is not None:
+        if unfinished:
+            where.append("finished_at IS NULL")
+        else:
+            where.append("finished_at IS NOT NULL")
 
     select = ['*']
     if with_tz:
@@ -108,3 +114,11 @@ async def get_users_data(
     return [
         (r['user_id'], r['user_name']) for r in records
     ]
+
+
+async def delete(
+        conn: asyncpg.Connection | asyncpg.Pool,
+        pk: int
+) -> ActivitySession | None:
+    record = await db.delete(conn, TABLE, pk)
+    return db.record_to_model(ActivitySession, record)
