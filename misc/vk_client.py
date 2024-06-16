@@ -97,7 +97,7 @@ class Messages(BaseMethod):
         if isinstance(keyboard, VkKeyboard):
             keyboard = keyboard.get_keyboard()
 
-        await self._call_group(
+        return await self._call_group(
             "messages.send",
             dict(
                 message=message.text,
@@ -215,7 +215,7 @@ class Upload(BaseMethod):
             peer_id: int,
             doc_path: str,
             **kwargs
-    ):
+    ) -> str:
         response = await asyncio.to_thread(
             self._upload_group.document_message,
             doc_path,

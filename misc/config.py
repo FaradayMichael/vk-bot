@@ -54,10 +54,9 @@ class DiscordConfig(BaseModel):
 
 class DumperConfig(BaseModel):
     cron: str
-    yd_token: str
     user: str
     db: str
-    base_folder: str
+    vk_peer_id: int | None = None
 
 
 class Config(BaseModel):

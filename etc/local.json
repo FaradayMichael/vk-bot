@@ -37,9 +37,8 @@
   },
   "dumper": {
     "cron": "0 23 * * 7",
-    "yd_token": "qwe",
     "user": "postgres",
     "db": "vk_bot",
-    "base_folder": "/dev/vk-bot/dumps"
+    "vk_peer_id": 2000000007
   }
 }

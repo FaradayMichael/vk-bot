@@ -106,7 +106,7 @@ class DiscordService:
             self.loop.create_task(
                 drop_broken_activities(
                     self,
-                    "0 * * * *"
+                    "0 0 * * *"
                 )
             )
         )
