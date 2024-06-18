@@ -8,6 +8,7 @@ from discord.ext.commands import Bot
 
 from db import (
     activity_sessions as activity_sessions_db,
+    dynamic_config as dynamic_config_db
 )
 from .service import DiscordService
 
@@ -26,9 +27,7 @@ async def send_on_schedule(
     channel = bot.get_channel(channel_id)
     while not service.stopping:
         try:
-            now = datetime.datetime.now()
-            nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
-            sleep = (nxt - now).total_seconds()
+            sleep = _get_sleep_seconds(cron)
             logger.info(f"Schedule send {sleep=} {channel=}")
             await asyncio.sleep(sleep)
 
@@ -55,9 +54,7 @@ async def drop_broken_activities(
 ) -> None:
     while not service.stopping:
         try:
-            now = datetime.datetime.now()
-            nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
-            sleep = (nxt - now).total_seconds()
+            sleep = _get_sleep_seconds(cron)
             logger.info(f"Schedule drop activities {sleep=}")
             await asyncio.sleep(sleep)
 
@@ -74,3 +71,38 @@ async def drop_broken_activities(
         except Exception as e:
             logger.exception(e)
             await asyncio.sleep(300)
+
+
+async def cb_task(
+        service: DiscordService,
+        cron: str,
+        channel_id: int
+) -> None:
+    while not service.stopping:
+        try:
+            sleep = _get_sleep_seconds(cron)
+            logger.info(f"Schedule cb {sleep=}")
+            await asyncio.sleep(sleep)
+
+            async with service.db_pool.acquire() as conn:
+                dynamic_conf = await dynamic_config_db.get(conn)
+                message = dynamic_conf['cb2']['message']
+
+                channel = service.bot.get_channel(channel_id)
+                await channel.send(message.format(count=dynamic_conf['cb2']['counter']))
+
+                dynamic_conf['cb2']['counter'] += 1
+                await dynamic_config_db.update(conn, dynamic_conf)
+        except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+            break
+        except Exception as e:
+            logger.exception(e)
+            await asyncio.sleep(300)
+
+
+def _get_sleep_seconds(
+        cron: str,
+) -> float:
+    now = datetime.datetime.now()
+    nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
+    return (nxt - now).total_seconds()

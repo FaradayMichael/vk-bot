@@ -10,11 +10,6 @@ from typing import (
 )
 
 import croniter as croniter
-from aiokafka import (
-    AIOKafkaConsumer,
-    ConsumerRecord
-)
-from aiokafka.errors import KafkaError
 from asyncpg import Pool
 from pydantic import ValidationError
 from redis.asyncio import Redis
@@ -97,7 +92,7 @@ class VkBotService:
             config: Config
     ) -> "VkBotService":
         instance = VkBotService(loop, config)
-        await instance._init()
+        await instance.init()
         return instance
 
     async def start(self):
@@ -120,7 +115,7 @@ class VkBotService:
 
             await self._release_vk()
 
-    async def _init(self):
+    async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
 

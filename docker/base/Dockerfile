@@ -7,18 +7,15 @@ ENV TZ=Etc/UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /code
-RUN apt update
-RUN apt install -y --assume-yes python3-dev libpq-dev build-essential python3-pip git postgresql-client-15
-RUN apt-get install libgeos-dev -y
-RUN apt-get install ffmpeg -y
 
+RUN apt update &&  \
+    apt install -y --assume-yes git postgresql-client-15 && \
+    apt-get install libgeos-dev ffmpeg -y
 
 COPY requirements requirements
 
-
 COPY requirements/base.txt requirements/base.txt
 COPY requirements/tests.txt requirements/tests.txt
-
 
 RUN pip3 install -r requirements/base.txt
 RUN pip3 install -r requirements/tests.txt

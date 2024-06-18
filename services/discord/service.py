@@ -90,7 +90,8 @@ class DiscordService:
     def _start_schedule_tasks(self) -> None:
         from .scheduled import (
             send_on_schedule,
-            drop_broken_activities
+            drop_broken_activities,
+            cb_task
         )
         self._tasks.append(
             self.loop.create_task(
@@ -107,6 +108,15 @@ class DiscordService:
                 drop_broken_activities(
                     self,
                     "0 0 * * *"
+                )
+            )
+        )
+        self._tasks.append(
+            self.loop.create_task(
+                cb_task(
+                    self,
+                    "0 10 * * *",
+                    1241728108768264215
                 )
             )
         )
