@@ -1,10 +1,17 @@
 import asyncio
 import datetime
 import logging
+import os
+import uuid
 
 import croniter
-from discord import File
+import discord
 from discord.ext.commands import Bot
+from PIL import (
+    Image,
+    ImageFont,
+    ImageDraw
+)
 
 from db import (
     activity_sessions as activity_sessions_db,
@@ -32,7 +39,7 @@ async def send_on_schedule(
             await asyncio.sleep(sleep)
 
             files = [
-                File(fp) for fp in filepaths
+                discord.File(fp) for fp in filepaths
             ] if filepaths else None
             await channel.send(
                 content=content,
@@ -84,15 +91,31 @@ async def cb_task(
             logger.info(f"Schedule cb {sleep=}")
             await asyncio.sleep(sleep)
 
-            async with service.db_pool.acquire() as conn:
-                dynamic_conf = await dynamic_config_db.get(conn)
-                message = dynamic_conf['cb2']['message']
+            img = Image.open('templates/template_1.jpg')
+            draw = ImageDraw.Draw(img)
+            font = ImageFont.truetype("templates/Impact.ttf", 48)
 
-                channel = service.bot.get_channel(channel_id)
-                await channel.send(message.format(count=dynamic_conf['cb2']['counter']))
+            dynamic_conf = await dynamic_config_db.get(service.db_pool)
+            text = dynamic_conf['cb2']['message'].format(count=dynamic_conf['cb2']['counter'])
+            draw.text(
+                (img.width * 0.23, img.height * 0.90),
+                text,
+                (0, 0, 0),
+                font=font
+            )
+            filename = f'{uuid.uuid4().hex}.jpg'
+            img.save(filename)
 
-                dynamic_conf['cb2']['counter'] += 1
-                await dynamic_config_db.update(conn, dynamic_conf)
+            channel = service.bot.get_channel(channel_id)
+            await channel.send(content='<@292615364448223233>', file=discord.File(filename))
+
+            try:
+                os.remove(filename)
+            except Exception as e:
+                logger.error(e)
+
+            dynamic_conf['cb2']['counter'] += 1
+            await dynamic_config_db.update(service.db_pool, dynamic_conf)
         except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
             break
         except Exception as e:
