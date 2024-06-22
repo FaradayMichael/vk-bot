@@ -19,6 +19,7 @@ from misc import (
     redis
 )
 from misc.config import Config
+from misc.gigachat_client import GigachatClient
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
@@ -44,6 +45,8 @@ class DiscordService:
         self._service_channel_id: int = 937785155727294474
         self._tasks: list[asyncio.Task] = []
 
+        self.gigachat_client: GigachatClient | None = None
+
     @staticmethod
     async def create(
             loop: asyncio.AbstractEventLoop,
@@ -56,6 +59,7 @@ class DiscordService:
     async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
+        self.gigachat_client = GigachatClient(self.config.gigachat)
 
         self._intents = Intents.all()
         self._intents.messages = True
@@ -201,3 +205,6 @@ class DiscordService:
         if self.redis_conn:
             await redis.close(self.redis_conn)
             self.redis_conn = None
+        if self.gigachat_client:
+            await self.gigachat_client.close()
+            self.gigachat_client = None

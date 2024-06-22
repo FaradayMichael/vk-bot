@@ -59,6 +59,12 @@ class DumperConfig(BaseModel):
     vk_peer_id: int | None = None
 
 
+class GigachatConfig(BaseModel):
+    client_secret: str
+    token: str
+    scope: str
+
+
 class Config(BaseModel):
     debug: bool = False
     salt: str
@@ -71,6 +77,7 @@ class Config(BaseModel):
     kafka: KafkaConfig
     discord: DiscordConfig
     dumper: DumperConfig
+    gigachat: GigachatConfig
 
 
 def read_config(path: str) -> Config:

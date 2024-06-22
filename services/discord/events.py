@@ -49,6 +49,17 @@ async def on_message(service: DiscordService, message: Message):
     if message.author.id in (292615364448223233,):
         await message.add_reaction("🤡")
 
+    if len(message.mentions) == 1 and message.mentions[0].id == service.bot.user.id:
+        try:
+            response = await service.gigachat_client.chat(
+                message.author.id,
+                message.content
+            )
+            if response:
+                return await message.reply(content=response.content)
+        except Exception as e:
+            logger.error(e)
+
     await service.bot.process_commands(message)
 
     image_urls = _get_image_urls_from_text(message.content)

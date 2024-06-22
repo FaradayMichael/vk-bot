@@ -40,5 +40,10 @@
     "user": "postgres",
     "db": "vk_bot",
     "vk_peer_id": 2000000007
+  },
+  "gigachat": {
+    "client_secret": "qwe",
+    "token": "qwe",
+    "scope": "GIGACHAT_API_PERS"
   }
 }
