@@ -2,20 +2,17 @@ import asyncio
 import datetime
 import logging
 import os
-import uuid
 
 import croniter
 import discord
 from discord.ext.commands import Bot
-from PIL import (
-    Image,
-    ImageFont,
-    ImageDraw
-)
 
 from db import (
     activity_sessions as activity_sessions_db,
     dynamic_config as dynamic_config_db
+)
+from business_logic import (
+    images as images_bl
 )
 from .service import DiscordService
 
@@ -91,23 +88,21 @@ async def cb_task(
             logger.info(f"Schedule cb {sleep=}")
             await asyncio.sleep(sleep)
 
-            img = Image.open('templates/template_1.jpg')
-            draw = ImageDraw.Draw(img)
-            font = ImageFont.truetype("templates/Impact.ttf", 48)
-
             dynamic_conf = await dynamic_config_db.get(service.db_pool)
-            text = dynamic_conf['cb2']['message'].format(count=dynamic_conf['cb2']['counter'])
-            draw.text(
-                (img.width * 0.23, img.height * 0.90),
-                text,
-                (0, 0, 0),
-                font=font
+            image_text = dynamic_conf['cb2']['image_message'].format(count=dynamic_conf['cb2']['counter'])
+
+            filename = images_bl.add_text_to_image(
+                filepath='templates/template_1.jpg',
+                text=image_text,
+                font="templates/Impact.ttf",
+                font_size=48,
+                text_xy_rel=(0.23, 0.9)
             )
-            filename = f'{uuid.uuid4().hex}.jpg'
-            img.save(filename)
 
             channel = service.bot.get_channel(channel_id)
-            await channel.send(content='<@292615364448223233>', file=discord.File(filename))
+            await channel.send(
+                content=f"<@292615364448223233> {dynamic_conf['cb2']['message']}", file=discord.File(filename)
+            )
 
             try:
                 os.remove(filename)

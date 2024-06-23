@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import uuid
+from pathlib import Path
 from urllib.parse import (
     quote,
     urljoin,
@@ -8,6 +10,11 @@ from urllib.parse import (
 
 import aiohttp
 from bs4 import BeautifulSoup
+from PIL import (
+    Image,
+    ImageFont,
+    ImageDraw
+)
 
 from models.images import ImageTags
 
@@ -80,3 +87,49 @@ async def parse_image_tags(
         await asyncio.sleep(3)
 
     return result
+
+
+def add_text_to_image(
+        filepath: str | Path,
+        text: str,
+
+        font: str | Path,
+        font_size: int,
+        font_color_rgb: tuple[int, int, int] = (0, 0, 0),
+
+        text_xy_abs: tuple[int, int] | None = None,
+        text_xy_rel: tuple[float, float] | None = None,
+
+        to_sizes: tuple[int, int] | None = None,
+
+        save_to: str | Path | None = None,
+) -> str | Path:
+    if text_xy_abs is None and text_xy_rel is None:
+        raise TypeError("text_xy_abs or text_xy_rel must be specified")
+
+    image = Image.open(filepath)
+    if to_sizes:
+        image.resize(size=to_sizes)
+    image_w, image_h = image.size
+
+    font_pil = ImageFont.truetype(font, font_size)
+    draw = ImageDraw.Draw(image)
+    _, _, text_w, text_h = draw.textbbox((0, 0), text, font=font_pil)
+
+    if text_xy_abs:
+        text_x = text_xy_abs[0] - text_w // 2
+        text_y = text_xy_abs[1] - text_h // 2
+    else:
+        text_x = image_w * text_xy_rel[0] - text_w // 2
+        text_y = image_h * text_xy_rel[1] - text_h // 2
+
+    draw.text(
+        (text_x, text_y),
+        text,
+        font_color_rgb,
+        font_pil
+    )
+
+    filename = f'{uuid.uuid4().hex}.jpg' if save_to is None else save_to
+    image.save(filename)
+    return filename
