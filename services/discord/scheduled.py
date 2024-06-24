@@ -96,7 +96,7 @@ async def cb_task(
                 text=image_text,
                 font="templates/Impact.ttf",
                 font_size=48,
-                text_xy_rel=(0.23, 0.9)
+                text_xy_rel=(0.5, 0.9)
             )
 
             channel = service.bot.get_channel(channel_id)
