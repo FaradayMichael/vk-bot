@@ -235,8 +235,8 @@ class VkBotService:
                 consumer: BaseConsumer = await BaseConsumer.create(self.config, MBProvider.KAFKA)
                 logger.info("MB consumer started")
             except Exception as e:
-                logger.exception(e)
-                await asyncio.sleep(30)
+                logger.error(e)
+                await asyncio.sleep(60)
                 continue
 
             try:

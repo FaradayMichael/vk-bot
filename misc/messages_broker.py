@@ -67,7 +67,11 @@ class KafkaConsumer(BaseConsumer):
             bootstrap_servers=self.config.kafka.bootstrap_servers,
             retry_backoff_ms=30000
         )
-        await self._consumer.start()
+        try:
+            await self._consumer.start()
+        except Exception as e:
+            await self._close_consumer()
+            raise e
 
     async def lister(self) -> AsyncIterable[MBMessage]:
         async for msg in self._consumer:
