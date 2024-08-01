@@ -91,7 +91,7 @@ class VkMessage(BaseModel):
     fwd_messages: list[Any] = []
     peer_id: int = 0
     text: str = ''
-    from_chat: bool
+    from_chat: bool | None = None
 
     @property
     def short_str(self) -> str:

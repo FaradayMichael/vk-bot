@@ -9,6 +9,7 @@ from models.base import (
     AttachmentType
 )
 from models.vk import SendMessage
+from services.vk_bot.models.vk import VkMessage
 
 
 class AttachmentInput(BaseModel):
@@ -38,3 +39,8 @@ class SendMessageResponse(SuccessResponse):
 
 class WallPostInput(BaseModel):
     files: list[DataURL]
+
+
+class MessagesHistoryResponse(BaseModel):
+    total: int
+    items: list[VkMessage]
