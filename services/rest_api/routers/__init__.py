@@ -39,11 +39,6 @@ def register_routers(app: FastAPI):
 
     router.include_router(
         vk.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
-    )
-    router.include_router(
-        vk.admin_router,
-        dependencies=[Depends(check_auth), Depends(check_is_admin)] if not app.debug else []
     )
 
     router.include_router(

@@ -37,21 +37,18 @@ from services.vk_bot.models.vk import VkMessage
 
 logger = logging.getLogger(__name__)
 
-_prefix = '/vk'
-_tags = ['vk']
+_prefix = '/messages'
 
 router = APIRouter(
     prefix=_prefix,
-    tags=_tags
 )
 
 admin_router = APIRouter(
     prefix=_prefix,
-    tags=_tags
 )
 
 
-@admin_router.post('/send_message', response_model=SendMessageResponse)
+@admin_router.post('/send', response_model=SendMessageResponse)
 async def api_send_message_vk(
         data: SendMessageInput,
         vk_client: VkClient = Depends(get_vk_client)
@@ -95,7 +92,7 @@ async def api_get_history(
 
     limit = 300
     allowed_ids = (2000000001,)
-    if peer_id and peer_id not in allowed_ids and not session.is_admin:
+    if not session.is_admin and (not peer_id or peer_id not in allowed_ids):
         return await error_403("This peer_id is not allowed")
 
     tasks = await vk_tasks_db.get_list(
