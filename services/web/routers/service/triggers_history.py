@@ -1,3 +1,5 @@
+from urllib.parse import quote_plus
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -37,11 +39,14 @@ async def triggers_history_view(
         session: Session = Depends(ges_session),
         conn: Connection = Depends(get_conn)
 ):
-    rows = await triggers_history_db.get_list(conn, **query_params.model_dump())
+    q = query_params.q.split('|')
+    q = [s.strip() for s in q]
+    rows = await triggers_history_db.get_list(conn, q)
     return jinja.get_template('service/triggers_history.html').render(
         user=session.user,
         request=request,
-        rows=rows
+        rows=rows,
+        q=query_params.q,
     )
 
 
@@ -50,6 +55,6 @@ async def triggers_history_search_view(
         search: str | None = Form(default=None),
 ):
     return RedirectResponse(
-        url=f'/service/triggers_history/{"?q=" + search if search else ""}',
+        url=f'/service/triggers_history/{"?q=" + quote_plus(search) if search else ""}',
         status_code=302
     )

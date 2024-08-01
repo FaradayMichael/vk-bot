@@ -54,7 +54,7 @@ class Range(BaseModel):
 
 
 class BaseSearchQueryParams(BaseModel):
-    q: Optional[str] = Field(default=None, description="search query")
+    q: Optional[str] = Field(default="", description="search query")
 
 
 class BaseLangSearchQueryParams(BaseSearchQueryParams):

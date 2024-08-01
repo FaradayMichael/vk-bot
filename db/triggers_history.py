@@ -34,8 +34,11 @@ async def get(
 
 async def get_list(
         conn: db.Connection,
-        q: str | None = None
+        q: list[str] | None = None
 ) -> list[TriggersHistory]:
+    if q is None:
+        q = list()
+
     where = []
     values = []
     idx = 1
@@ -47,24 +50,27 @@ async def get_list(
         LEFT JOIN {TRIGGERS_ANSWERS_TABLE} t2
             ON t1.trigger_answer_id = t2.id 
         LEFT JOIN {KNOW_IDS_TABLE} t3 
-            ON t1.vk_id = t3.id 
+            ON t1.vk_id = t3.vk_id 
     """
 
-    if q is not None:
-        search_fields = {
-            "t1.vk_id",
-            "t2.trigger",
-            "t2.answer",
-            "t3.name",
-        }
-        where.append(
+    search_fields = {
+        "t1.vk_id",
+        "t2.trigger",
+        "t2.answer",
+        "t3.name",
+    }
+    search_where = []
+    for w in q:
+        search_where.append(
             "(" + " OR ".join([f"LOWER({s_f}::TEXT) LIKE ${idx}" for s_f in search_fields]) + ")"
         )
-        values.append(f"%{q.strip().lower()}%")
+        values.append(f"%{w.strip().lower()}%")
+        idx += 1
+    if search_where:
+        where.append(f"({' OR '.join(search_where)})")
 
     if where:
-        query += f"WHERE {' AND '.join(where)}"
-
+        query += f"WHERE {' AND '.join(where)} "
     query += "ORDER BY ctime DESC"
     records = await conn.fetch(query, *values)
     return await _record_to_model_list(conn, records)
