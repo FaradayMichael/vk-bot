@@ -22,6 +22,7 @@ async def get_list(
 ) -> list[SendOnSchedule]:
     records = await db.get_list(
         conn=conn,
-        table=TABLE
+        table=TABLE,
+        where="en"
     )
     return db.record_to_model_list(SendOnSchedule, records)
