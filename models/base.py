@@ -101,3 +101,20 @@ class AttachmentType(StrEnum):
             case _ as arg:
                 logging.info(f"{arg=}")
                 return AttachmentType.DOC
+
+    @staticmethod
+    def by_ext(
+            ext: str,
+    ) -> "AttachmentType":
+        match ext:
+            case 'jpg':
+                return AttachmentType.PHOTO
+            case 'jpeg':
+                return AttachmentType.PHOTO
+            case 'bmp':
+                return AttachmentType.PHOTO
+            case 'mp4':
+                return AttachmentType.VIDEO
+            case _ as arg:
+                logging.info(f"{arg=}")
+                return AttachmentType.DOC

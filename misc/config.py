@@ -65,6 +65,13 @@ class GigachatConfig(BaseModel):
     scope: str
 
 
+class SftpConfig(BaseModel):
+    username: str
+    password: str
+    host: str
+    port: int
+
+
 class Config(BaseModel):
     debug: bool = False
     salt: str
@@ -78,6 +85,8 @@ class Config(BaseModel):
     discord: DiscordConfig
     dumper: DumperConfig
     gigachat: GigachatConfig
+    sftp: SftpConfig
+    amqp: str
 
 
 def read_config(path: str) -> Config:

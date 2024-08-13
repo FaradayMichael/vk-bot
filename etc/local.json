@@ -45,5 +45,12 @@
     "client_secret": "qwe",
     "token": "qwe",
     "scope": "GIGACHAT_API_PERS"
-  }
+  },
+  "sftp": {
+    "username": "user",
+    "password": "password",
+    "host": "",
+    "port": 2222
+  },
+  "amqp": "amqp://user:pass@rabbitmq/"
 }

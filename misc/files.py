@@ -9,6 +9,7 @@ from fastapi import UploadFile
 from pydantic import BaseModel
 
 from misc.dataurl import DataURL
+from misc.sftp import SftpClient
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,33 @@ class TempBase64File(TempFileBase):
                 self.file_obj.data
             )
         return self.file_model
+
+
+class TempSftpFile(TempFileBase):
+
+    def __init__(
+            self,
+            file_obj: str,  # sftp relative path
+            client: SftpClient,
+            auto_remove: bool = False,
+    ):
+        super().__init__(file_obj)
+        self._client = client
+        self._auto_remove = auto_remove
+
+    async def __aenter__(self) -> TempFileModel:
+        self.file_obj: str
+
+        fp = await self._client.download(self.file_obj)
+        self.file_model = TempFileModel(
+            filepath=fp,
+        )
+        return self.file_model
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.__aexit__(exc_type, exc_val, exc_tb)
+        if self._auto_remove:
+            await self._client.remove(self.file_obj)
 
 
 async def download_file(

@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import logging
+import os
+from urllib.parse import urlparse
 from asyncio import AbstractEventLoop
 from typing import (
     Callable,
@@ -33,13 +35,14 @@ from misc.config import Config
 from misc.consts import VK_SERVICE_REDIS_QUEUE
 from misc.files import (
     TempBase64File,
-    TempUrlFile
+    TempUrlFile, TempSftpFile
 )
 from misc.messages_broker import (
     BaseConsumer,
     MBProvider,
     MBMessage
 )
+from misc.sftp import SftpClient
 from misc.vk_client import VkClient
 from models.vk import (
     Message
@@ -201,39 +204,11 @@ class VkBotService:
                 raise
 
     async def _listen_kafka(self):
-
-        async def handle_message(message: MBMessage):
-            if message.is_empty():
-                logger.info("Empty MB message")
-                return
-
-            if message.base64:
-                if AttachmentType.by_content_type(message.base64.mimetype) is AttachmentType.PHOTO:
-                    async with TempBase64File(message.base64) as tmp:
-                        attachments = await self.client_vk.upload.photo_wall([tmp.filepath])
-                    await self.execute_in_worker(
-                        vk_bl.post_in_group_wall,
-                        self.client_vk,
-                        attachments=attachments
-                    )
-                else:
-                    logger.info(f"Unsupported media type: {message.base64.mimetype}")
-
-            if message.video_url:
-                logger.info(f"{message.video_url=}")
-                async with TempUrlFile(str(message.video_url)) as tmp:
-                    if tmp:
-                        logger.info(tmp)
-                        if AttachmentType.by_content_type(tmp.content_type) is AttachmentType.VIDEO:
-                            await self.client_vk.upload.video_wall_and_post(tmp.filepath)
-                        else:
-                            logger.info(f"Unsupported media type: {tmp.content_type}")
-
-        logger.info("MB listener started")
+        logger.info("Kafka listener started")
         while not self._stopping:
             try:
                 consumer: BaseConsumer = await BaseConsumer.create(self.config, MBProvider.KAFKA)
-                logger.info("MB consumer started")
+                logger.info("Kafka consumer started")
             except Exception as e:
                 logger.error(e)
                 await asyncio.sleep(60)
@@ -242,7 +217,7 @@ class VkBotService:
             try:
                 async for msg in consumer.lister():
                     msg: MBMessage
-                    await handle_message(msg)
+                    await self._handle_mb_message(msg)
 
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
@@ -253,7 +228,82 @@ class VkBotService:
                 logger.exception(e)
             finally:
                 await consumer.close()
-                logger.info("MB consumer stopped")
+                logger.info("Kafka consumer stopped")
+
+    async def _listen_rabbit(self):
+        logger.info("Start listening rabbit")
+        while not self._stopping:
+            try:
+                consumer: BaseConsumer = await BaseConsumer.create(self.config, MBProvider.RABBITMQ)
+                logger.info("Rabbit consumer started")
+            except Exception as e:
+                logger.exception(e)
+                await asyncio.sleep(60)
+                continue
+
+            try:
+                async for msg in consumer.lister():
+                    msg: MBMessage
+                    await self._handle_mb_message(msg)
+
+            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
+                break
+            except Exception as e:
+                logger.exception(e)
+                await asyncio.sleep(30)
+            finally:
+                await consumer.close()
+                logger.info("Kafka consumer stopped")
+
+    async def _handle_mb_message(self, message: MBMessage):
+        async def handle_image(fp: str):
+            attachments = await self.client_vk.upload.photo_wall(fp)
+            return await self.execute_in_worker(
+                vk_bl.post_in_group_wall,
+                self.client_vk,
+                attachments=attachments
+            )
+
+        async def handle_video(fp: str):
+            return await self.client_vk.upload.video_wall_and_post(fp)
+
+        if message.is_empty():
+            logger.info("Empty MB message")
+            return
+
+        if message.sftpUrl:
+            logger.info(f"Handle {message.sftpUrl=}")
+            async with SftpClient(self.config.sftp) as sftp_client:
+                async with TempSftpFile(message.sftpUrl, sftp_client, True) as tmp:
+                    attachment_type = AttachmentType.by_ext(os.path.basename(tmp.filepath).split('.')[-1])
+                    match attachment_type:
+                        case AttachmentType.PHOTO:
+                            await handle_image(tmp.filepath)
+                        case AttachmentType.VIDEO:
+                            await handle_video(tmp.filepath)
+                        case _ as arg:
+                            logger.info(f"Unsupported media type: {arg}")
+            return
+
+        if message.base64:
+            logger.info("Handle base64 message")
+            if AttachmentType.by_content_type(message.base64.mimetype) is AttachmentType.PHOTO:
+                async with TempBase64File(message.base64) as tmp:
+                    await handle_image(tmp.filepath)
+            else:
+                logger.info(f"Unsupported media type: {message.base64.mimetype}")
+            return
+
+        if message.video_url:
+            logger.info(f"Handel {message.video_url=}")
+            async with TempUrlFile(str(message.video_url)) as tmp:
+                if tmp:
+                    logger.info(tmp)
+                    if AttachmentType.by_content_type(tmp.content_type) is AttachmentType.VIDEO:
+                        await handle_video(tmp.filepath)
+                    else:
+                        logger.info(f"Unsupported media type: {tmp.content_type}")
+            return
 
     async def _listen_redis(self):
 
@@ -357,6 +407,9 @@ class VkBotService:
 
         self.start_background_task(
             coro=self._listen_kafka()
+        )
+        self.start_background_task(
+            coro=self._listen_rabbit()
         )
 
         await self.start_schedule_tasks()

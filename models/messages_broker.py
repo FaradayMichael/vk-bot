@@ -6,6 +6,7 @@ from misc.dataurl import DataURL
 class MBMessage(BaseModel):
     base64: DataURL | None = None
     video_url: AnyUrl | None = None
+    sftpUrl: str | None = None
 
     @model_validator(mode='before')
     def validate_empty(cls, data):
