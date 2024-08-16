@@ -1,5 +1,7 @@
+import asyncio
 import os
 import uuid
+from typing import Any
 
 from paramiko import (
     Transport,
@@ -26,8 +28,21 @@ class SftpClient:
         ext = os.path.basename(path).split('.')[-1]
         filename = f'{uuid.uuid4().hex}.{ext}'
         filepath = os.path.join(folder, filename)
-        self.client.get(path, filepath)
+
+        # self.client.get(path, filepath)
+        await asyncio.to_thread(
+            self.client.get,
+            path,
+            filepath,
+            None, True, None
+        )
         return filepath
+
+    async def stat(self, path: str) -> Any:
+        return await asyncio.to_thread(
+            self.client.stat,
+            path
+        )
 
     async def remove(self, path: str) -> None:
         self.client.remove(path)

@@ -114,6 +114,9 @@ class TempSftpFile(TempFileBase):
     async def __aenter__(self) -> TempFileModel:
         self.file_obj: str
 
+        stat = await self._client.stat(self.file_obj)
+        logger.info(f"stat: {stat}")
+
         fp = await self._client.download(self.file_obj)
         self.file_model = TempFileModel(
             filepath=fp,
@@ -121,7 +124,7 @@ class TempSftpFile(TempFileBase):
         return self.file_model
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.__aexit__(exc_type, exc_val, exc_tb)
+        await super().__aexit__(exc_type, exc_val, exc_tb)
         if self._auto_remove:
             await self._client.remove(self.file_obj)
 
