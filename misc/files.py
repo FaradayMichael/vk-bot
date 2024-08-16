@@ -115,7 +115,7 @@ class TempSftpFile(TempFileBase):
         self.file_obj: str
 
         stat = await self._client.stat(self.file_obj)
-        logger.info(f"stat: {stat}")
+        logger.info(f"{stat.st_size=}")
 
         fp = await self._client.download(self.file_obj)
         self.file_model = TempFileModel(
