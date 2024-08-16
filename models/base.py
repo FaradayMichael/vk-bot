@@ -106,7 +106,7 @@ class AttachmentType(StrEnum):
     def by_ext(
             ext: str,
     ) -> "AttachmentType":
-        match ext:
+        match ext.lower():
             case 'jpg':
                 return AttachmentType.PHOTO
             case 'jpeg':
