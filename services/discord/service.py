@@ -115,15 +115,15 @@ class DiscordService:
                 )
             )
         )
-        self._tasks.append(
-            self.loop.create_task(
-                cb_task(
-                    self,
-                    "0 10 * * *",
-                    937785108696551546
-                )
-            )
-        )
+        # self._tasks.append(
+        #     self.loop.create_task(
+        #         cb_task(
+        #             self,
+        #             "0 10 * * *",
+        #             937785108696551546
+        #         )
+        #     )
+        # )
 
     # noinspection PyTypeChecker
     async def _register_commands(self) -> None:
