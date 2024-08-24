@@ -43,6 +43,7 @@ def create_figure_gantt(
         ] = round(hours + (finished_at - activity.started_at).total_seconds() / 3600, 1)
 
     df_list = []
+    activities.sort(key=lambda x: hours_data[x.activity_name], reverse=True)
     for a in activities:
         df_list.append({
             'Activity': a.activity_name,
