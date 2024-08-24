@@ -5,7 +5,6 @@ from asyncpg import Pool
 from discord import (
     Intents,
     Message,
-    File
 )
 from discord.ext.commands import Bot
 from discord.ext.commands.core import Command
@@ -59,7 +58,7 @@ class DiscordService:
     async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
-        self.gigachat_client = GigachatClient(self.config.gigachat)
+        self.gigachat_client = GigachatClient(self.config.gigachat, self.db_pool)
 
         self._intents = Intents.all()
         self._intents.messages = True
@@ -95,7 +94,7 @@ class DiscordService:
         from .scheduled import (
             send_on_schedule,
             drop_broken_activities,
-            cb_task
+            # cb_task
         )
         self._tasks.append(
             self.loop.create_task(

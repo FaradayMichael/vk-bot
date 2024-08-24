@@ -1,17 +1,24 @@
 import asyncio
 import logging
+import socket
 import time
 import uuid
 import functools
-from pydantic import (
-    BaseModel,
-)
 from typing import (
-    Optional,
-    Dict,
     Any,
     Type,
 )
+
+import aio_pika
+from aio_pika.message import (
+    ReturnedMessage
+)
+from aio_pika.abc import (
+    ConsumerTag,
+    AbstractQueueIterator
+)
+from aiormq.abc import ExceptionType
+
 from .serializer import (
     Serializer,
 )
@@ -22,15 +29,6 @@ from .models import (
     MessageType,
     ExceptionData,
 )
-import aio_pika
-from aio_pika.message import (
-    ReturnedMessage
-)
-from aio_pika.abc import (
-    AbstractChannel,
-    ConsumerTag,
-)
-from aiormq.abc import ExceptionType
 from .exceptions import (
     TaskCanceled,
     TaskError,
@@ -38,7 +36,6 @@ from .exceptions import (
     TaskReturned,
     TaskNoHandler,
 )
-import socket
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +46,7 @@ class Task:
             method: str,
             data: bytes,
             response_class: Type[ModelClass],
-            priority: Optional[int] = None,
+            priority: int | None = None,
             nullable_response: bool = False
     ):
         self.id = uuid.uuid4().hex
@@ -81,9 +78,9 @@ class Client:
             cls,
             conn: aio_pika.RobustConnection,
             worker_queue_name: str,
-            serialiser: Serializer
+            serializer: Serializer
     ) -> 'Client':
-        instance = cls(conn, worker_queue_name, serialiser)
+        instance = cls(conn, worker_queue_name, serializer)
         await instance.init()
         return instance
 
@@ -98,11 +95,11 @@ class Client:
         self.client_queue_name = f'asynctask.clients.{uuid.uuid4().hex}'
         self.worker_queue_name = worker_queue_name
         self.serialiser = serialiser
-        self.channel: Optional[aio_pika.RobustChannel] = None
-        self.queue: Optional[aio_pika.RobustQueue] = None
-        self.queue_iterator: Optional[aio_pika.AbstractQueueIterator] = None
-        self.tasks: Dict[str, Task] = {}
-        self.consumer_tag: Optional[ConsumerTag] = None
+        self.channel: aio_pika.RobustChannel | None = None
+        self.queue: aio_pika.RobustQueue | None = None
+        self.queue_iterator: AbstractQueueIterator | None = None
+        self.tasks: dict[str, Task] = {}
+        self.consumer_tag: ConsumerTag | None = None
 
     async def init(self):
         self.channel = await self.conn.channel()
@@ -143,10 +140,10 @@ class Client:
     async def call(
             self,
             method: str,
-            data: Optional[ModelClass] = None,
-            response_class: Optional[Type[ModelClass]] = None,
-            priority: Optional[int] = None,
-            expiration: Optional[int] = None,
+            data: ModelClass | None = None,
+            response_class: Type[ModelClass] | None = None,
+            priority: int | None = None,
+            expiration: int | None = None,
             nullable_response: bool = False,
     ) -> Any:
         task = Task(
@@ -185,7 +182,10 @@ class Client:
             timeout=expiration
         )
 
-    async def on_message(self, incoming_message: aio_pika.IncomingMessage):
+    async def on_message(
+            self,
+            incoming_message: aio_pika.IncomingMessage | aio_pika.abc.AbstractIncomingMessage
+    ):
         task = self.tasks.pop(incoming_message.correlation_id, None)
         if not task:
             logger.error(
@@ -235,14 +235,13 @@ class Client:
         finally:
             try:
                 await incoming_message.ack()
-            except:
-                logger.exception(f"Error acking message {incoming_message.body.decode()}")
+            except Exception:
+                logger.exception(f"Error asking message {incoming_message.body.decode()}")
                 raise
 
     def on_close(
             self,
-            channel: AbstractChannel,
-            exc: Optional[ExceptionType] = None,
+            exc: ExceptionType | None = None,
     ) -> None:
         for task in self.tasks.values():
             if not task.done():
@@ -253,7 +252,6 @@ class Client:
 
     def on_message_returned(
             self,
-            channel: AbstractChannel,
             returned_message: ReturnedMessage
     ):
         logger.error('Message returned')
@@ -281,7 +279,7 @@ IGNORE_EXCEPTIONS = [
 def retry(fn):
     @functools.wraps(fn)
     async def wrapper(*args, **kwargs):
-        last_exception: Exception = None
+        last_exception: Exception | None = None
         retries = 5
         while 1:
             try:

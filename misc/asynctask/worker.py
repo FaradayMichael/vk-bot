@@ -2,13 +2,19 @@ import asyncio
 import logging
 import socket
 import time
-from pydantic import BaseModel
 from typing import (
-    Optional,
     Awaitable,
     Type,
     Callable,
 )
+
+import aio_pika
+from aio_pika.abc import (
+    ConsumerTag,
+    AbstractRobustConnection,
+)
+from pydantic import BaseModel
+
 from .serializer import (
     Serializer,
 )
@@ -19,10 +25,6 @@ from .models import (
     ExceptionType,
     MessageType,
     ModelClass,
-)
-import aio_pika
-from aio_pika.abc import (
-    ConsumerTag, AbstractRobustConnection,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,38 +52,38 @@ class Context:
         self.replied: bool = False
         self.lock: asyncio.Lock = asyncio.Lock()
 
-    async def success(self, data: Optional[ModelClass] = None):
+    async def success(self, data: ModelClass | None = None):
         await self.reply_to(
             data=data,
-            type=MessageType.SUCCESS
+            t=MessageType.SUCCESS
         )
 
     async def canceled(self):
         await self.reply_to(
-            data=b'',
-            type=MessageType.CANCELED
+            data=b'',  # noqa
+            t=MessageType.CANCELED
         )
 
     async def exception(self, data: ExceptionData):
         await self.reply_to(
             data=data,
-            type=MessageType.EXCEPTION
+            t=MessageType.EXCEPTION
         )
 
     async def error(self, data: ErrorData):
         await self.reply_to(
             data=data,
-            type=MessageType.ERROR
+            t=MessageType.ERROR
         )
 
-    async def reply_to(self, data: ModelClass, type: MessageType):
+    async def reply_to(self, data: ModelClass, t: MessageType):
         async with self.lock:
             if not self.replied:
                 self.replied = True
                 await self.worker.reply_to(
                     incoming_message=self.incoming_message,
                     data=data,
-                    type=type
+                    t=t
                 )
 
 
@@ -91,11 +93,11 @@ class Worker:
             cls,
             conn: aio_pika.RobustConnection | aio_pika.Connection | AbstractRobustConnection,
             queue_name: str,
-            serialiser: Serializer,
+            serializer: Serializer,
             prefetch_count: int = 1,
-            enable_reply:bool = True,
+            enable_reply: bool = True,
     ) -> 'Worker':
-        instance = cls(conn, queue_name, serialiser, prefetch_count, enable_reply)
+        instance = cls(conn, queue_name, serializer, prefetch_count, enable_reply)
         await instance.init()
         return instance
 
@@ -105,7 +107,7 @@ class Worker:
             queue_name: str,
             serializer: Serializer,
             prefetch_count: int = 1,
-            enable_reply:bool = True,
+            enable_reply: bool = True,
     ):
         super().__init__()
         self.conn = conn
@@ -113,10 +115,10 @@ class Worker:
         self.serializer = serializer
         self.prefetch_count = prefetch_count
         self.enable_reply = enable_reply
-        self.channel: Optional[aio_pika.RobustChannel] = None
-        self.queue: Optional[aio_pika.RobustQueue] = None
+        self.channel: aio_pika.RobustChannel | None = None
+        self.queue: aio_pika.RobustQueue | None = None
         self.handlers: dict[str, Handler] = {}
-        self.consumer_tag: Optional[ConsumerTag] = None
+        self.consumer_tag: ConsumerTag | None = None
         self.lock: asyncio.Lock = asyncio.Lock()
 
     async def init(self):
@@ -155,24 +157,27 @@ class Worker:
         )
         logger.info(f'Handler {method}[{model_class.__name__ if model_class else "None"}] registered')
 
-    async def on_message(self, incoming_message: aio_pika.IncomingMessage):
+    async def on_message(
+            self,
+            incoming_message: aio_pika.IncomingMessage | aio_pika.abc.AbstractIncomingMessage
+    ):
         try:
             if not self.queue:
                 await incoming_message.reject(requeue=True)
                 return
 
             await self.handle(incoming_message)
-        except (GeneratorExit, asyncio.CancelledError) as exc:
+        except (GeneratorExit, asyncio.CancelledError):
             await self.reply_to(
                 incoming_message=incoming_message,
-                type=MessageType.CANCELED,
+                t=MessageType.CANCELED,
             )
         except Exception as exc:
             logger.exception(
                 f'Message {incoming_message} handled with exception')
             await self.reply_to(
                 incoming_message=incoming_message,
-                type=MessageType.EXCEPTION,
+                t=MessageType.EXCEPTION,
                 data=ExceptionData(
                     cls=exc.__class__.__name__,
                     message=str(exc),
@@ -191,7 +196,7 @@ class Worker:
         if not method:
             await self.reply_to(
                 incoming_message=incoming_message,
-                type=MessageType.NO_HANDLER,
+                t=MessageType.NO_HANDLER,
                 data=ErrorData(
                     message=f'Method not found at message'
                 )
@@ -202,7 +207,7 @@ class Worker:
         if not handler:
             await self.reply_to(
                 incoming_message=incoming_message,
-                type=MessageType.NO_HANDLER,
+                t=MessageType.NO_HANDLER,
                 data=ErrorData(
                     message=f'Handler {method} not found'
                 )
@@ -221,15 +226,15 @@ class Worker:
     async def reply_to(
             self,
             incoming_message: aio_pika.IncomingMessage,
-            type: MessageType,
-            data: Optional[ModelClass] = None
+            t: MessageType,
+            data: ModelClass | None = None
     ):
         if not self.enable_reply:
             return None
 
         body = self.serializer.pack(data)
         reply_message = aio_pika.Message(
-            type=type.value,
+            type=t.value,
             body=body,
             content_type=self.serializer.content_type(),
             correlation_id=incoming_message.correlation_id,

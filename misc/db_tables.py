@@ -11,3 +11,4 @@ class DBTables(StrEnum):
     DYNAMIC_CONFIG = 'dynamic_config'
     DISCORD_ACTIVITY_SESSIONS = 'discord_activity_sessions'
     DISCORD_REPLY_COMMANDS = 'discord_reply_commands'
+    GIGACHAT_MESSAGES = 'gigachat_messages'

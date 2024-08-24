@@ -1,7 +1,6 @@
 import logging
 from typing import (
     Type,
-    Optional,
 )
 from .models import ModelClass
 
@@ -9,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 
 class Serializer:
-    def unpack(self, data: bytes, model_class: Optional[Type[ModelClass]] = None) -> Optional[ModelClass]:
+    def unpack(self, data: bytes, model_class: Type[ModelClass] | None = None) -> ModelClass | None:
         raise NotImplemented()
 
-    def pack(self, data: Optional[ModelClass] = None) -> bytes:
+    def pack(self, data: ModelClass | None = None) -> bytes:
         raise NotImplemented()
 
     def content_type(self) -> str:
@@ -20,7 +19,7 @@ class Serializer:
 
 
 class JsonSerializer(Serializer):
-    def unpack(self, data: bytes, model_class: Optional[Type[ModelClass]] = None) -> Optional[ModelClass]:
+    def unpack(self, data: bytes, model_class: Type[ModelClass] | None = None) -> ModelClass | None:
         if not model_class and not data:
             return None
         if not model_class and data:
@@ -33,7 +32,7 @@ class JsonSerializer(Serializer):
         #     return None
         return model_class.model_validate_json(data)
 
-    def pack(self, data: Optional[ModelClass] = None) -> bytes:
+    def pack(self, data: ModelClass | None = None) -> bytes:
         if data is None:
             return b''
         return data.model_dump_json().encode()

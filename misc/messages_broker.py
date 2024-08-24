@@ -117,7 +117,7 @@ class RabbitMQConsumer(BaseConsumer):
             self._consumer = await Worker.create(
                 conn=self.amqp,
                 queue_name="vk_bot_post_queue",
-                serialiser=JsonSerializer(),
+                serializer=JsonSerializer(),
                 enable_reply=False
             )
             self._consumer.register(

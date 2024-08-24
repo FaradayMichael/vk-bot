@@ -1,11 +1,8 @@
 from enum import Enum
 from typing import (
-    Dict,
-    Optional,
     TypeVar,
 )
-from pydantic import BaseModel
-
+from pydantic import BaseModel, Field
 
 ModelClass = TypeVar('ModelClass', bound=BaseModel)
 
@@ -32,7 +29,7 @@ class ExceptionData(BaseModel):
     cls: str
     message: str
     t: ExceptionType
-    data: Optional[Dict] = {}
+    data: dict | None = Field(default_factory=dict)
 
 
 class ErrorData(BaseModel):
