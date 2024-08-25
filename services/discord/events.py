@@ -49,14 +49,14 @@ async def on_message(service: DiscordService, message: Message):
     if message.author.id in (292615364448223233,):
         await message.add_reaction("🤡")
 
-    if len(message.mentions) == 1 and message.mentions[0].id == service.bot.user.id:
+    if message.mentions and message.mentions[0].id == service.bot.user.id:
         try:
-            response = await service.gigachat_client.chat(
+            response_message = await service.gigachat_client.chat(
                 message.author.id,
                 message.content
             )
-            if response:
-                return await message.reply(content=response.content)
+            if response_message:
+                return await message.reply(content=response_message.content)
         except Exception as e:
             logger.error(e)
 

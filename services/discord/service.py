@@ -114,15 +114,6 @@ class DiscordService:
                 )
             )
         )
-        # self._tasks.append(
-        #     self.loop.create_task(
-        #         cb_task(
-        #             self,
-        #             "0 10 * * *",
-        #             937785108696551546
-        #         )
-        #     )
-        # )
 
     # noinspection PyTypeChecker
     async def _register_commands(self) -> None:
@@ -131,7 +122,8 @@ class DiscordService:
             'play',
             'stop',
             'clown',
-            'boris'
+            'boris',
+            'clear_history',
         ]
         reply_commands = await reply_commands_db.get_all(self.db_pool)
 

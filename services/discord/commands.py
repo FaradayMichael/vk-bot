@@ -88,6 +88,14 @@ async def boris(ctx: Context):
             logger.exception(e)
 
 
+async def clear_history(ctx: Context):
+    service: DiscordService = ctx.command.extras['service']
+    try:
+        await service.gigachat_client.prune_chat_history(ctx.message.author.id)
+    except Exception as e:
+        logger.error(e)
+
+
 async def reply(ctx: Context):
     service: DiscordService = ctx.command.extras['service']
     command_db = await reply_commands_db.get(

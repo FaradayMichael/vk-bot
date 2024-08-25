@@ -16,7 +16,7 @@ class GigachatClient:
             config: GigachatConfig,
             db_pool: asyncpg.Pool,
             role: MessagesRole = MessagesRole.SYSTEM,
-            init_payload_message: str = "Ты внимательный бот-психолог, который помогает пользователю решить его проблемы.",
+            init_payload_message: str = "Ты внимательный бот, который помогает пользователю решить его проблемы.",
             temperature: float = 0.7,
             max_tokens: int = 100,
     ):
@@ -60,6 +60,7 @@ class GigachatClient:
         return message
 
     async def prune_chat_history(self, user: user_alias):
+        user = str(user)
         await gigachat_db.delete_by_user(self.db_pool, user)
 
     async def close(self):
