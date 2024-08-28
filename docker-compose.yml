@@ -64,6 +64,8 @@ services:
       - mailhog
       - rabbitmq
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       redis:
         condition: service_started
       mailhog:
@@ -109,6 +111,24 @@ services:
       - dbmate
     depends_on:
       db:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  parser_service:
+    build:
+      context: .
+      dockerfile: docker/selenium/Dockerfile
+      target: selenium
+    working_dir: /code
+    container_name: parser_service
+    command: /usr/bin/run_parser
+    volumes:
+      - .:/code
+    links:
+      - rabbitmq
+    depends_on:
+      rabbitmq:
         condition: service_healthy
     env_file:
       - .env
@@ -173,8 +193,8 @@ services:
       - db
     ports:
       - "8978:8978"
-#    volumes:
-#      - cloudbeaver:/opt/cloudbeaver/workspace
+    #    volumes:
+    #      - cloudbeaver:/opt/cloudbeaver/workspace
     depends_on:
       db:
         condition: service_healthy
@@ -183,12 +203,12 @@ services:
     container_name: nginx
     image: nginx
     volumes:
-     - ./nginx.conf:/etc/nginx/nginx.conf
-     - ./static/:/static/files/
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./static/:/static/files/
     ports:
-     - "8080:80"
-    #environment:
-     #- NGINX_PORT=80
+      - "8080:80"
+      #environment:
+      #- NGINX_PORT=80
 
   rabbitmq:
     image: rabbitmq:3-management

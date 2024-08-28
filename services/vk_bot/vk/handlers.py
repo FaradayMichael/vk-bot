@@ -36,6 +36,7 @@ from services.vk_bot.models.vk import (
     VkMessage
 )
 from services.vk_bot.service import VkBotService
+from services.parser_service.client import ParserClient
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         return
 
     # Find tags of images
-    tags_models = await _parse_attachments_tags(message_model.attachments)
+    tags_models = await _parse_attachments_tags(service.parser_client, message_model.attachments)
     logger.info(f"{tags_models=}")
     if tags_models:
         await _send_tags(service.client_vk, tags_models, peer_id)
@@ -161,6 +162,7 @@ def _validate_message(
 
 
 async def _parse_attachments_tags(
+        parser_client: ParserClient,
         attachments: list[VkMessageAttachment]
 ) -> list[ImageTags]:
     if not attachments:
@@ -168,7 +170,7 @@ async def _parse_attachments_tags(
     images_urls = _get_photos_urls_from_message(attachments)
     result = []
     for i in images_urls:
-        tags_model = await parse_image_tags(i)
+        tags_model = await parser_client.get_image_tags(i)
         if tags_model and (tags_model.tags or tags_model.description):
             result.append(tags_model)
     return result

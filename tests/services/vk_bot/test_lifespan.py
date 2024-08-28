@@ -17,7 +17,7 @@ async def test_vk_client(conf: Config):
 @pytest.mark.asyncio
 async def test_vk_service(conf: Config, event_loop):
     loop = asyncio.get_event_loop()
-    service = await VkBotService.create(loop, conf)
+    service = await VkBotService.create(conf, loop)
     await service.start()
     await asyncio.sleep(15)
-    await service.close()
+    service.stop()

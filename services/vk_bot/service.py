@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import logging
 import os
-from urllib.parse import urlparse
 from asyncio import AbstractEventLoop
 from typing import (
     Callable,
@@ -35,13 +34,15 @@ from misc.config import Config
 from misc.consts import VK_SERVICE_REDIS_QUEUE
 from misc.files import (
     TempBase64File,
-    TempUrlFile, TempSftpFile
+    TempUrlFile,
+    TempSftpFile
 )
 from misc.messages_broker import (
     BaseConsumer,
     MBProvider,
     MBMessage
 )
+from misc.service import BaseService
 from misc.sftp import SftpClient
 from misc.vk_client import VkClient
 from models.vk import (
@@ -60,18 +61,15 @@ from .task import (
     save_task,
     execute_task
 )
+from services.parser_service.client import ParserClient
 
 logger = logging.getLogger(__name__)
 
 
-class VkBotService:
-    def __init__(
-            self,
-            loop: AbstractEventLoop,
-            config: Config
-    ):
-        self.loop: AbstractEventLoop = loop
-        self.config: Config = config
+class VkBotService(BaseService):
+    def __init__(self, config: Config, controller_name: str, loop: AbstractEventLoop, **kwargs):
+        super().__init__(config, controller_name, loop, **kwargs)
+
         self.db_pool: Pool | None = None
         self.redis_conn: Redis | None = None
 
@@ -88,39 +86,25 @@ class VkBotService:
         self.client_vk: VkClient | None = None
         self._handlers_vk: dict[VkBotEventType, Callable] = {}
 
+        self.parser_client: ParserClient | None = None
+
     @classmethod
     async def create(
             cls,
-            loop: AbstractEventLoop,
-            config: Config
+            config: Config,
+            loop: asyncio.AbstractEventLoop,
+            **kwargs
     ) -> "VkBotService":
-        instance = VkBotService(loop, config)
-        await instance.init()
-        return instance
-
-    async def start(self):
-        logging.info(f'Starting VkBot Service')
-        if self._stopping:
-            self._stopping = False
-
-            await self._init_background_tasks()
-
-    async def stop(self):
-        logger.info(f"VkBot Service stop calling")
-        if not self._stopping:
-            self._stopping = True
-
-            self.stop_schedule_tasks()
-
-            for task in self._background_tasks.tasks:
-                task.cancel()
-            self._background_tasks.tasks = []
-
-            await self._release_vk()
+        return await super().create(config, 'vk_bot_service', loop, **kwargs)  # noqa
+        # instance = VkBotService(loop, config)
+        # await instance.init()
+        # return instance
 
     async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
+
+        self.parser_client = await ParserClient.create(self.amqp)
 
         self._register_handlers_vk()
         self._register_commands_redis()
@@ -489,27 +473,43 @@ class VkBotService:
 
     def _register_commands_redis(self):
         self._commands_redis[RedisCommands.SERVICE_START] = self.start
-        self._commands_redis[RedisCommands.SERVICE_STOP] = self.stop
+        self._commands_redis[RedisCommands.SERVICE_STOP] = self.stop_service
         self._commands_redis[RedisCommands.SERVICE_RESTART] = self.restart
+
+    async def start(self):
+        logging.info(f'Starting VkBot Service')
+        if self._stopping:
+            self._stopping = False
+
+            await self._init_background_tasks()
+
+    async def stop_service(self):
+        logger.info(f"VkBot Service stop calling")
+        if not self._stopping:
+            self._stopping = True
+
+            self.stop_schedule_tasks()
+
+            for task in self._background_tasks.tasks:
+                task.cancel()
+            self._background_tasks.tasks = []
+
+            await self._release_vk()
 
     async def restart(self, timeout_seconds: int = 30):
         logger.info(f"Restart Srvice. Timeout seconds: {timeout_seconds}")
-        await self.stop()
+        await self.stop_service()
         await asyncio.sleep(timeout_seconds)
         await self.start()
 
-    def close(self) -> asyncio.Task:
-        logger.info(f"VkBot Service closing was planned")
-        return self.loop.create_task(self.save_close())
-
-    async def save_close(self):
+    async def safe_close(self):
         try:
-            await self.stop()
-            await self._close()
+            await self.stop_service()
+            await self.close()
         except Exception as e:
             logger.error(f"Closed with ex {e}")
 
-    async def _close(self):
+    async def close(self):
         self._handlers_vk = {}
 
         if self._background_tasks.redis_listener:
@@ -529,3 +529,9 @@ class VkBotService:
         if self.redis_conn:
             await redis.close(self.redis_conn)
             self.redis_conn = None
+
+        if self.parser_client:
+            await self.parser_client.close()
+            self.parser_client = None
+
+        await super().close()
