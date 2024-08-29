@@ -6,8 +6,6 @@ from discord import (
     Message,
     VoiceClient,
     ActivityType,
-    Embed,
-    Color,
     Reaction,
 )
 from discord.member import (
@@ -24,13 +22,23 @@ from misc.files import TempUrlFile
 from misc.vk_client import VkClient
 from models.base import AttachmentType
 from models.images import ImageTags
-from .utils.messages import log_message
+from .consts import (
+    DISCORD_MEDIA_PREFIX,
+    DISCORD_ATTACHMENT_PREFIX,
+    IMG_EXT,
+    VIDEO_EXT,
+    BINARY_VOTE_REACTIONS
+)
+from .utils.messages import (
+    log_message,
+    create_binary_voting
+)
 from .utils.voice_channels import (
     leave_from_empty_voice_channel,
     connect_to_voice_channel,
     play_file
 )
-from services.discord.models.activities import (
+from .models.activities import (
     ActivitiesState,
     BaseActivities,
     ActivitySessionCreate,
@@ -39,15 +47,6 @@ from services.discord.models.activities import (
 from .service import DiscordService
 
 logger = logging.getLogger(__name__)
-
-DISCORD_MEDIA_PREFIX = 'https://media'
-DISCORD_ATTACHMENT_PREFIX = 'https://cdn.discordapp.com/attachments/'
-IMG_EXT = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
-VIDEO_EXT = ('mp4', 'webm')
-VOTE_REACTIONS = {
-    '✅': True,
-    '❌': False
-}
 
 
 # https://discordpy.readthedocs.io/en/stable/api.html?highlight=event#event-reference
@@ -92,23 +91,20 @@ async def on_message(service: DiscordService, message: Message):
             )
 
     if video_urls and message.channel.id in (1241728108768264215, 960928970629582918,):
-        emb = Embed(title=f'Голосование!', description=f'?Mem?', colour=Color.purple())
-        vote_message = await message.reply(embed=emb)
-        for r in VOTE_REACTIONS.keys():
-            await vote_message.add_reaction(r)
+        vote_message = await create_binary_voting(message)
+
         d_config = await dynamic_config_db.get(service.db_pool)
         if d_config is not None:
             vote_messages_ids = d_config.get('vote_messages_ids', None)
             if vote_messages_ids is None:
                 vote_messages_ids = []
             vote_messages_ids.append(vote_message.id)
-            d_config['vote_messages_ids'] = vote_messages_ids
-            await dynamic_config_db.update(service.db_pool, d_config)
+
+            await dynamic_config_db.update(service.db_pool, d_config, vote_messages_ids=vote_messages_ids)
 
 
 async def on_reaction_add(service: DiscordService, reaction: Reaction, user: Member):
-    async def on_vote():
-        vote_cap = 3
+    async def on_binary_vote(vote_cap: int = 3):
         d_config = await dynamic_config_db.get(service.db_pool)
         if d_config is None:
             logger.error("Dynamic config not set!")
@@ -123,46 +119,45 @@ async def on_reaction_add(service: DiscordService, reaction: Reaction, user: Mem
             logger.info(f"Message {reaction.message.id} is not Vote Message")
             return None
 
-        y_reacts, n_reacts = 0, 0
+        p_reacts, n_reacts = 0, 0
         for r in reaction.message.reactions:
-            flag = VOTE_REACTIONS.get(r.emoji, None)
+            flag = BINARY_VOTE_REACTIONS.get(r.emoji, None)
             if flag is not None:
                 if flag:
-                    y_reacts = r.count
+                    p_reacts = r.count
                 else:
                     n_reacts = r.count
 
-        if y_reacts >= vote_cap:
-            logger.info(f"Drop Voting for message {reaction.message.id} [Positive]")
+        if p_reacts >= vote_cap or n_reacts >= vote_cap:
             orig_message = await reaction.message.channel.fetch_message(reaction.message.reference.message_id)
             if not orig_message:
                 logger.error(f"Original Vote Message {reaction.message.reference.message_id} not found")
 
-            # image_urls = _get_image_attachment_urls_from_message(orig_message)
-            video_urls = _get_video_attachment_urls_from_message(orig_message)
+            if p_reacts >= vote_cap:
+                logger.info(f"Drop Voting for message {reaction.message.id} [Positive]")
+                # image_urls = _get_image_attachment_urls_from_message(orig_message)
+                video_urls = _get_video_attachment_urls_from_message(orig_message)
+                client_vk = VkClient(service.config.vk)
+                for v_url in video_urls:
+                    async with TempUrlFile(v_url) as tmp:
+                        await client_vk.upload.video_wall_and_post(tmp.filepath)
+                await client_vk.close()
 
-            client_vk = VkClient(service.config.vk)
-            for v_url in video_urls:
-                async with TempUrlFile(v_url) as tmp:
-                    await client_vk.upload.video_wall_and_post(tmp.filepath)
+            if n_reacts >= vote_cap:
+                logger.info(f"Drop Voting for message {reaction.message.id} [Negative]")
 
-            await client_vk.close()
             await reaction.message.delete()
-
-        if n_reacts >= vote_cap:
-            logger.info(f"Drop Voting for message {reaction.message.id} [Negative]")
-            await reaction.message.delete()
+            await orig_message.add_reaction(reaction.emoji)
             vote_messages_ids.remove(reaction.message.id)
-            d_config['vote_messages_ids'] = vote_messages_ids
-            await dynamic_config_db.update(service.db_pool, d_config)
+            await dynamic_config_db.update(service.db_pool, d_config, vote_messages_ids=vote_messages_ids)
 
     if user.bot:
         return None
 
     logger.info(f"User {user.name} react {str(reaction.emoji)} message {reaction.message.id}")
 
-    if str(reaction.emoji) in VOTE_REACTIONS:
-        await on_vote()
+    if str(reaction.emoji) in BINARY_VOTE_REACTIONS:
+        await on_binary_vote()
 
 
 async def on_ready():

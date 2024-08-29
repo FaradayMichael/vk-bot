@@ -11,7 +11,8 @@ async def get(conn: asyncpg.Pool | asyncpg.Connection) -> dict:
     return record.get('data', {}) if record else {}
 
 
-async def update(conn: asyncpg.Pool | asyncpg.Connection, data: dict) -> dict:
+async def update(conn: asyncpg.Pool | asyncpg.Connection, data: dict, **update_data) -> dict:
+    data.update(update_data)
     record = await db.update(
         conn,
         TABLE,
