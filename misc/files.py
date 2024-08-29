@@ -144,6 +144,7 @@ async def download_file(
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             if resp.status >= 400:
+                logger.error(f"Status code: {resp.status}")
                 return None
 
             length = int(resp.headers.get('Content-Length', 0))

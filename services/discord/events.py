@@ -1,10 +1,14 @@
 import datetime
 import logging
+from typing import Sequence
 
 from discord import (
     Message,
     VoiceClient,
-    ActivityType
+    ActivityType,
+    Embed,
+    Color,
+    Reaction,
 )
 from discord.member import (
     Member,
@@ -16,6 +20,8 @@ from db import (
     dynamic_config as dynamic_config_db,
     activity_sessions as activity_sessions_db
 )
+from misc.files import TempUrlFile
+from misc.vk_client import VkClient
 from models.base import AttachmentType
 from models.images import ImageTags
 from .utils.messages import log_message
@@ -35,7 +41,13 @@ from .service import DiscordService
 logger = logging.getLogger(__name__)
 
 DISCORD_MEDIA_PREFIX = 'https://media'
+DISCORD_ATTACHMENT_PREFIX = 'https://cdn.discordapp.com/attachments/'
 IMG_EXT = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
+VIDEO_EXT = ('mp4', 'webm')
+VOTE_REACTIONS = {
+    '✅': True,
+    '❌': False
+}
 
 
 # https://discordpy.readthedocs.io/en/stable/api.html?highlight=event#event-reference
@@ -62,12 +74,8 @@ async def on_message(service: DiscordService, message: Message):
 
     await service.bot.process_commands(message)
 
-    image_urls = _get_image_urls_from_text(message.content)
-    if message.attachments:
-        logger.info(message.attachments)
-        for attachment in message.attachments:
-            if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.PHOTO:
-                image_urls.append(attachment.url)
+    image_urls = _get_image_attachment_urls_from_message(message)
+    video_urls = _get_video_attachment_urls_from_message(message)
 
     if image_urls:
         result_tags: list[ImageTags] = []
@@ -82,6 +90,79 @@ async def on_message(service: DiscordService, message: Message):
                     [f"{i + 1}. {m.text()}" for i, m in enumerate(result_tags)]
                 )
             )
+
+    if video_urls and message.channel.id in (1241728108768264215,):
+        emb = Embed(title=f'Голосование!', description=f'?Mem?', colour=Color.purple())
+        vote_message = await message.reply(embed=emb)
+        for r in VOTE_REACTIONS.keys():
+            await vote_message.add_reaction(r)
+        d_config = await dynamic_config_db.get(service.db_pool)
+        if d_config is not None:
+            vote_messages_ids = d_config.get('vote_messages_ids', None)
+            if vote_messages_ids is None:
+                vote_messages_ids = []
+            vote_messages_ids.append(vote_message.id)
+            d_config['vote_messages_ids'] = vote_messages_ids
+            await dynamic_config_db.update(service.db_pool, d_config)
+
+
+async def on_reaction_add(service: DiscordService, reaction: Reaction, user: Member):
+    async def on_vote():
+        vote_cap = 3
+        d_config = await dynamic_config_db.get(service.db_pool)
+        if d_config is None:
+            logger.error("Dynamic config not set!")
+            return None
+
+        vote_messages_ids: list | None = d_config.get('vote_messages_ids', None)
+        if vote_messages_ids is None:
+            logger.error("Vote messages ids not set!")
+            return None
+
+        if reaction.message.id not in vote_messages_ids:
+            logger.info(f"Message {reaction.message.id} is not Vote Message")
+            return None
+
+        y_reacts, n_reacts = 0, 0
+        for r in reaction.message.reactions:
+            flag = VOTE_REACTIONS.get(r.emoji, None)
+            if flag is not None:
+                if flag:
+                    y_reacts = r.count
+                else:
+                    n_reacts = r.count
+
+        if y_reacts >= vote_cap:
+            logger.info(f"Drop Voting for message {reaction.message.id} [Positive]")
+            orig_message = await reaction.message.channel.fetch_message(reaction.message.reference.message_id)
+            if not orig_message:
+                logger.error(f"Original Vote Message {reaction.message.reference.message_id} not found")
+
+            # image_urls = _get_image_attachment_urls_from_message(orig_message)
+            video_urls = _get_video_attachment_urls_from_message(orig_message)
+
+            client_vk = VkClient(service.config.vk)
+            for v_url in video_urls:
+                async with TempUrlFile(v_url) as tmp:
+                    await client_vk.upload.video_wall_and_post(tmp.filepath)
+
+            await client_vk.close()
+            await reaction.message.delete()
+
+        if n_reacts >= vote_cap:
+            logger.info(f"Drop Voting for message {reaction.message.id} [Negative]")
+            await reaction.message.delete()
+            vote_messages_ids.remove(reaction.message.id)
+            d_config['vote_messages_ids'] = vote_messages_ids
+            await dynamic_config_db.update(service.db_pool, d_config)
+
+    if user.bot:
+        return None
+
+    logger.info(f"User {user.name} react {str(reaction.emoji)} message {reaction.message.id}")
+
+    if str(reaction.emoji) in VOTE_REACTIONS:
+        await on_vote()
 
 
 async def on_ready():
@@ -191,14 +272,37 @@ async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, me
                 logger.error(e)
 
 
-def _get_image_urls_from_text(text: str) -> list[str]:
+def _get_video_attachment_urls_from_message(
+        message: Message
+) -> list[str]:
+    video_urls = _get_urls_from_text(message.content, VIDEO_EXT)
+    if message.attachments:
+        for attachment in message.attachments:
+            if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.VIDEO:
+                video_urls.append(attachment.url)
+    return video_urls
+
+
+def _get_image_attachment_urls_from_message(
+        message: Message
+) -> list[str]:
+    image_urls = _get_urls_from_text(message.content)
+    if message.attachments:
+        logger.info(message.attachments)
+        for attachment in message.attachments:
+            if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.PHOTO:
+                image_urls.append(attachment.url)
+    return image_urls
+
+
+def _get_urls_from_text(text: str, ext_set: Sequence = IMG_EXT) -> list[str]:
     if not text:
         return []
 
     urls = []
     words = text.split()
     for word in words:
-        if word.startswith(DISCORD_MEDIA_PREFIX):
-            if any(ext in word for ext in IMG_EXT):
+        if word.startswith(DISCORD_MEDIA_PREFIX) or word.startswith(DISCORD_ATTACHMENT_PREFIX):
+            if any(ext in word.lower() for ext in ext_set):
                 urls.append(word)
     return urls

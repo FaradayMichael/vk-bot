@@ -5,6 +5,8 @@ from asyncpg import Pool
 from discord import (
     Intents,
     Message,
+    Reaction,
+    Member,
 )
 from discord.ext.commands import Bot
 from discord.ext.commands.core import Command
@@ -146,6 +148,9 @@ class DiscordService:
         async def on_message(message: Message):
             return await events.on_message(self, message)
 
+        async def on_reaction_add(reaction: Reaction, user: Member):
+            return await events.on_reaction_add(self, reaction, user)
+
         async def on_voice_state_update(member, before, after):
             return await events.on_voice_state_update(self, member, before, after)
 
@@ -154,6 +159,7 @@ class DiscordService:
 
         self._bot.event(events.on_ready)
         self._bot.event(on_message)
+        self._bot.event(on_reaction_add)
         self._bot.event(on_presence_update)
         self._bot.event(on_voice_state_update)
 

@@ -58,7 +58,7 @@ class ParserService(BaseService):
 
     async def on_get_image_tags(self, ctx: Context):
         data: ImageUrl = ctx.data
-        print(data)
+        logger.info(f"Handling image url: {data.url}")
         result = await parse_image_tags(data.url)
         await ctx.success(result)
 
