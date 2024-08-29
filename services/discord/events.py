@@ -91,7 +91,7 @@ async def on_message(service: DiscordService, message: Message):
                 )
             )
 
-    if video_urls and message.channel.id in (1241728108768264215,):
+    if video_urls and message.channel.id in (1241728108768264215, 960928970629582918,):
         emb = Embed(title=f'Голосование!', description=f'?Mem?', colour=Color.purple())
         vote_message = await message.reply(embed=emb)
         for r in VOTE_REACTIONS.keys():
