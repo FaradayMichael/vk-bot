@@ -13,7 +13,9 @@ from discord.member import (
     VoiceState
 )
 
-from business_logic.images import parse_image_tags
+from business_logic import (
+    vk as vk_bl
+)
 from db import (
     dynamic_config as dynamic_config_db,
     activity_sessions as activity_sessions_db
@@ -79,7 +81,7 @@ async def on_message(service: DiscordService, message: Message):
     if image_urls:
         result_tags: list[ImageTags] = []
         for image_url in image_urls:
-            tags = await parse_image_tags(image_url)
+            tags = await service.parser_client.get_image_tags(image_url)
             if tags and (tags.tags or tags.description):
                 result_tags.append(tags)
         logger.info(f"{result_tags=}")
@@ -90,7 +92,7 @@ async def on_message(service: DiscordService, message: Message):
                 )
             )
 
-    if video_urls and message.channel.id in (1241728108768264215, 960928970629582918,):
+    if (image_urls or video_urls) and message.channel.id in (1241728108768264215, 960928970629582918,):
         vote_message = await create_binary_voting(message)
 
         d_config = await dynamic_config_db.get(service.db_pool)
@@ -135,9 +137,15 @@ async def on_reaction_add(service: DiscordService, reaction: Reaction, user: Mem
 
             if p_reacts >= vote_cap:
                 logger.info(f"Drop Voting for message {reaction.message.id} [Positive]")
-                # image_urls = _get_image_attachment_urls_from_message(orig_message)
+                image_urls = _get_image_attachment_urls_from_message(orig_message)
                 video_urls = _get_video_attachment_urls_from_message(orig_message)
+
                 client_vk = VkClient(service.config.vk)
+                for i_url in image_urls:
+                    async with TempUrlFile(i_url) as tmp:
+                        attachments = await client_vk.upload.photo_wall(tmp.filepath)
+                        await vk_bl.post_in_group_wall(client_vk, attachments=attachments)
+
                 for v_url in video_urls:
                     async with TempUrlFile(v_url) as tmp:
                         await client_vk.upload.video_wall_and_post(tmp.filepath)

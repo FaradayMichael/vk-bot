@@ -20,6 +20,6 @@ def main(args, config: Config):
 
 
 async def init(args, config: Config, loop: asyncio.AbstractEventLoop):
-    service = await DiscordService.create(loop, config)
+    service = await DiscordService.create(config, loop)
     await service.start()
     return service

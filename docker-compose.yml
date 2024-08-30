@@ -72,6 +72,8 @@ services:
         condition: service_started
       db:
         condition: service_healthy
+      parser_service:
+        condition: service_started
     env_file:
       - .env
 
@@ -89,12 +91,16 @@ services:
       - dbmate
       - mailhog
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       redis:
         condition: service_started
       mailhog:
         condition: service_started
       db:
         condition: service_healthy
+      parser_service:
+        condition: service_started
     env_file:
       - .env
 

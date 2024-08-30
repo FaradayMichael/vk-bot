@@ -21,23 +21,27 @@ from misc import (
 )
 from misc.config import Config
 from misc.gigachat_client import GigachatClient
+from misc.service import BaseService
+from services.parser_service.client import ParserClient
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
 logger = logging.getLogger(__name__)
 
 
-class DiscordService:
+class DiscordService(BaseService):
     def __init__(
             self,
+            config: Config,
+            controller_name: str,
             loop: asyncio.AbstractEventLoop,
-            config: Config
+            **kwargs
     ):
-        self.stopping: bool = False
-        self.loop: asyncio.AbstractEventLoop = loop
-        self.config: Config = config
+        super().__init__(config, controller_name, loop, **kwargs)
+
         self.db_pool: Pool | None = None
         self.redis_conn: Redis | None = None
+        self.parser_client: ParserClient | None = None
 
         self._intents: Intents | None = None
         self._bot: Bot | None = None
@@ -48,19 +52,20 @@ class DiscordService:
 
         self.gigachat_client: GigachatClient | None = None
 
-    @staticmethod
+    @classmethod
     async def create(
+            cls,
+            config: Config,
             loop: asyncio.AbstractEventLoop,
-            config: Config
+            **kwargs
     ) -> "DiscordService":
-        instance = DiscordService(loop, config)
-        await instance.init()
-        return instance
+        return await super().create(config, 'discord_service', loop, **kwargs)  # noqa
 
     async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
         self.gigachat_client = GigachatClient(self.config.gigachat, self.db_pool)
+        self.parser_client = await ParserClient.create(self.amqp)
 
         self._intents = Intents.all()
         self._intents.messages = True
@@ -87,7 +92,7 @@ class DiscordService:
         try:
             await bot.start(self.config.discord.token)
         except (GeneratorExit, asyncio.CancelledError, StopIteration):
-            self.close()
+            self.stop()
         except Exception as e:
             logger.error(e)
             return
@@ -131,12 +136,12 @@ class DiscordService:
 
         from . import commands
         commands_map = {
-            c: getattr(commands, c)
-            for c in command_names
-        } | {
-            r_c.command: commands.reply
-            for r_c in reply_commands
-        }
+                           c: getattr(commands, c)
+                           for c in command_names
+                       } | {
+                           r_c.command: commands.reply
+                           for r_c in reply_commands
+                       }
 
         for command_name, call in commands_map.items():
             command = Command(call, name=command_name, extras={'service': self})
@@ -176,26 +181,13 @@ class DiscordService:
     def bot(self) -> Bot:
         return self._bot
 
-    async def stop(self):
-        logger.info(f"Discord Service stop calling")
-        self.stopping = True
+    async def close(self):
         for task in self._tasks:
             task.cancel()
         self._tasks.tasks = []
+
         await self.stop_bot()
 
-    def close(self) -> asyncio.Task:
-        logger.info(f"Discord Service closing was planned")
-        return self.loop.create_task(self.save_close())
-
-    async def save_close(self):
-        try:
-            await self.stop()
-            await self._close()
-        except Exception as e:
-            logger.error(f"Discord Service closed with ex {e}")
-
-    async def _close(self):
         if self.db_pool:
             await db.close(self.db_pool)
             self.db_pool = None
@@ -205,3 +197,9 @@ class DiscordService:
         if self.gigachat_client:
             await self.gigachat_client.close()
             self.gigachat_client = None
+
+        if self.parser_client:
+            await self.parser_client.close()
+            self.parser_client = None
+
+        await super().close()
