@@ -3,10 +3,11 @@ from pydantic import BaseModel, AnyUrl, model_validator
 from misc.dataurl import DataURL
 
 
-class MBMessage(BaseModel):
+class VkBotPost(BaseModel):
     base64: DataURL | None = None
     video_url: AnyUrl | None = None
     sftpUrl: str | None = None
+    image_url: AnyUrl | None = None
 
     @model_validator(mode='before')
     def validate_empty(cls, data):

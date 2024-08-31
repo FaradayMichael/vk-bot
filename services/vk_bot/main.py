@@ -21,5 +21,5 @@ def main(args, config: Config):
 
 async def init(args, config: Config, loop: asyncio.AbstractEventLoop):
     service = await VkBotService.create(config, loop)
-    await service.start()
+    await service.start_service()
     return service

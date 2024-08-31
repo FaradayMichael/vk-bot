@@ -23,6 +23,7 @@ from misc.config import Config
 from misc.gigachat_client import GigachatClient
 from misc.service import BaseService
 from services.parser_service.client import ParserClient
+from services.vk_bot.client import VkBotClient
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
@@ -41,7 +42,9 @@ class DiscordService(BaseService):
 
         self.db_pool: Pool | None = None
         self.redis_conn: Redis | None = None
+
         self.parser_client: ParserClient | None = None
+        self.vk_pot_client: VkBotClient | None = None
 
         self._intents: Intents | None = None
         self._bot: Bot | None = None
@@ -65,7 +68,9 @@ class DiscordService(BaseService):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
         self.gigachat_client = GigachatClient(self.config.gigachat, self.db_pool)
+
         self.parser_client = await ParserClient.create(self.amqp)
+        self.vk_pot_client = await VkBotClient.create(self.amqp)
 
         self._intents = Intents.all()
         self._intents.messages = True
@@ -201,5 +206,8 @@ class DiscordService(BaseService):
         if self.parser_client:
             await self.parser_client.close()
             self.parser_client = None
+        if self.vk_pot_client:
+            await self.vk_pot_client.close()
+            self.vk_pot_client = None
 
         await super().close()

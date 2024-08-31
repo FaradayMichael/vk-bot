@@ -13,15 +13,10 @@ from discord.member import (
     VoiceState
 )
 
-from business_logic import (
-    vk as vk_bl
-)
 from db import (
     dynamic_config as dynamic_config_db,
     activity_sessions as activity_sessions_db
 )
-from misc.files import TempUrlFile
-from misc.vk_client import VkClient
 from models.base import AttachmentType
 from models.images import ImageTags
 from .consts import (
@@ -140,16 +135,11 @@ async def on_reaction_add(service: DiscordService, reaction: Reaction, user: Mem
                 image_urls = _get_image_attachment_urls_from_message(orig_message)
                 video_urls = _get_video_attachment_urls_from_message(orig_message)
 
-                client_vk = VkClient(service.config.vk)
                 for i_url in image_urls:
-                    async with TempUrlFile(i_url) as tmp:
-                        attachments = await client_vk.upload.photo_wall(tmp.filepath)
-                        await vk_bl.post_in_group_wall(client_vk, attachments=attachments)
+                    await service.vk_pot_client.vk_bot_post(image_url=i_url)
 
                 for v_url in video_urls:
-                    async with TempUrlFile(v_url) as tmp:
-                        await client_vk.upload.video_wall_and_post(tmp.filepath)
-                await client_vk.close()
+                    await service.vk_pot_client.vk_bot_post(video_url=v_url)
 
             if n_reacts >= vote_cap:
                 logger.info(f"Drop Voting for message {reaction.message.id} [Negative]")
@@ -291,7 +281,6 @@ def _get_image_attachment_urls_from_message(
 ) -> list[str]:
     image_urls = _get_urls_from_text(message.content)
     if message.attachments:
-        logger.info(message.attachments)
         for attachment in message.attachments:
             if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.PHOTO:
                 image_urls.append(attachment.url)

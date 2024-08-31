@@ -30,6 +30,8 @@ from misc import (
     db,
     redis
 )
+from misc.asynctask.serializer import JsonSerializer
+from misc.asynctask.worker import Worker, Context
 from misc.config import Config
 from misc.consts import VK_SERVICE_REDIS_QUEUE
 from misc.files import (
@@ -37,21 +39,23 @@ from misc.files import (
     TempUrlFile,
     TempSftpFile
 )
-from misc.messages_broker import (
-    BaseConsumer,
-    MBProvider,
-    MBMessage
-)
 from misc.service import BaseService
 from misc.sftp import SftpClient
 from misc.vk_client import VkClient
+from models.base import AttachmentType
 from models.vk import (
     Message
 )
-from models.base import AttachmentType
 from models.vk.redis import (
     RedisMessage,
     RedisCommands
+)
+from .config import (
+    WORKER_QUEUE_NAME,
+    VK_BOT_POST
+)
+from .models.asynctask import (
+    VkBotPost
 )
 from .models.service import (
     BackgroundTasks
@@ -87,6 +91,7 @@ class VkBotService(BaseService):
         self._handlers_vk: dict[VkBotEventType, Callable] = {}
 
         self.parser_client: ParserClient | None = None
+        self.asynctask_worker: Worker | None = None
 
     @classmethod
     async def create(
@@ -96,18 +101,17 @@ class VkBotService(BaseService):
             **kwargs
     ) -> "VkBotService":
         return await super().create(config, 'vk_bot_service', loop, **kwargs)  # noqa
-        # instance = VkBotService(loop, config)
-        # await instance.init()
-        # return instance
 
     async def init(self):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
 
         self.parser_client = await ParserClient.create(self.amqp)
+        self.asynctask_worker = await Worker.create(self.amqp, WORKER_QUEUE_NAME, JsonSerializer())
 
         self._register_handlers_vk()
         self._register_commands_redis()
+        self._register_handlers_worker()
 
         self._pubsub = self.redis_conn.pubsub()
         await self._pubsub.subscribe(VK_SERVICE_REDIS_QUEUE)
@@ -187,63 +191,10 @@ class VkBotService(BaseService):
             except Exception:
                 raise
 
-    async def _listen_kafka(self):
-        logger.info("Kafka listener started")
-        while not self._stopping:
-            try:
-                consumer: BaseConsumer = await BaseConsumer.create(self.config, MBProvider.KAFKA)
-                logger.info("Kafka consumer started")
-            except Exception as e:
-                logger.error(e)
-                await asyncio.sleep(60)
-                continue
-
-            try:
-                async for msg in consumer.lister():
-                    msg: MBMessage
-                    await self._handle_mb_message(msg)
-
-            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                break
-            except consumer.base_ex as e:
-                logger.error(e)
-                await asyncio.sleep(30)
-            except Exception as e:
-                logger.exception(e)
-            finally:
-                await consumer.close()
-                logger.info("Kafka consumer stopped")
-
-    async def _listen_rabbit(self):
-        logger.info("Start listening rabbit")
-        while not self._stopping:
-            try:
-                consumer: BaseConsumer = await BaseConsumer.create(self.config, MBProvider.RABBITMQ)
-                logger.info("Rabbit consumer started")
-            except Exception as e:
-                logger.exception(e)
-                await asyncio.sleep(60)
-                continue
-
-            try:
-                async for msg in consumer.lister():
-                    msg: MBMessage
-                    await self._handle_mb_message(msg)
-
-            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                break
-            except Exception as e:
-                logger.exception(e)
-                await asyncio.sleep(30)
-            finally:
-                await consumer.close()
-                logger.info("Kafka consumer stopped")
-
-    async def _handle_mb_message(self, message: MBMessage):
+    async def on_vk_post(self, ctx: Context):
         async def handle_image(fp: str):
             attachments = await self.client_vk.upload.photo_wall(fp)
-            return await self.execute_in_worker(
-                vk_bl.post_in_group_wall,
+            return await vk_bl.post_in_group_wall(
                 self.client_vk,
                 attachments=attachments
             )
@@ -251,9 +202,10 @@ class VkBotService(BaseService):
         async def handle_video(fp: str):
             return await self.client_vk.upload.video_wall_and_post(fp)
 
+        message: VkBotPost = ctx.data
         if message.is_empty():
-            logger.info("Empty MB message")
-            return
+            logger.error("Empty MB message")
+            return await ctx.success()
 
         if message.sftpUrl:
             logger.info(f"Handle {message.sftpUrl=}")
@@ -266,8 +218,8 @@ class VkBotService(BaseService):
                         case AttachmentType.VIDEO:
                             await handle_video(tmp.filepath)
                         case _ as arg:
-                            logger.info(f"Unsupported media type: {arg}")
-            return
+                            logger.error(f"Unsupported media type: {arg}")
+            return await ctx.success()
 
         if message.base64:
             logger.info("Handle base64 message")
@@ -275,19 +227,29 @@ class VkBotService(BaseService):
                 async with TempBase64File(message.base64) as tmp:
                     await handle_image(tmp.filepath)
             else:
-                logger.info(f"Unsupported media type: {message.base64.mimetype}")
-            return
+                logger.error(f"Unsupported image base64 media type: {message.base64.mimetype}")
+            return await ctx.success()
 
         if message.video_url:
-            logger.info(f"Handel {message.video_url=}")
+            logger.info(f"Handle {message.video_url=}")
             async with TempUrlFile(str(message.video_url)) as tmp:
                 if tmp:
                     logger.info(tmp)
                     if AttachmentType.by_content_type(tmp.content_type) is AttachmentType.VIDEO:
                         await handle_video(tmp.filepath)
                     else:
-                        logger.info(f"Unsupported media type: {tmp.content_type}")
-            return
+                        logger.error(f"Unsupported video media type: {tmp.content_type}")
+            return await ctx.success()
+
+        if message.image_url:
+            logger.info(f"Handle {message.image_url=}")
+            async with TempUrlFile(str(message.image_url)) as tmp:
+                if tmp:
+                    if AttachmentType.by_content_type(tmp.content_type) is AttachmentType.PHOTO:
+                        await handle_image(tmp.filepath)
+                    else:
+                        logger.error(f"Unsupported image media type: {tmp.content_type}")
+            return await ctx.success()
 
     async def _listen_redis(self):
 
@@ -388,14 +350,6 @@ class VkBotService(BaseService):
         self.start_background_task(
             coro=self._main_task()
         )
-
-        self.start_background_task(
-            coro=self._listen_kafka()
-        )
-        self.start_background_task(
-            coro=self._listen_rabbit()
-        )
-
         await self.start_schedule_tasks()
 
     async def start_schedule_tasks(self):
@@ -420,7 +374,7 @@ class VkBotService(BaseService):
                     to_dt=now
                 )
             text = f"Daily notify.\n" \
-                   f"service ex: {self.ex}\n" \
+                   f"service ex: {self.ex[-1] if self.ex else ''}\n" \
                    f"tasks: {len(tasks)} with ex: {len([t for t in tasks if t.errors])}"
             self.ex = []
             return peer_id, Message(
@@ -472,11 +426,18 @@ class VkBotService(BaseService):
         self._handlers_vk[method] = handler
 
     def _register_commands_redis(self):
-        self._commands_redis[RedisCommands.SERVICE_START] = self.start
+        self._commands_redis[RedisCommands.SERVICE_START] = self.start_service
         self._commands_redis[RedisCommands.SERVICE_STOP] = self.stop_service
-        self._commands_redis[RedisCommands.SERVICE_RESTART] = self.restart
+        self._commands_redis[RedisCommands.SERVICE_RESTART] = self.restart_service
 
-    async def start(self):
+    def _register_handlers_worker(self):
+        self.asynctask_worker.register(
+            VK_BOT_POST,
+            self.on_vk_post,
+            VkBotPost
+        )
+
+    async def start_service(self):
         logging.info(f'Starting VkBot Service')
         if self._stopping:
             self._stopping = False
@@ -496,11 +457,11 @@ class VkBotService(BaseService):
 
             await self._release_vk()
 
-    async def restart(self, timeout_seconds: int = 30):
+    async def restart_service(self, timeout_seconds: int = 30):
         logger.info(f"Restart Srvice. Timeout seconds: {timeout_seconds}")
         await self.stop_service()
         await asyncio.sleep(timeout_seconds)
-        await self.start()
+        await self.start_service()
 
     async def safe_close(self):
         try:
@@ -533,5 +494,9 @@ class VkBotService(BaseService):
         if self.parser_client:
             await self.parser_client.close()
             self.parser_client = None
+
+        if self.asynctask_worker:
+            await self.asynctask_worker.close()
+            self.asynctask_worker = None
 
         await super().close()
