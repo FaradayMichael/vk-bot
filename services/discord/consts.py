@@ -2,7 +2,7 @@ DISCORD_MEDIA_PREFIX = 'https://media'
 DISCORD_ATTACHMENT_PREFIX = 'https://cdn.discordapp.com/attachments/'
 
 IMG_EXT = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
-VIDEO_EXT = ('mp4', 'webm')
+VIDEO_EXT = ('mp4', 'webm', 'mov', 'avi', 'mpg', 'mpeg', 'mkv')
 
 POSITIVE_VOTE_REACTION = '✅'
 NEGATIVE_VOTE_REACTION = '❌'

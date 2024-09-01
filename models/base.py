@@ -115,6 +115,12 @@ class AttachmentType(StrEnum):
                 return AttachmentType.PHOTO
             case 'mp4':
                 return AttachmentType.VIDEO
+            case 'mov':
+                return AttachmentType.VIDEO
+            case 'mkv':
+                return AttachmentType.VIDEO
+            case 'avi':
+                return AttachmentType.VIDEO
             case _ as arg:
                 logging.info(f"{arg=}")
                 return AttachmentType.DOC

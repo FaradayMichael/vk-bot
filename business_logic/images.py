@@ -64,6 +64,11 @@ async def parse_image_tags(
         desc = soup.find('div', {"class": "CbirObjectResponse-Description"})
         if desc:
             result.description = desc.text
+            desc_src = soup.find('a', {"class": "Link Link_view_quaternary CbirObjectResponse-SourceLink"})
+            if desc_src:
+                href = desc_src.get('href', None)
+                if href is not None:
+                    result.description += "\n" + href
 
         products = soup.find_all("li", {"class": "CbirMarketProducts-Item CbirMarketProducts-Item_type_product"})
         if products:
