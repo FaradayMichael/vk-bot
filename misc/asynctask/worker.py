@@ -229,7 +229,7 @@ class Worker:
             t: MessageType,
             data: ModelClass | None = None
     ):
-        if not self.enable_reply:
+        if not self.enable_reply or not incoming_message.reply_to:
             return None
 
         body = self.serializer.pack(data)
