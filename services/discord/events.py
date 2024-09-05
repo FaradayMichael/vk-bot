@@ -6,7 +6,7 @@ from discord import (
     Message,
     VoiceClient,
     ActivityType,
-    Reaction,
+    RawReactionActionEvent,
 )
 from discord.member import (
     Member,
@@ -100,7 +100,7 @@ async def on_message(service: DiscordService, message: Message):
             await dynamic_config_db.update(service.db_pool, d_config, vote_messages_ids=vote_messages_ids)
 
 
-async def on_raw_reaction_add(service: DiscordService, reaction: Reaction, user: Member):
+async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActionEvent):
     async def on_binary_vote(vote_cap: int = 3):
         d_config = await dynamic_config_db.get(service.db_pool)
         if d_config is None:
@@ -112,12 +112,12 @@ async def on_raw_reaction_add(service: DiscordService, reaction: Reaction, user:
             logger.error("Vote messages ids not set!")
             return None
 
-        if reaction.message.id not in vote_messages_ids:
-            logger.info(f"Message {reaction.message.id} is not Vote Message")
+        if message.id not in vote_messages_ids:
+            logger.info(f"Message {message.id} is not Vote Message")
             return None
 
         p_reacts, n_reacts = 0, 0
-        for r in reaction.message.reactions:
+        for r in message.reactions:
             flag = BINARY_VOTE_REACTIONS.get(r.emoji, None)
             if flag is not None:
                 if flag:
@@ -126,12 +126,12 @@ async def on_raw_reaction_add(service: DiscordService, reaction: Reaction, user:
                     n_reacts = r.count
 
         if p_reacts >= vote_cap or n_reacts >= vote_cap:
-            orig_message = await reaction.message.channel.fetch_message(reaction.message.reference.message_id)
+            orig_message = await message.channel.fetch_message(message.reference.message_id)
             if not orig_message:
-                logger.error(f"Original Vote Message {reaction.message.reference.message_id} not found")
+                logger.error(f"Original Vote Message {message.reference.message_id} not found")
 
             if p_reacts >= vote_cap:
-                logger.info(f"Drop Voting for message {reaction.message.id} [Positive]")
+                logger.info(f"Drop Voting for message {message.id} [Positive]")
                 image_urls = _get_image_attachment_urls_from_message(orig_message)
                 video_urls = _get_video_attachment_urls_from_message(orig_message)
 
@@ -142,17 +142,20 @@ async def on_raw_reaction_add(service: DiscordService, reaction: Reaction, user:
                     await service.vk_pot_client.vk_bot_post(video_url=v_url)
 
             if n_reacts >= vote_cap:
-                logger.info(f"Drop Voting for message {reaction.message.id} [Negative]")
+                logger.info(f"Drop Voting for message {message.id} [Negative]")
 
-            await reaction.message.delete()
+            await message.delete()
             await orig_message.add_reaction(reaction.emoji)
-            vote_messages_ids.remove(reaction.message.id)
+            vote_messages_ids.remove(message.id)
             await dynamic_config_db.update(service.db_pool, d_config, vote_messages_ids=vote_messages_ids)
 
-    if user.bot:
+    if reaction.member.bot:
         return None
 
-    logger.info(f"User {user.name} react {str(reaction.emoji)} message {reaction.message.id}")
+    channel = service.bot.get_channel(reaction.channel_id)
+    message = await channel.fetch_message(reaction.message_id)
+
+    logger.info(f"User {reaction.member.name} react {str(reaction.emoji)} message {message.id}")
 
     if str(reaction.emoji) in BINARY_VOTE_REACTIONS:
         await on_binary_vote()
