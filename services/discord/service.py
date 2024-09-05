@@ -158,8 +158,8 @@ class DiscordService(BaseService):
         async def on_message(message: Message):
             return await events.on_message(self, message)
 
-        async def on_reaction_add(reaction: Reaction, user: Member):
-            return await events.on_reaction_add(self, reaction, user)
+        async def on_raw_reaction_add(reaction: Reaction, user: Member):
+            return await events.on_raw_reaction_add(self, reaction, user)
 
         async def on_voice_state_update(member, before, after):
             return await events.on_voice_state_update(self, member, before, after)
@@ -169,7 +169,7 @@ class DiscordService(BaseService):
 
         self._bot.event(events.on_ready)
         self._bot.event(on_message)
-        self._bot.event(on_reaction_add)
+        self._bot.event(on_raw_reaction_add)
         self._bot.event(on_presence_update)
         self._bot.event(on_voice_state_update)
 

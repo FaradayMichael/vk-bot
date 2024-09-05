@@ -100,7 +100,7 @@ async def on_message(service: DiscordService, message: Message):
             await dynamic_config_db.update(service.db_pool, d_config, vote_messages_ids=vote_messages_ids)
 
 
-async def on_reaction_add(service: DiscordService, reaction: Reaction, user: Member):
+async def on_raw_reaction_add(service: DiscordService, reaction: Reaction, user: Member):
     async def on_binary_vote(vote_cap: int = 3):
         d_config = await dynamic_config_db.get(service.db_pool)
         if d_config is None:
