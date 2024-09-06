@@ -26,6 +26,9 @@ from .consts import (
     VIDEO_EXT,
     BINARY_VOTE_REACTIONS
 )
+from .utils.attachments import (
+    refresh_attachments_urls
+)
 from .utils.messages import (
     log_message,
     create_binary_voting
@@ -134,6 +137,15 @@ async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActi
                 logger.info(f"Drop Voting for message {message.id} [Positive]")
                 image_urls = _get_image_attachment_urls_from_message(orig_message)
                 video_urls = _get_video_attachment_urls_from_message(orig_message)
+
+                try:
+                    refreshed_image_urls = await refresh_attachments_urls(service.bot, image_urls)
+                    refreshed_video_urls = await refresh_attachments_urls(service.bot, video_urls)
+                except Exception as e:
+                    logger.error(e)
+                else:
+                    image_urls = refreshed_image_urls
+                    video_urls = refreshed_video_urls
 
                 for i_url in image_urls:
                     await service.vk_pot_client.vk_bot_post(image_url=i_url)
