@@ -68,7 +68,7 @@ async def parse_image_tags(
             if desc_src:
                 href = desc_src.get('href', None)
                 if href is not None:
-                    result.description += "\n" + href
+                    result.description += "\n" + quote(href, safe='/:')
 
         products = soup.find_all("li", {"class": "CbirMarketProducts-Item CbirMarketProducts-Item_type_product"})
         if products:
