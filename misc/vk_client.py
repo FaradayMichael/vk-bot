@@ -245,12 +245,16 @@ class Upload(BaseMethod):
     @with_retries
     async def video_wall_and_post(
             self,
-            path: str,
-            name: str | None = None
+            path: str | None = None,
+            name: str | None = None,
+            link: str | None = None
     ) -> Mapping:
+        if not path and not link:
+            raise ValueError("Either path or link is required")
+
         args = dict(
             video_file=path,
-            link=None,
+            link=link,
             name=name,
             description=None,
             is_private=0,

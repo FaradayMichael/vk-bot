@@ -8,6 +8,7 @@ class VkBotPost(BaseModel):
     video_url: AnyUrl | None = None
     sftpUrl: str | None = None
     image_url: AnyUrl | None = None
+    yt_url: str | None = None
 
     @model_validator(mode='before')
     def validate_empty(cls, data):

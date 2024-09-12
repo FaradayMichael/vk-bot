@@ -75,6 +75,7 @@ async def on_message(service: DiscordService, message: Message):
 
     image_urls = _get_image_attachment_urls_from_message(message)
     video_urls = _get_video_attachment_urls_from_message(message)
+    yt_urls = _get_yt_urls_from_message(message)
 
     if image_urls:
         result_tags: list[ImageTags] = []
@@ -90,7 +91,7 @@ async def on_message(service: DiscordService, message: Message):
                 )
             )
 
-    if (image_urls or video_urls) and message.channel.id in (1241728108768264215, 960928970629582918,):
+    if (image_urls or video_urls or yt_urls) and message.channel.id in (1241728108768264215, 960928970629582918,):
         vote_message = await create_binary_voting(message)
 
         d_config = await dynamic_config_db.get(service.db_pool)
@@ -137,6 +138,7 @@ async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActi
                 logger.info(f"Drop Voting for message {message.id} [Positive]")
                 image_urls = _get_image_attachment_urls_from_message(orig_message)
                 video_urls = _get_video_attachment_urls_from_message(orig_message)
+                yt_urls = _get_yt_urls_from_message(orig_message)
 
                 try:
                     refreshed_image_urls = await refresh_attachments_urls(service.bot, image_urls)
@@ -149,9 +151,10 @@ async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActi
 
                 for i_url in image_urls:
                     await service.vk_pot_client.vk_bot_post(image_url=i_url)
-
                 for v_url in video_urls:
                     await service.vk_pot_client.vk_bot_post(video_url=v_url)
+                for yt_url in yt_urls:
+                    await service.vk_pot_client.vk_bot_post(yt_url=yt_url)
 
             if n_reacts >= vote_cap:
                 logger.info(f"Drop Voting for message {message.id} [Negative]")
@@ -283,7 +286,7 @@ async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, me
 def _get_video_attachment_urls_from_message(
         message: Message
 ) -> list[str]:
-    video_urls = _get_urls_from_text(message.content, VIDEO_EXT)
+    video_urls = _get_discord_urls_from_text(message.content, VIDEO_EXT)
     if message.attachments:
         for attachment in message.attachments:
             if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.VIDEO:
@@ -294,7 +297,7 @@ def _get_video_attachment_urls_from_message(
 def _get_image_attachment_urls_from_message(
         message: Message
 ) -> list[str]:
-    image_urls = _get_urls_from_text(message.content)
+    image_urls = _get_discord_urls_from_text(message.content)
     if message.attachments:
         for attachment in message.attachments:
             if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.PHOTO:
@@ -302,7 +305,21 @@ def _get_image_attachment_urls_from_message(
     return image_urls
 
 
-def _get_urls_from_text(text: str, ext_set: Sequence = IMG_EXT) -> list[str]:
+def _get_yt_urls_from_message(
+        message: Message
+) -> list[str]:
+    if not message.content:
+        return []
+
+    urls = []
+    words = message.content.split()
+    for word in words:
+        if 'youtube.com/watch' in word:
+            urls.append(word)
+    return urls
+
+
+def _get_discord_urls_from_text(text: str, patterns_set: Sequence = IMG_EXT) -> list[str]:
     if not text:
         return []
 
@@ -310,6 +327,6 @@ def _get_urls_from_text(text: str, ext_set: Sequence = IMG_EXT) -> list[str]:
     words = text.split()
     for word in words:
         if word.startswith(DISCORD_MEDIA_PREFIX) or word.startswith(DISCORD_ATTACHMENT_PREFIX):
-            if any(ext in word.lower() for ext in ext_set):
+            if any(p in word.lower() for p in patterns_set):
                 urls.append(word)
     return urls

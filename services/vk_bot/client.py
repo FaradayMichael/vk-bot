@@ -26,6 +26,7 @@ class VkBotClient(Client):
             video_url: str | None = None,
             sftp_url: str | None = None,
             image_url: str | None = None,
+            yt_url: str | None = None,
     ):
         return await self.call(
             method=VK_BOT_POST,
@@ -34,6 +35,7 @@ class VkBotClient(Client):
                 video_url=video_url,
                 sftpUrl=sftp_url,
                 image_url=image_url,
+                yt_url=yt_url,
             ),
             response_class=None,
             expiration=30

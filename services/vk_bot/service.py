@@ -77,7 +77,7 @@ class VkBotService(BaseService):
         self._pubsub: PubSub | None = None
         self._commands_redis: dict[RedisCommands, Callable] = {}
 
-        self._stopping: bool = True
+        self.stopping: bool = True
         self._timeout = config.vk.timeout
         self.ex: list[Exception] = []
         self.last_ex: Exception | None = None
@@ -90,9 +90,6 @@ class VkBotService(BaseService):
         self.parser_client: ParserClient | None = None
         self.asynctask_worker: Worker | None = None
 
-    @property
-    def stopping(self) -> bool:
-        return self._stopping
 
     @classmethod
     async def create(
@@ -122,7 +119,7 @@ class VkBotService(BaseService):
         logger.info("Starting main task")
 
         _tasks = []
-        while not self._stopping:
+        while not self.stopping:
             try:
                 await self._allocate_vk(notify=True)
 
@@ -149,7 +146,7 @@ class VkBotService(BaseService):
 
     async def _worker(self):
         logger.info(f'Starting VkBot worker')
-        while not self._stopping:
+        while not self.stopping:
             task: Task = await self._queue.get()
 
             if not isinstance(task, Task):
@@ -180,7 +177,7 @@ class VkBotService(BaseService):
 
     async def _listen_vk(self):
         logger.info("Start listening vk")
-        while not self._stopping:
+        while not self.stopping:
             try:
                 async for event in self.client_vk.events_generator():
                     logger.info(event.type)
@@ -193,6 +190,7 @@ class VkBotService(BaseService):
                 raise
 
     async def on_vk_post(self, ctx: Context):
+
         async def handle_image(fp: str):
             attachments = await self.client_vk.upload.photo_wall(fp)
             return await vk_bl.post_in_group_wall(
@@ -202,6 +200,9 @@ class VkBotService(BaseService):
 
         async def handle_video(fp: str):
             return await self.client_vk.upload.video_wall_and_post(fp)
+
+        async def handle_yt(link: str):
+            return await self.client_vk.upload.video_wall_and_post(link=link)
 
         message: VkBotPost = ctx.data
         if message.is_empty():
@@ -220,6 +221,11 @@ class VkBotService(BaseService):
                             await handle_video(tmp.filepath)
                         case _ as arg:
                             logger.error(f"Unsupported media type: {arg}")
+            return await ctx.success()
+
+        if message.yt_url:
+            logger.info(f"Handle {message.yt_url=}")
+            await handle_yt(message.yt_url)
             return await ctx.success()
 
         if message.base64:
@@ -407,15 +413,15 @@ class VkBotService(BaseService):
 
     async def start_service(self):
         logging.info(f'Starting VkBot Service')
-        if self._stopping:
-            self._stopping = False
+        if self.stopping:
+            self.stopping = False
 
             await self._init_background_tasks()
 
     async def stop_service(self):
         logger.info(f"VkBot Service stop calling")
-        if not self._stopping:
-            self._stopping = True
+        if not self.stopping:
+            self.stopping = True
 
             self.stop_schedule_tasks()
 
