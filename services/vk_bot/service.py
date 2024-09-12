@@ -6,11 +6,8 @@ from asyncio import AbstractEventLoop
 from typing import (
     Callable,
     Coroutine,
-    Any,
-    Awaitable
 )
 
-import croniter as croniter
 from asyncpg import Pool
 from pydantic import ValidationError
 from redis.asyncio import Redis
@@ -92,6 +89,10 @@ class VkBotService(BaseService):
 
         self.parser_client: ParserClient | None = None
         self.asynctask_worker: Worker | None = None
+
+    @property
+    def stopping(self) -> bool:
+        return self._stopping
 
     @classmethod
     async def create(
@@ -309,43 +310,6 @@ class VkBotService(BaseService):
             await self.client_vk.close()
             self.client_vk = None
 
-    async def send_on_schedule(
-            self,
-            cron: str,
-
-            peer_id: int | None = None,
-            message: Message | None = None,
-
-            fetch_message_data_func: Callable[[Any | None], Awaitable[tuple[int, Message]]] | None = None,
-            args: tuple = (),
-            kwargs: dict | None = None
-    ):
-        if kwargs is None:
-            kwargs = {}
-
-        while not self._stopping:
-            try:
-                if (peer_id is None or message is None) and fetch_message_data_func is None:
-                    raise ValueError("One of (peer_id, message) or fetch_message_data_func is required")
-
-                now = datetime.datetime.now()
-                nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
-                sleep = (nxt - now).total_seconds()
-                logger.info(f"Schedule {sleep=} {peer_id=} {message=} {fetch_message_data_func=}")
-                await asyncio.sleep(sleep)
-
-                peer_id, message = await fetch_message_data_func(
-                    *args, **kwargs
-                ) if fetch_message_data_func else (peer_id, message)
-
-                await self.execute_in_worker(self.client_vk.messages.send, peer_id, message)
-            except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
-                break
-            except Exception as e:
-                logger.exception(e)
-                self.ex.append(e)
-                await asyncio.sleep(300)
-
     async def _init_background_tasks(self):
         self.start_background_task(
             coro=self._main_task()
@@ -353,12 +317,15 @@ class VkBotService(BaseService):
         await self.start_schedule_tasks()
 
     async def start_schedule_tasks(self):
+        from .vk.sheduled import send_on_schedule
+
         logger.info("Starting send on schedule tasks")
 
         schedule_tasks = await send_on_schedule_db.get_list(self.db_pool)
         for s_t in schedule_tasks:
             self.start_schedule_task(
-                coro=self.send_on_schedule(
+                coro=send_on_schedule(
+                    self,
                     cron=s_t.cron,
                     peer_id=s_t.message_data.peer_id,
                     message=s_t.message_data.message
@@ -382,7 +349,8 @@ class VkBotService(BaseService):
             )
 
         self.start_schedule_task(
-            coro=self.send_on_schedule(
+            coro=send_on_schedule(
+                self,
                 cron="0 6 * * *",
                 fetch_message_data_func=_get_daily_statistic_message_data,
                 args=(self.config.vk.main_user_id,)
