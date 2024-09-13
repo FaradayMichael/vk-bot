@@ -30,7 +30,7 @@ FROM --platform=linux/amd64 base as selenium
 RUN apt update \
     && apt install -y curl wget xvfb libgtk-3-0 libx11-xcb1  libnss3 libxss1 libasound2 fonts-liberation xdg-utils libgbm1 libu2f-udev libvulkan1 python3-tk
 
-RUN curl --silent --show-error --fail http://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_117.0.5938.92-1_amd64.deb --output google-chrome.deb \
+RUN curl --silent --show-error --fail https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.90-1_amd64.deb --output google-chrome.deb \
     && dpkg -i google-chrome.deb \
     && rm google-chrome.deb \
     && apt remove -y curl \
