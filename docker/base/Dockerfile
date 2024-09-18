@@ -18,5 +18,5 @@ COPY requirements/base.txt requirements/base.txt
 COPY requirements/tests.txt requirements/tests.txt
 
 RUN pip3 install -r requirements/base.txt
-RUN pip3 install -r requirements/tests.txt
+# RUN pip3 install -r requirements/tests.txt
 RUN pip3 install "git+https://github.com/ytdl-org/youtube-dl.git"

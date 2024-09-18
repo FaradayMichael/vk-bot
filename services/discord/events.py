@@ -181,6 +181,7 @@ async def on_ready():
 
 
 async def on_presence_update(service: DiscordService, before: Member, after: Member):
+
     def get_activities_state() -> ActivitiesState:
         state_dict = {}
         for a_type in ActivityType:
@@ -211,8 +212,14 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
     state = get_activities_state()
     if state.playing.has_changes:
         log_activities(state.playing)
+
         if state.playing.started:
+            dynamic_config = await dynamic_config_db.get(service.db_pool)
+            exclude_activities = dynamic_config.get('exclude_activities', [])
+
             for a in state.playing.started:
+                if a in exclude_activities:
+                    continue
                 await activity_sessions_db.create(
                     service.db_pool,
                     ActivitySessionCreate(
@@ -222,6 +229,7 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
                     )
                 )
             await _execute_cyberbool(service, state, after)
+
         if state.playing.finished:
             for a in state.playing.finished:
                 activity_db = await activity_sessions_db.get_unfinished(service.db_pool, after.id, a)

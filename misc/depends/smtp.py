@@ -1,6 +1,7 @@
 import logging
 
 import fastapi
+
 from misc.smtp import SMTP
 
 logger = logging.getLogger(__name__)

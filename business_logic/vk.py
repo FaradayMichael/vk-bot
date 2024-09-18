@@ -57,60 +57,64 @@ async def post_in_group_wall(
         message_text=message_text,
         attachments=','.join(attachments)
     )
-    if mode is GroupPostMode.COMPILE_9:
-        posts = await client.wall.get(WallItemFilter.POSTPONED)
-        available_posts = [
-            p
-            for p in posts
-            if len(p.attachments) + len(attachments) <= 9 and p.post_source['type'] == 'api'
-        ]
-        if not available_posts:
-            logger.info(f'Create new post {post_model} compile')
+    match mode:
+        case GroupPostMode.COMPILE_9:
+            posts = await client.wall.get(WallItemFilter.POSTPONED)
+            available_posts = [
+                p for p in posts
+                if len(p.attachments) + len(attachments) <= 9 and p.post_source['type'] == 'api'
+            ]
+            if not available_posts:
+                logger.info(f'Create new post {post_model} compile')
+                await client.wall.post(
+                    post=post_model,
+                    post_time=_randomize_time(datetime.datetime.now() + datetime.timedelta(days=2))
+                )
+            else:
+                available_posts.sort(key=lambda x: len(x.attachments), reverse=True)
+                post = available_posts[0]
+
+                logger.info(f"Edit {post.id=} for {len(attachments)} new attachments. {post_model}")
+
+                post_attachments = [
+                                       a.photo.attachment_str for a in post.attachments
+                                       if a.photo
+                                   ] + attachments
+                post_model.attachments = ','.join(post_attachments)
+                await client.wall.edit(
+                    post_id=post.id,
+                    post=post_model,
+                    post_time=_randomize_time(
+                        datetime.datetime.now() + datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
+                    )
+                )
+                if len(post_attachments) >= 9:
+                    msg = f"{post.id=} ready to publish"
+                    logger.info(msg)
+                    if notify:
+                        await client.messages.send(
+                            peer_id=client.user_id,
+                            message=Message(
+                                text=msg
+                            )
+                        )
+
+        case GroupPostMode.INSTANT:
+            logger.info(f'Create new post {post_model} instant')
             await client.wall.post(
                 post=post_model,
-                post_time=randomize_time(datetime.datetime.now() + datetime.timedelta(days=2))
+                post_time=_randomize_time(datetime.datetime.now() + datetime.timedelta(days=2))
             )
-        else:
-            available_posts.sort(key=lambda x: len(x.attachments), reverse=True)
-            post = available_posts[0]
 
-            logger.info(f"Edit {post.id=} for {len(attachments)} new attachments. {post_model}")
-
-            post_attachments = [
-                                   a.photo.attachment_str
-                                   for a in post.attachments if a.photo
-                               ] + attachments
-            post_model.attachments = ','.join(post_attachments)
-            await client.wall.edit(
-                post_id=post.id,
-                post=post_model,
-                post_time=randomize_time(
-                    datetime.datetime.now() + datetime.timedelta(days=2 if len(post_attachments) >= 9 else 14)
-                )
-            )
-            if len(post_attachments) >= 9:
-                logger.info(f"{post.id=} ready to publish")
-                if notify:
-                    await client.messages.send(
-                        peer_id=client.user_id,
-                        message=Message(
-                            text=f"{post.id=} ready to publish"
-                        )
-                    )
-    elif mode is GroupPostMode.INSTANT:
-        logger.info(f'Create new post {post_model} instant')
-        await client.wall.post(
-            post=post_model,
-            post_time=randomize_time(datetime.datetime.now() + datetime.timedelta(days=2))
-        )
-    else:
-        return None
+        case _ as arg:
+            logger.error(f"Unsupported post mode: {arg}")
+            return None
 
 
-def randomize_time(
-        dt: datetime.datetime,
+def _randomize_time(
+        orig_dt: datetime.datetime,
         delta: datetime.timedelta = datetime.timedelta(minutes=600)
 ) -> datetime.datetime:
     delta_seconds = int(delta.total_seconds())
     rand_seconds = random.randint(-delta_seconds, delta_seconds)
-    return dt + datetime.timedelta(seconds=rand_seconds)
+    return orig_dt + datetime.timedelta(seconds=rand_seconds)

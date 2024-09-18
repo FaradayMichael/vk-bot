@@ -1,7 +1,9 @@
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from jinja2 import Environment as JinjaEnvironment
+from jinja2 import (
+    Environment as JinjaEnvironment
+)
 
 from misc.config import Config
 from misc.smtp import (

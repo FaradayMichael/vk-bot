@@ -17,8 +17,12 @@ from misc import (
     db,
     redis
 )
-from misc.depends.db import get as get_db
-from misc.depends.redis import get as get_redis
+from misc.depends.db import (
+    get as get_db
+)
+from misc.depends.redis import (
+    get as get_redis
+)
 from misc.session import (
     COOKIE_SESSION_NAME,
     HEADERS_SESSION_NAME,

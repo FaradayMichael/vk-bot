@@ -2,8 +2,6 @@ import logging
 from enum import StrEnum
 from types import NoneType
 from typing import (
-    Optional,
-    List,
     Any
 )
 
@@ -26,35 +24,35 @@ class ValidationError(BaseModel):
 
 class SuccessResponse(BaseModel):
     success: bool = True
-    data: Optional[Any] = None
+    data: Any | None = None
 
 
 class ListData(BaseModel):
     total: int
     limit: int
     page: int
-    items: List[Any]
+    items: list[Any]
 
 
 class ErrorResponse(BaseModel):
     success: bool = False
     error: str | dict | NoneType = None
-    validation_error: Optional[List[ValidationError]] = None
-    debug: Optional[str] = None
+    validation_error: list[ValidationError] | None = None
+    debug: str | None = None
 
 
 class UpdateErrorResponse(BaseModel):
     success: bool = False
-    errors: List[Any]
+    errors: list[Any]
 
 
 class Range(BaseModel):
     from_: int
-    to: Optional[int] = None
+    to: int | None = None
 
 
 class BaseSearchQueryParams(BaseModel):
-    q: Optional[str] = Field(default="", description="search query")
+    q: str | None = Field(default="", description="search query")
 
 
 class BaseLangSearchQueryParams(BaseSearchQueryParams):
@@ -67,10 +65,10 @@ class BaseListQueryParams(BaseModel):
 
 
 def round_decimal(
-        value: Optional[Decimal],
+        value: Decimal | None,
         template: Decimal = Decimal('1.00'),
         round_str: str = ROUND_HALF_UP
-) -> Optional[Decimal]:
+) -> Decimal | None:
     if value is None:
         return None
     return value.quantize(template, rounding=round_str)

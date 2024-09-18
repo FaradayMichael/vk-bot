@@ -9,13 +9,21 @@ from typing import (
     Type,
 )
 
-import aio_pika
+from aio_pika import (
+    RobustQueue,
+    RobustConnection,
+    RobustChannel,
+    Message,
+    DeliveryMode,
+    IncomingMessage
+)
 from aio_pika.message import (
     ReturnedMessage
 )
 from aio_pika.abc import (
     ConsumerTag,
-    AbstractQueueIterator
+    AbstractQueueIterator,
+    AbstractIncomingMessage
 )
 from aiormq.abc import ExceptionType
 
@@ -76,7 +84,7 @@ class Client:
     @classmethod
     async def create(
             cls,
-            conn: aio_pika.RobustConnection,
+            conn: RobustConnection,
             worker_queue_name: str,
             serializer: Serializer
     ) -> 'Client':
@@ -86,17 +94,17 @@ class Client:
 
     def __init__(
             self,
-            conn: aio_pika.RobustConnection,
+            conn: RobustConnection,
             worker_queue_name: str,
-            serialiser: Serializer
+            serializer: Serializer
     ):
         super().__init__()
         self.conn = conn
         self.client_queue_name = f'asynctask.clients.{uuid.uuid4().hex}'
         self.worker_queue_name = worker_queue_name
-        self.serialiser = serialiser
-        self.channel: aio_pika.RobustChannel | None = None
-        self.queue: aio_pika.RobustQueue | None = None
+        self.serializer = serializer
+        self.channel: RobustChannel | None = None
+        self.queue: RobustQueue | None = None
         self.queue_iterator: AbstractQueueIterator | None = None
         self.tasks: dict[str, Task] = {}
         self.consumer_tag: ConsumerTag | None = None
@@ -155,9 +163,9 @@ class Client:
         )
         self.tasks[task.id] = task
 
-        message = aio_pika.Message(
-            body=self.serialiser.pack(data),
-            content_type=self.serialiser.content_type(),
+        message = Message(
+            body=self.serializer.pack(data),
+            content_type=self.serializer.content_type(),
             type=MessageType.REQUEST.value,
             headers={
                 METHOD_HEADER: method
@@ -165,7 +173,7 @@ class Client:
             timestamp=time.time(),
             priority=task.priority,
             correlation_id=task.id,
-            delivery_mode=aio_pika.DeliveryMode.NOT_PERSISTENT,
+            delivery_mode=DeliveryMode.NOT_PERSISTENT,
             reply_to=self.queue.name,
             app_id=socket.gethostname(),
             expiration=expiration,
@@ -184,7 +192,7 @@ class Client:
 
     async def on_message(
             self,
-            incoming_message: aio_pika.IncomingMessage | aio_pika.abc.AbstractIncomingMessage
+            incoming_message: IncomingMessage | AbstractIncomingMessage
     ):
         task = self.tasks.pop(incoming_message.correlation_id, None)
         if not task:
@@ -199,7 +207,7 @@ class Client:
                 if task.nullable_response and not incoming_message.body:
                     task.set_result(None)
                 else:
-                    data = self.serialiser.unpack(
+                    data = self.serializer.unpack(
                         incoming_message.body, task.response_class)
                     task.set_result(data)
             elif incoming_message.type == MessageType.CANCELED:
@@ -207,21 +215,21 @@ class Client:
             elif incoming_message.type == MessageType.ERROR:
                 task.set_exception(
                     TaskError(
-                        self.serialiser.unpack(
+                        self.serializer.unpack(
                             incoming_message.body, ErrorData).message
                     )
                 )
             elif incoming_message.type == MessageType.EXCEPTION:
                 task.set_exception(
                     TaskException(
-                        self.serialiser.unpack(
+                        self.serializer.unpack(
                             incoming_message.body, ExceptionData)
                     )
                 )
             elif incoming_message.type == MessageType.NO_HANDLER:
                 task.set_exception(
                     TaskNoHandler(
-                        self.serialiser.unpack(
+                        self.serializer.unpack(
                             incoming_message.body, ErrorData).message
                     )
                 )

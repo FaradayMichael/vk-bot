@@ -3,12 +3,10 @@ import logging
 from decimal import Decimal
 from itertools import zip_longest
 from typing import (
-    Optional,
     Any,
     Type,
     TypeVar,
     Callable,
-    Union,
     Mapping
 )
 
@@ -20,10 +18,11 @@ from misc.config import PostgresqlConfig
 logger = logging.getLogger(__name__)
 
 Connection = asyncpg.Connection
+Pool = asyncpg.Pool
 ModelCls = TypeVar('ModelCls', bound=BaseModel)
 
 
-async def init(config: PostgresqlConfig) -> asyncpg.Pool:
+async def init(config: PostgresqlConfig) -> Pool:
     dsn = config.dsn
     if not dsn:
         raise RuntimeError('DB connection parameters not defined')
@@ -41,7 +40,7 @@ async def get_conn(config: PostgresqlConfig) -> Connection:
     return await asyncpg.connect(dsn, **config.model_dump(exclude={'dsn'}))
 
 
-async def close(db: asyncpg.Pool | asyncpg.Connection):
+async def close(db: Pool | Connection):
     await db.close()
 
 
@@ -57,7 +56,7 @@ async def init_connection(conn):
 
 def record_to_model_list(
         model_cls: Type[ModelCls],
-        records: Optional[list[Mapping | BaseModel]]
+        records: list[Mapping | BaseModel]
 ) -> list[ModelCls]:
     if records:
         return list(
@@ -74,8 +73,8 @@ def record_to_model_list(
 
 def record_to_model(
         model_cls: Type[ModelCls],
-        record: Optional[Mapping | BaseModel]
-) -> Optional[ModelCls]:
+        record: Mapping | BaseModel | None
+) -> ModelCls | None:
     if record:
         return model_cls.model_validate(dict(record))
     return None
@@ -94,8 +93,8 @@ async def get(
         conn: Connection,
         table: str,
         pk: int,
-        fields: Optional[list[str]] = None
-) -> Optional[asyncpg.Record]:
+        fields: list[str] | None = None
+) -> asyncpg.Record | None:
     select_fields = ', '.join(fields) if fields else '*'
     query = f'SELECT {select_fields} FROM {table} WHERE id = $1'
     try:
@@ -109,10 +108,10 @@ async def get_by_where(
         conn: Connection,
         table: str,
         where: str,
-        values: Optional[list] = None,
-        fields: Optional[list[str]] = None,
+        values: list | None = None,
+        fields: list[str] | None = None,
         return_rows: bool = False
-) -> Optional[asyncpg.Record | list[asyncpg.Record]]:
+) -> asyncpg.Record | list[asyncpg.Record] | None:
     if values is None:
         values = []
 
@@ -132,12 +131,12 @@ async def get_by_where(
 async def get_list(
         conn: Connection,
         table: str,
-        where: Optional[str] = None,
+        where: str | None = None,
         values: list | None = None,
-        limit: Optional[int] = None,
-        page: Optional[int] = None,
-        order: Optional[list[str]] = None,
-        group: Optional[list[str]] = None,
+        limit: int | None = None,
+        page: int | None = None,
+        order: list[str] | None = None,
+        group: list[str] | None = None,
         fields: list[str] | None = None,
 ) -> list[asyncpg.Record]:
     if values is None:
@@ -170,9 +169,9 @@ async def get_list(
 async def get_total(
         conn: Connection,
         table: str,
-        where: Optional[str] = None,
+        where: str | None = None,
         values: list | None = None,
-        group_by: Optional[list[str]] = None
+        group_by: list[str] | None = None
 ) -> int:
     if values is None:
         values = []
@@ -194,8 +193,8 @@ async def get_total(
 async def exists(
         conn: Connection,
         table: str,
-        where: Optional[str] = None,
-        values: Optional[list] = None
+        where: str | None = None,
+        values: list | None = None
 ) -> bool:
     where_query = ''
     if where:
@@ -215,10 +214,10 @@ async def create(
         conn: Connection,
         table: str,
         data: dict[str, Any],
-        insert_fields: Optional[list[str]] = None,
-        ignore_fields: Optional[list[str]] = None,
-        fields: Optional[list[str]] = None
-) -> Optional[asyncpg.Record]:
+        insert_fields: list[str] | None = None,
+        ignore_fields: list[str] | None = None,
+        fields: list[str] | None = None
+) -> asyncpg.Record | None:
     return_fields = ', '.join(fields) if fields else '*'
     field_names = []
     placeholders = []
@@ -278,8 +277,8 @@ async def create_list(
         table: str,
         data: dict[str, list[Any]],
         fillvalue: Any = None,
-        fields: Optional[list[str]] = None,
-) -> Optional[list[asyncpg.Record]]:
+        fields: list[str] | None = None,
+) -> list[asyncpg.Record] | None:
     # Добавляет несколько значений в БД за раз
     # Значения передаются в словаре, ключ - список (длины списков должны совпадать)
     # fillvalue - значение, которым будет заполнятся список, если длины списков не совпадают.
@@ -311,11 +310,11 @@ async def update(
         table: str,
         pk: int,
         data: dict[str, Any],
-        update_fields: Optional[list[str]] = None,
-        ignore_fields: Optional[list[str]] = None,
-        fields: Optional[list[str]] = None,
+        update_fields: list[str] | None = None,
+        ignore_fields: list[str] | None = None,
+        fields: list[str] | None = None,
         with_atime: bool = False
-) -> Optional[asyncpg.Record]:
+) -> asyncpg.Record | None:
     if not data:
         return
     return_fields = ', '.join(fields) if fields else '*'
@@ -352,13 +351,13 @@ async def update_by_where(
         table: str,
         data: dict[str, Any],
         where: str,
-        values: Optional[list] = None,
-        update_fields: Optional[list[str]] = None,
-        ignore_fields: Optional[list[str]] = None,
-        fields: Optional[list[str]] = None,
+        values: list | None = None,
+        update_fields: list[str] | None = None,
+        ignore_fields: list[str] | None = None,
+        fields: list[str] | None = None,
         with_atime: bool = False,
         return_rows: bool = False
-) -> Optional[asyncpg.Record]:
+) -> asyncpg.Record | None:
     if values is None:
         values = []
 
@@ -401,9 +400,9 @@ async def disable_by_where(
         conn: Connection,
         table: str,
         pk: int,
-        data: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
         with_dtime: bool = False
-) -> Optional[asyncpg.Record]:
+) -> asyncpg.Record | None:
     values = [pk]
     wheres = ["id = $1"]
     idx = 2
@@ -433,10 +432,10 @@ async def delete_by_where(
         conn: Connection,
         table: str,
         where: str,
-        values: Optional[list] = None,
+        values: list | None = None,
         fields: list[str] | None = None,
         return_rows: bool = False
-) -> Optional[asyncpg.Record]:
+) -> asyncpg.Record | None:
     values = values if values else []
     return_fields = ', '.join(fields) if fields else '*'
     query = f'DELETE FROM {table} WHERE {where} RETURNING {return_fields}'
@@ -456,7 +455,7 @@ async def delete(
         table: str,
         pk: int,
         fields: list[str] | None = None
-) -> Optional[asyncpg.Record]:
+) -> asyncpg.Record | None:
     return_fields = ', '.join(fields) if fields else '*'
     query = f'DELETE FROM {table} WHERE id = $1 RETURNING {return_fields}'
     try:
@@ -487,7 +486,7 @@ def chain_filters(
 
 def equal_filter(
         field: str,
-        value: Optional[Union[int, str, float, Decimal, list]],
+        value: int | str | float | Decimal | list | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:
@@ -504,8 +503,8 @@ def equal_filter(
 
 def between_filter(
         field: str,
-        value_from: Optional[Union[int, str, float, Decimal, list]],
-        value_to: Optional[Union[int, str, float, Decimal, list]],
+        value_from: int | str | float | Decimal | list | None,
+        value_to: int | str | float | Decimal | list | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:
@@ -528,7 +527,7 @@ def between_filter(
 
 def lte_filter(
         field: str,
-        value: Optional[Union[int, str, float, Decimal]],
+        value: int | str | float | Decimal | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:
@@ -541,7 +540,7 @@ def lte_filter(
 
 def gte_filter(
         field: str,
-        value: Optional[Union[int, str, float, Decimal]],
+        value: int | str | float | Decimal | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:
@@ -554,7 +553,7 @@ def gte_filter(
 
 def startswith_filter(
         field: str,
-        value: Optional[str],
+        value: str | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:
@@ -567,7 +566,7 @@ def startswith_filter(
 
 def is_blank_filter(
         field: str,
-        value: Optional[bool],
+        value: bool | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:
@@ -578,7 +577,7 @@ def is_blank_filter(
 
 def is_null_filter(
         field: str,
-        value: Optional[bool],
+        value: bool | None,
         filters: list,
         values: list
 ) -> tuple[list, list]:

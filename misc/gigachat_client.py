@@ -1,6 +1,12 @@
 import asyncpg
-from gigachat import GigaChatAsyncClient
-from gigachat.models import Chat, Messages, MessagesRole
+from gigachat import (
+    GigaChatAsyncClient
+)
+from gigachat.models import (
+    Chat,
+    Messages,
+    MessagesRole
+)
 
 from db import (
     gigachat as gigachat_db,

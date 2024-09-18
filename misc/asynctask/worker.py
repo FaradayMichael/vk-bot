@@ -8,11 +8,20 @@ from typing import (
     Callable,
 )
 
-import aio_pika
+from aio_pika import (
+    RobustQueue,
+    RobustConnection,
+    Connection,
+    RobustChannel,
+    Message,
+    IncomingMessage
+)
 from aio_pika.abc import (
     ConsumerTag,
     AbstractRobustConnection,
+    AbstractIncomingMessage
 )
+from aiormq.abc import ExceptionType
 from pydantic import BaseModel
 
 from .serializer import (
@@ -45,7 +54,12 @@ class Handler:
 
 
 class Context:
-    def __init__(self, incoming_message: aio_pika.IncomingMessage, data: ModelClass, worker: 'Worker'):
+    def __init__(
+            self,
+            incoming_message: IncomingMessage,
+            data: ModelClass,
+            worker: 'Worker'
+    ):
         self.incoming_message = incoming_message
         self.data = data
         self.worker = worker
@@ -91,7 +105,7 @@ class Worker:
     @classmethod
     async def create(
             cls,
-            conn: aio_pika.RobustConnection | aio_pika.Connection | AbstractRobustConnection,
+            conn: RobustConnection | Connection | AbstractRobustConnection,
             queue_name: str,
             serializer: Serializer,
             prefetch_count: int = 1,
@@ -103,7 +117,7 @@ class Worker:
 
     def __init__(
             self,
-            conn: aio_pika.RobustConnection | aio_pika.Connection,
+            conn: RobustConnection | Connection,
             queue_name: str,
             serializer: Serializer,
             prefetch_count: int = 1,
@@ -115,8 +129,8 @@ class Worker:
         self.serializer = serializer
         self.prefetch_count = prefetch_count
         self.enable_reply = enable_reply
-        self.channel: aio_pika.RobustChannel | None = None
-        self.queue: aio_pika.RobustQueue | None = None
+        self.channel: RobustChannel | None = None
+        self.queue: RobustQueue | None = None
         self.handlers: dict[str, Handler] = {}
         self.consumer_tag: ConsumerTag | None = None
         self.lock: asyncio.Lock = asyncio.Lock()
@@ -159,7 +173,7 @@ class Worker:
 
     async def on_message(
             self,
-            incoming_message: aio_pika.IncomingMessage | aio_pika.abc.AbstractIncomingMessage
+            incoming_message: IncomingMessage | AbstractIncomingMessage
     ):
         try:
             if not self.queue:
@@ -191,7 +205,7 @@ class Worker:
                 logger.exception(f"Error asking message {incoming_message.body.decode()}")
                 raise
 
-    async def handle(self, incoming_message: aio_pika.IncomingMessage):
+    async def handle(self, incoming_message: IncomingMessage):
         method = incoming_message.headers.get(METHOD_HEADER, None)
         if not method:
             await self.reply_to(
@@ -225,7 +239,7 @@ class Worker:
 
     async def reply_to(
             self,
-            incoming_message: aio_pika.IncomingMessage,
+            incoming_message: IncomingMessage,
             t: MessageType,
             data: ModelClass | None = None
     ):
@@ -233,7 +247,7 @@ class Worker:
             return None
 
         body = self.serializer.pack(data)
-        reply_message = aio_pika.Message(
+        reply_message = Message(
             type=t.value,
             body=body,
             content_type=self.serializer.content_type(),

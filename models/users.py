@@ -1,10 +1,6 @@
 from datetime import (
     datetime
 )
-from typing import (
-    Optional,
-    List
-)
 
 from pydantic import (
     BaseModel,
@@ -24,15 +20,15 @@ class UserCreate(BaseModel):
 
 class BaseUser(BaseModel):
     id: int = 0
-    en: Optional[bool] = None
+    en: bool | None = None
 
     username: str
     email: str
     is_admin: bool = False
 
-    ctime: Optional[datetime] = Field(None)
-    atime: Optional[datetime] = None
-    dtime: Optional[datetime] = None
+    ctime: datetime | None = Field(None)
+    atime: datetime | None = None
+    dtime: datetime | None = None
 
     @property
     def is_authenticated(self):
@@ -56,7 +52,7 @@ class UsersSuccessResponse(SuccessResponse):
 
 
 class UsersListData(ListData):
-    items: List[User] = []
+    items: list[User] = []
 
 
 class UsersListSuccessResponse(SuccessResponse):

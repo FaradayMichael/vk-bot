@@ -1,6 +1,8 @@
-from misc import redis
 import logging
+
 import fastapi
+
+from misc import redis
 
 logger = logging.getLogger(__name__)
 

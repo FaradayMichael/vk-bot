@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import asyncpg
 
 from misc.config import Config
 from services.db_dumper.service import DumperService

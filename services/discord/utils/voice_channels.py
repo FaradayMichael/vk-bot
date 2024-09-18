@@ -34,7 +34,7 @@ async def leave_from_empty_voice_channel(bot: Bot):
 async def play_file(voice_client: VoiceClient, filepath: str):
     try:
         source = FFmpegPCMAudio(source=filepath)
-        await play_in_voice(voice_client, source)
+        await _play_in_voice(voice_client, source)
     except Exception as e:
         logger.error(e)
 
@@ -42,12 +42,12 @@ async def play_file(voice_client: VoiceClient, filepath: str):
 async def play_yt_url(voice_client: VoiceClient, url: str, stream: bool = True):
     try:
         source = await YTDLSource.from_url(url, stream=stream)
-        await play_in_voice(voice_client, source)
+        await _play_in_voice(voice_client, source)
     except Exception as e:
         logger.error(e)
 
 
-async def play_in_voice(voice_client: VoiceClient, source: AudioSource):
+async def _play_in_voice(voice_client: VoiceClient, source: AudioSource):
     if voice_client.is_playing():
         voice_client.stop()
     try:
