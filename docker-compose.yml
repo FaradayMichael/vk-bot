@@ -101,6 +101,8 @@ services:
         condition: service_healthy
       parser_service:
         condition: service_started
+      utils_service:
+        condition: service_started
     env_file:
       - .env
 
@@ -135,6 +137,31 @@ services:
       - rabbitmq
     depends_on:
       rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .env
+
+  utils_service:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: utils_service
+    command: python3 utils_service.py
+    volumes:
+      - .:/code
+    links:
+      - redis
+      - db
+      - dbmate
+      - mailhog
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      db:
         condition: service_healthy
     env_file:
       - .env
