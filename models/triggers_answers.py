@@ -28,6 +28,7 @@ class TriggerAnswerCreateBase(TriggerBase, AnswerBase):
 
 class TriggerAnswer(TriggerAnswerCreateBase):
     id: int
+    en: bool
     ctime: datetime.datetime
 
 
@@ -40,7 +41,7 @@ class TriggerGroup(TriggerBase):
     answers: list[Answer]
 
     @model_validator(mode='before')
-    def json_to_list(cls, data: dict):
+    def json_to_list(cls, data: dict): # noqa
         if data.get('answers', None) is not None:
             data['answers'] = json.loads(data['answers'])
         return data

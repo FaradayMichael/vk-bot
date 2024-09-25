@@ -61,15 +61,12 @@ async def on_message(service: DiscordService, message: Message):
         await message.add_reaction("🤡")
 
     if message.mentions and message.mentions[0].id == service.bot.user.id:
-        try:
-            response_message = await service.gigachat_client.chat(
-                message.author.id,
-                message.content
-            )
-            if response_message:
-                return await message.reply(content=response_message.content)
-        except Exception as e:
-            logger.error(e)
+        response_message = await service.utils_client.gpt_chat(
+            message.author.id,
+            message.content,
+        )
+        if response_message:
+            return await message.reply(response_message.message)
 
     await service.bot.process_commands(message)
 

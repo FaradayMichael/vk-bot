@@ -30,6 +30,7 @@ async def get_all(
 ) -> list[KnowIds]:
     record = await db.get_list(
         conn,
-        TABLE
+        TABLE,
+        'en'
     )
     return db.record_to_model_list(KnowIds, record)

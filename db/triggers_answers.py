@@ -45,7 +45,7 @@ async def get_list(
     records = await db.get_by_where(
         conn=conn,
         table=TABLE,
-        where="lower(trigger) LIKE $1 AND lower(answer) LIKE $2",
+        where="en AND lower(trigger) LIKE $1 AND lower(answer) LIKE $2",
         values=[f"%{trigger_q.strip().lower()}%", f"%{answer_q.strip().lower()}%"],
         return_rows=True
     )
@@ -66,7 +66,7 @@ async def get_triggers_group(
                 )
             ) as answers
         FROM {TABLE.value}
-        WHERE lower(trigger) LIKE $1 
+        WHERE en AND lower(trigger) LIKE $1 
         GROUP BY trigger
     """
     records = await conn.fetch(query, f"%{q.strip().lower()}%")
@@ -88,7 +88,7 @@ async def get_for_like(
                 )
             ) as answers
         FROM {TABLE.value}
-        WHERE $1 LIKE '%' || lower(trigger) || '%'
+        WHERE en AND $1 LIKE '%' || lower(trigger) || '%'
         GROUP BY trigger
     """
     records = await conn.fetch(query, q.strip().lower())

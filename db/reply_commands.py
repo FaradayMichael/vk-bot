@@ -20,6 +20,7 @@ async def get(
 async def get_all(conn: asyncpg.Connection | asyncpg.Pool) -> list[ReplyCommand]:
     records = await db.get_list(
         conn,
-        TABLE
+        TABLE,
+        where='en',
     )
     return db.record_to_model_list(ReplyCommand, records)
