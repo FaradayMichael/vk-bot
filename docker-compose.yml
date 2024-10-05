@@ -74,6 +74,8 @@ services:
         condition: service_healthy
       parser_service:
         condition: service_started
+      utils_service:
+        condition: service_started
     env_file:
       - .env
 

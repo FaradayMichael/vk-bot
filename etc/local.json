@@ -25,7 +25,8 @@
     "user_token": "qwe",
     "main_user_id": 187127322,
     "main_group_id": 160508919,
-    "timeout": 60
+    "timeout": 60,
+    "main_group_alias": ""
   },
   "kafka": {
     "bootstrap_servers": "qwe",

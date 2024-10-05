@@ -15,9 +15,6 @@ from business_logic.vk import (
     post_in_group_wall,
     GroupPostMode
 )
-from business_logic.images import (
-    parse_image_tags
-)
 from misc.files import TempUrlFile
 from misc.vk_client import VkClient
 from models.images import (
@@ -47,6 +44,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     message_model = _validate_message(event)
     if not message_model:
         return
+    config = service.config
 
     logger.info(pformat(message_model.model_dump()))
     from_chat = message_model.from_chat
@@ -72,10 +70,10 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         answers = list(set(
             sum([i.answers for i in find_triggers], [])
         ))
+        know_id = await know_ids_db.get_by_vk_id(conn, from_id)
+        know_id_place = f"({know_id.name})" if know_id else ''
         if answers:
             answer: Answer = random.choice(answers)
-            know_id = await know_ids_db.get_by_vk_id(conn, from_id)
-            know_id_place = f"({know_id.name})" if know_id else ''
             await service.client_vk.messages.send(
                 peer_id=peer_id,
                 message=Message(
@@ -83,17 +81,38 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                     attachment=answer.attachment
                 )
             )
-            try:
-                await triggers_history_db.create(
-                    conn,
-                    TriggersHistoryNew(
-                        trigger_answer_id=answer.id,
-                        vk_id=from_id,
-                        message_data=message_model
-                    )
+            await triggers_history_db.create(
+                conn,
+                TriggersHistoryNew(
+                    trigger_answer_id=answer.id,
+                    vk_id=from_id,
+                    message_data=message_model
                 )
-            except Exception as e:
-                logger.error(e)
+            )
+
+    # answer gpt
+    if (
+            str(config.vk.main_group_id) in message_model.text
+            or config.vk.main_group_alias in message_model.text
+            or (message_model.reply_message and message_model.reply_message.from_id == -config.vk.main_group_id)
+            or not from_chat
+    ):
+        payload_text = ''
+        if message_model.reply_message and message_model.reply_message.text:
+            payload_text = message_model.reply_message.text + '\n'
+        payload_text += message_model.text
+
+        response_message = await service.utils_client.gpt_chat(
+            from_id,
+            payload_text,
+        )
+        if response_message:
+            await service.client_vk.messages.send(
+                peer_id=peer_id,
+                message=Message(
+                    text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {response_message.message}",
+                )
+            )
 
     # Posting on group wall
     if from_chat and peer_id == 2000000001:

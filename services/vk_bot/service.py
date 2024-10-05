@@ -63,6 +63,7 @@ from .task import (
     execute_task
 )
 from services.parser_service.client import ParserClient
+from services.utils.client import UtilsClient
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class VkBotService(BaseService):
         self._handlers_vk: dict[VkBotEventType, Callable] = {}
 
         self.parser_client: ParserClient | None = None
+        self.utils_client: UtilsClient | None = None
         self.asynctask_worker: Worker | None = None
 
 
@@ -105,6 +107,7 @@ class VkBotService(BaseService):
         self.redis_conn = await redis.init(self.config.redis)
 
         self.parser_client = await ParserClient.create(self.amqp)
+        self.utils_client = await UtilsClient.create(self.amqp)
         self.asynctask_worker = await Worker.create(self.amqp, WORKER_QUEUE_NAME, JsonSerializer())
 
         self._register_handlers_vk()
@@ -468,6 +471,10 @@ class VkBotService(BaseService):
         if self.parser_client:
             await self.parser_client.close()
             self.parser_client = None
+
+        if self.utils_client:
+            await self.utils_client.close()
+            self.utils_client = None
 
         if self.asynctask_worker:
             await self.asynctask_worker.close()

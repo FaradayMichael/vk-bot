@@ -40,6 +40,7 @@ class VkConfig(BaseModel):
     main_user_id: int
     main_group_id: int
     timeout: int = 60
+    main_group_alias: str = ""
 
 
 class KafkaConfig(BaseModel):

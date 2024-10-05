@@ -92,7 +92,8 @@ class Messages(BaseMethod):
             self,
             peer_id: int,
             message: Message,
-            keyboard: VkKeyboard | str | dict | None = None
+            keyboard: VkKeyboard | str | dict | None = None,
+            reply_to: int | None = None,
     ):
         if isinstance(keyboard, VkKeyboard):
             keyboard = keyboard.get_keyboard()
@@ -104,7 +105,8 @@ class Messages(BaseMethod):
                 attachment=message.attachment,
                 random_id=get_random_id(),
                 peer_id=peer_id,
-                keyboard=keyboard
+                keyboard=keyboard,
+                reply_to=reply_to,
             ),
         )
 
