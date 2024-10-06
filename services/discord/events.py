@@ -57,8 +57,13 @@ async def on_message(service: DiscordService, message: Message):
 
     log_message(message)
 
-    if message.author.id in (292615364448223233,):
-        await message.add_reaction("🤡")
+    d_config = await dynamic_config_db.get(service.db_pool)
+    d_config_changed: bool = False
+
+    reactions_map = d_config.get('reactions_map', {})
+    reaction: str | None = reactions_map.get(str(message.author.id), None)
+    if reaction is not None:
+        await message.add_reaction(reaction)
 
     if message.mentions and message.mentions[0].id == service.bot.user.id:
         response_message = await service.utils_client.gpt_chat(
@@ -91,14 +96,15 @@ async def on_message(service: DiscordService, message: Message):
     if (image_urls or video_urls or yt_urls) and message.channel.id in (1241728108768264215, 960928970629582918,):
         vote_message = await create_binary_voting(message)
 
-        d_config = await dynamic_config_db.get(service.db_pool)
-        if d_config is not None:
-            vote_messages_ids = d_config.get('vote_messages_ids', None)
-            if vote_messages_ids is None:
-                vote_messages_ids = []
-            vote_messages_ids.append(vote_message.id)
+        vote_messages_ids = d_config.get('vote_messages_ids', None)
+        if vote_messages_ids is None:
+            vote_messages_ids = []
+        vote_messages_ids.append(vote_message.id)
+        d_config['vote_messages_ids'] = vote_messages_ids
+        d_config_changed = True
 
-            await dynamic_config_db.update(service.db_pool, d_config, vote_messages_ids=vote_messages_ids)
+    if d_config_changed:
+        await dynamic_config_db.update(service.db_pool, d_config)
 
 
 async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActionEvent):
