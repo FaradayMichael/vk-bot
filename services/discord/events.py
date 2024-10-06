@@ -284,7 +284,6 @@ async def on_voice_state_update(
 async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):
     async with service.db_pool.acquire() as conn:
         d_conf = await dynamic_config_db.get(conn)
-        print(d_conf)
     if any([i in state.playing.started for i in d_conf.get('cyberbool', [])]):
         if voice := member.voice:
             bot_voice: VoiceClient = await connect_to_voice_channel(service.bot, voice.channel)
