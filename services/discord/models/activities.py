@@ -27,6 +27,9 @@ class PlayingActivities(BaseActivities):
 
 class ActivitiesState(BaseModel):
     playing: PlayingActivities = PlayingActivities()
+    streaming: BaseActivities = BaseActivities()
+    watching: BaseActivities = BaseActivities()
+
 
 
 class ActivitySessionCreate(BaseModel):

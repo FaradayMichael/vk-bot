@@ -205,14 +205,18 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
             }
         return ActivitiesState.model_validate(state_dict)
 
-    def log_activities(activity_model: BaseActivities) -> None:
-        activity = activity_model.rel_name
+    def log_activities(activity_model: BaseActivities, rel_name: str | None = None) -> None:
+        activity = rel_name or activity_model.rel_name
         if activity_model.started:
             logger.info(f"{before.name} start {activity=} {activity_model.started}")
         if activity_model.finished:
             logger.info(f"{before.name} finish {activity=} {activity_model.finished}")
 
     state = get_activities_state()
+    if state.watching.has_changes:
+        log_activities(state.watching, 'watching')
+    if state.streaming.has_changes:
+        log_activities(state.streaming, 'streaming')
     if state.playing.has_changes:
         log_activities(state.playing)
 
