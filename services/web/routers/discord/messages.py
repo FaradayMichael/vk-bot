@@ -1,14 +1,15 @@
 import asyncio
 import logging
 
-from discord import Client, Intents
+from discord import (
+    Client,
+    Intents
+)
 from fastapi import (
     APIRouter,
     Depends,
     Request,
     Form,
-    File,
-    UploadFile
 )
 from fastapi.responses import (
     HTMLResponse,
@@ -16,15 +17,7 @@ from fastapi.responses import (
 )
 from jinja2 import Environment
 
-from business_logic.vk import file_to_vk_attachment
-from db import (
-    know_ids as know_ids_db
-)
 from misc.config import Config
-from misc.db import Connection
-from misc.depends.db import (
-    get as get_conn
-)
 from misc.depends.conf import (
     get as get_config
 )
@@ -34,16 +27,9 @@ from misc.depends.session import (
 from misc.depends.jinja import (
     get as get_jinja
 )
-from misc.files import TempUploadFile
 from misc.session import Session
-from misc.vk_client import VkClient
-
-from models.vk import Message
-from models.base import AttachmentType
-
 
 logger = logging.getLogger(__name__)
-
 
 router = APIRouter(prefix='/messages')
 
@@ -53,7 +39,6 @@ async def discord_messages_view(
         request: Request,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
-        conn: Connection = Depends(get_conn)
 ):
     return jinja.get_template('/discord/messages.html').render(
         user=session.user,
@@ -65,8 +50,8 @@ async def discord_messages_view(
 async def send_discord_message(
         peer_id: int = Form(),
         message_text: str = Form(default=''),
-        #files: list[UploadFile] = File(...),
-        config: Config = Depends(get_config),
+        # files: list[UploadFile] = File(...),
+        config: Config = Depends(get_config)
 ):
     intents = Intents.all()
     intents.messages = True
@@ -75,8 +60,8 @@ async def send_discord_message(
     for i in range(10):
         if client.is_ready():
             break
-        logger.info(f'Waiting for client ready {i +1}...')
-        await asyncio.sleep(2)
+        logger.info(f'Waiting for client ready {i + 1}...')
+        await asyncio.sleep(3)
     channel = client.get_channel(peer_id)
     if not channel:
         return HTMLResponse(status_code=404, content="Channel not found")
@@ -86,6 +71,5 @@ async def send_discord_message(
         task.cancel()
     except Exception as e:
         logger.error(e)
-
 
     return RedirectResponse('/discord/messages', status_code=302)

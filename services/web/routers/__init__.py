@@ -33,7 +33,7 @@ def register_routers(app):
     )
     router.include_router(
         discord.router,
-        # dependencies=[Depends(check_auth)] if not app.debug else []
+        dependencies=[Depends(check_auth)] if not app.debug else []
     )
 
     app.include_router(router)
