@@ -10,7 +10,7 @@ router = APIRouter(
 )
 router.include_router(
     activities.router,
-    deprecated=None
+    dependencies=None
 )
 router.include_router(
     messages.router
