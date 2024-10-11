@@ -76,7 +76,11 @@ async def send_discord_message(
         if client.is_ready():
             break
         logger.info(f'Waiting for client ready {i +1}...')
-    await client.get_channel(peer_id).send(content=message_text)
+        await asyncio.sleep(2)
+    channel = client.get_channel(peer_id)
+    if not channel:
+        return HTMLResponse(status_code=404, content="Channel not found")
+    await channel.send(message_text)
     await client.close()
     try:
         task.cancel()
