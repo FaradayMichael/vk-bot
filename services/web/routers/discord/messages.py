@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 from discord import Client, Intents
 from fastapi import (
     APIRouter,
@@ -38,6 +41,10 @@ from misc.vk_client import VkClient
 from models.vk import Message
 from models.base import AttachmentType
 
+
+logger = logging.getLogger(__name__)
+
+
 router = APIRouter(prefix='/messages')
 
 
@@ -64,9 +71,17 @@ async def send_discord_message(
     intents = Intents.all()
     intents.messages = True
     client = Client(intents=intents)
-    await client.start(config.discord.token)
+    task = asyncio.create_task(client.start(config.discord.token))
+    for i in range(10):
+        if client.is_ready():
+            break
+        logger.info(f'Waiting for client ready {i +1}...')
     await client.get_channel(peer_id).send(content=message_text)
     await client.close()
+    try:
+        task.cancel()
+    except Exception as e:
+        logger.error(e)
 
 
     return RedirectResponse('/discord/messages', status_code=302)
