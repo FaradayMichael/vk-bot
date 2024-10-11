@@ -1,17 +1,24 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from . import (
     activities,
     messages
 )
+from ...depends.auth import check_auth
 
-router = APIRouter(
-    prefix='/discord'
-)
-router.include_router(
-    activities.router,
-    dependencies=None
-)
-router.include_router(
-    messages.router
-)
+
+def register_routes(parent: APIRouter, debug: bool = True) -> APIRouter:
+    router = APIRouter(
+        prefix='/discord'
+    )
+    router.include_router(
+        activities.router,
+    )
+    router.include_router(
+        messages.router,
+        dependencies=[Depends(check_auth)] if not debug else []
+    )
+
+    parent.include_router(router)
+    return parent
+

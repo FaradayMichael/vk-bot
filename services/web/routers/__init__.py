@@ -31,10 +31,7 @@ def register_routers(app):
         vk.router,
         dependencies=[Depends(check_auth)] if not app.debug else []
     )
-    router.include_router(
-        discord.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
-    )
+    router = discord.register_routes(router, app.debug)
 
     app.include_router(router)
     return app
