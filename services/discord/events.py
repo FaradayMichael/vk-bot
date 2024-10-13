@@ -187,7 +187,7 @@ async def on_ready():
 async def on_presence_update(service: DiscordService, before: Member, after: Member):
     def get_activities_state() -> ActivitiesState:
         def get_core_attr(activity: ActivityTypes) -> str:
-            if activity.type is not ActivityType.playing:
+            if activity.type not in (ActivityType.playing, ActivityType.custom,):
                 logger.info(repr(activity))
             return activity.name
 
@@ -261,20 +261,20 @@ async def on_voice_state_update(
 ):
     async def on_leave_channel():
         channel = before.channel
-        logger.info(f"Member {member.display_name} has left the voice channel {channel.name}")
+        logger.info(f"Member {member.name} has left the voice channel {channel.name}")
 
     async def on_join_channel():
         channel = after.channel
-        logger.info(f"Member {member.display_name} joined voice channel {channel.name}")
+        logger.info(f"Member {member.name} joined voice channel {channel.name}")
 
     async def on_move():
         from_channel = before.channel
         to_channel = after.channel
-        logger.info(f"Member {member.display_name} moved from {from_channel.name} to {to_channel.name}")
+        logger.info(f"Member {member.name} moved from {from_channel.name} to {to_channel.name}")
 
     async def on_start_stream():
         channel = after.channel
-        logger.info(f"Member {member.display_name} started streaming in {channel.name}")
+        logger.info(f"Member {member.name} started streaming in {channel.name}")
 
     bot = service.bot
     await leave_from_empty_voice_channel(bot)
