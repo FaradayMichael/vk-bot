@@ -8,6 +8,7 @@ from discord import (
     ActivityType,
     RawReactionActionEvent,
 )
+from discord.activity import ActivityTypes
 from discord.member import (
     Member,
     VoiceState
@@ -184,14 +185,18 @@ async def on_ready():
 
 
 async def on_presence_update(service: DiscordService, before: Member, after: Member):
-
     def get_activities_state() -> ActivitiesState:
+        def get_core_attr(activity: ActivityTypes) -> str:
+            if activity.type is not ActivityType.playing:
+                logger.info(repr(activity))
+            return activity.name
+
         state_dict = {}
         for a_type in ActivityType:
             a_type_name = a_type.name.lower()
 
-            before_activities = set([act.name for act in before.activities if act.type is a_type])
-            after_activities = set([act.name for act in after.activities if act.type is a_type])
+            before_activities = set([get_core_attr(act) for act in before.activities if act.type is a_type])
+            after_activities = set([get_core_attr(act) for act in after.activities if act.type is a_type])
             started_activities = after_activities.difference(before_activities)
             finished_activities = before_activities.difference(after_activities)
             unmodified_activities = before_activities.intersection(after_activities)
@@ -212,19 +217,9 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
         if activity_model.finished:
             logger.info(f"{before.name} finish {activity=} {activity_model.finished}")
 
-    state = get_activities_state()
-    if state.watching.has_changes:
-        log_activities(state.watching, 'watching')
-    if state.streaming.has_changes:
-        log_activities(state.streaming, 'streaming')
-    if state.playing.has_changes:
-        log_activities(state.playing)
-
-        if state.playing.started:
-            dynamic_config = await dynamic_config_db.get(service.db_pool)
-            exclude_activities = dynamic_config.get('exclude_activities', [])
-
-            for a in state.playing.started:
+    async def handle_activities_on_db(activities: BaseActivities):
+        if activities.started:
+            for a in activities.started:
                 if a in exclude_activities:
                     continue
                 await activity_sessions_db.create(
@@ -235,15 +230,27 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
                         activity_name=a
                     )
                 )
-            await _execute_cyberbool(service, state, after)
 
-        if state.playing.finished:
-            for a in state.playing.finished:
+        if activities.finished:
+            for a in activities.finished:
                 activity_db = await activity_sessions_db.get_unfinished(service.db_pool, after.id, a)
                 if activity_db:
                     await activity_sessions_db.update(
                         service.db_pool, activity_db.id, ActivitySessionUpdate(finished_at=datetime.datetime.utcnow())
                     )
+
+    dynamic_config = await dynamic_config_db.get(service.db_pool)
+    exclude_activities = dynamic_config.get('exclude_activities', [])
+
+    state = get_activities_state()
+    if state.watching.has_changes:
+        log_activities(state.watching, 'watching')
+    if state.streaming.has_changes:
+        log_activities(state.streaming, 'streaming')
+    if state.playing.has_changes:
+        log_activities(state.playing)
+        await handle_activities_on_db(state.playing)
+        await _execute_cyberbool(service, state, after)
 
 
 async def on_voice_state_update(
