@@ -86,7 +86,7 @@ class DiscordService(BaseService):
             self._bot_task = self.loop.create_task(self.run_bot(self._bot))
         while not self._bot.is_ready():
             logger.info("Waiting for Bot ready...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(30)
         logger.info(f"Started Discord Bot {self._bot.user.id}")
 
     async def run_bot(self, bot: Bot) -> None:
