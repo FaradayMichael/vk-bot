@@ -1,8 +1,10 @@
 import logging
+import os
 import random
 from pprint import pformat
 from typing import Callable, Awaitable
 
+import yt_dlp
 from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
 
@@ -39,6 +41,11 @@ logger = logging.getLogger(__name__)
 
 backslash_n = '\n'  # Expression fragments inside f-strings cannot include backslashes
 
+VOTES_MAP = {
+    "Да (yes)": True,
+    "Нет (no)": False,
+}
+VOTES_THRESHOLD = 1
 
 async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     message_model = _validate_message(event)
@@ -125,6 +132,19 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                         photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
                             [tmp.filepath]
                         )
+            if a.type == 'video' and a.video:
+                poll = await service.client_vk.polls.create(
+                    question=a.video.attachment_str,
+                    add_answers=list(VOTES_MAP.keys())
+                )
+                await service.client_vk.messages.send(
+                    peer_id=peer_id,
+                    message=Message(
+                        text="mems?",
+                        attachment=poll.attachment_str
+                    )
+                )
+
         if photo_attachments_from_msg:
             await post_in_group_wall(
                 service.client_vk,
@@ -148,6 +168,49 @@ async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
         return
     else:
         logger.info(f"Not found callback for {callback_str}")
+
+
+async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
+    try:
+        poll_id, answer_id, user_id = event.object['poll_id'], event.object['option_id'], event.object['user_id']
+    except KeyError as e:
+        logger.error(e)
+        return
+
+    poll = await service.client_vk.polls.get_by_id(poll_id)
+    if not poll:
+        logger.error(f"Poll not found: {poll_id}")
+
+    vote_result: bool | None = None
+    for answer in poll.answers:
+        if answer.votes >= VOTES_THRESHOLD:
+            vote_result = VOTES_MAP.get(answer.text)
+
+    if vote_result is not None:
+        attachment = poll.question
+        logger.info(f"Drop Voting for message {attachment} [{vote_result}]")
+
+        if vote_result:
+            download_dir = 'downloads'
+            try:
+                video_url = " https://vk.com/" + attachment
+                ydl_opts = {'outtmpl': f'{download_dir}/%(title)s.mp4', 'quiet': True, }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([video_url])
+                    info = ydl.extract_info(video_url, download=True)
+                    logger.info(f"Downloaded {info['title']}")
+                    fp = f"{download_dir}/{info['title']}.{info['video_ext']}"
+                    await service.client_vk.upload.video_wall_and_post(
+                        fp,
+                    )
+                    # os.remove(fp)
+            except Exception as e:
+                logger.exception(e)
+            finally:
+                for f in os.listdir(download_dir):
+                    fp = os.path.join(download_dir, f)
+                    if os.path.isfile(fp):
+                        os.remove(fp)
 
 
 async def _on_command(

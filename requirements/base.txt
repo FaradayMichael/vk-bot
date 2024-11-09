@@ -25,3 +25,4 @@ Pillow==10.3.0
 gigachat==0.1.30
 paramiko==3.4.1
 aio-pika==9.4.3
+yt-dlp==2024.11.4

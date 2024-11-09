@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 import logging
 from typing import AsyncIterable, Mapping
 
@@ -22,7 +23,8 @@ from models.vk import (
 )
 from services.vk_bot.models.vk import (
     WallItemFilter,
-    WallItem
+    WallItem,
+    Poll
 )
 
 logger = logging.getLogger(__name__)
@@ -149,9 +151,9 @@ class Wall(BaseMethod):
             owner_id: int | None = None,
             from_group: bool = True,
             post_time: datetime.datetime | None = None
-    ):
+    ) -> int:
         owner_id = owner_id if owner_id is not None else -self._config.main_group_id
-        await self._call_user(
+        result = await self._call_user(
             'wall.post',
             dict(
                 owner_id=owner_id,
@@ -161,6 +163,7 @@ class Wall(BaseMethod):
                 publish_date=post_time.timestamp() if post_time else None
             )
         )
+        return result['post_id']
 
     async def get(
             self,
@@ -174,6 +177,21 @@ class Wall(BaseMethod):
             )
         )
         return [WallItem.model_validate(i) for i in response['items']]
+
+    async def get_by_id(
+            self,
+            id_: int,
+            owner_id: int | None = None,
+    ) -> WallItem | None:
+        owner_id = owner_id if owner_id is not None else -self._config.main_group_id
+        response = await self._call_user(
+            'wall.getById',
+            dict(
+                posts=f"{owner_id}_{id_}"
+            )
+        )
+        if response:
+            return WallItem.model_validate(response[0])
 
     async def edit(
             self,
@@ -275,6 +293,65 @@ class Upload(BaseMethod):
         return response
 
 
+class Polls(BaseMethod):
+
+    async def create(
+            self,
+            question: str,
+            add_answers: list[str],
+            is_anonymous: bool = False,
+            is_multiple: bool = False,
+    ) -> Poll:
+        result = await self._call_user(
+            method="polls.create",
+            values=dict(
+                add_answers=json.dumps(add_answers),
+                question=question,
+                is_anonymous=int(is_anonymous),
+                is_multiple=int(is_multiple),
+                owner_id=-self._config.main_group_id,
+            )
+        )
+        return Poll.model_validate(result)
+
+    async def get_by_id(
+            self,
+            id_: int,
+            owner_id: int | None = None,
+    ) -> Poll | None:
+        owner_id = owner_id if owner_id is not None else -self._config.main_group_id
+        response = await self._call_user(
+            method="polls.getById",
+            values=dict(
+                owner_id=owner_id,
+                poll_id=id_,
+                extended=0
+            )
+        )
+        if response:
+            print(response)
+            return Poll.model_validate(response)
+
+
+    async def edit(
+            self,
+            id_: int,
+            owner_id: int | None = None,
+            question: str | None = None,
+    ):
+        owner_id = owner_id if owner_id is not None else -self._config.main_group_id
+        response = await self._call_user(
+            method="polls.edit",
+            values=dict(
+                owner_id=owner_id,
+                poll_id=id_,
+                question=question,
+            )
+        )
+        if response:
+            return response
+
+
 class VkClient:
     def __init__(
             self,
@@ -294,6 +371,7 @@ class VkClient:
         self.messages = Messages(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
         self.wall = Wall(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
         self.upload = Upload(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
+        self.polls = Polls(config, self._session_group, self._session_user, self._upload_group, self._upload_user)
 
     async def events_generator(self) -> AsyncIterable[VkBotEvent]:
         while not self._stopping:

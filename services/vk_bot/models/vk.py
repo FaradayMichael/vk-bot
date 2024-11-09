@@ -42,6 +42,10 @@ class VideoAttachment(BaseModel):
     title: str | None = ''
     image: list[PhotoSize] = []
 
+    @property
+    def attachment_str(self) -> str:
+        return f"video{self.owner_id}_{self.id}"
+
 
 class DocPreview(BaseModel):
     photo: PhotoAttachment | None = None
@@ -67,6 +71,7 @@ class VkMessageAttachment(BaseModel):
     wall: WallAttachment | None = None
     doc: DocAttachment | None = None
     story: dict | None = None
+    poll: "Poll | None" = None
 
     @property
     def short_str(self) -> str:
@@ -109,3 +114,29 @@ class WallItem(BaseModel):
     id: int
     text: str = ''
     post_source: dict | None = None
+
+
+class PollAnswer(BaseModel):
+    id: int
+    rate: float
+    text: str
+    votes: int
+
+class Poll(BaseModel):
+    multiple: bool
+    end_date: int = 0
+    closed: bool
+    can_edit: bool
+    can_vote: bool
+    created: int
+    id: int
+    question: str
+    votes: int
+    anonymous: bool
+    answer_ids: list
+    owner_id: int
+    answers: list[PollAnswer]
+
+    @property
+    def attachment_str(self) -> str:
+        return f"poll{self.owner_id}_{self.id}"
