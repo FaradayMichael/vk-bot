@@ -45,7 +45,8 @@ VOTES_MAP = {
     "Да (yes)": True,
     "Нет (no)": False,
 }
-VOTES_THRESHOLD = 1
+VOTES_THRESHOLD = 2
+
 
 async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     message_model = _validate_message(event)
