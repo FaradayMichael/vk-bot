@@ -45,7 +45,7 @@ VOTES_MAP = {
     "Да (yes)": True,
     "Нет (no)": False,
 }
-VOTES_THRESHOLD = 1
+VOTES_THRESHOLD = 2
 
 
 async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
@@ -123,7 +123,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
             )
 
     # Posting on group wall
-    if from_chat and peer_id == 2000000006:
+    if from_chat and peer_id == 2000000001:
         photo_attachments_from_msg = []
         for a in message_model.attachments:
             if a.type == 'photo' and a.photo:
