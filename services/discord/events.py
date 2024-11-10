@@ -335,7 +335,7 @@ def _get_yt_urls_from_message(
     urls = []
     words = message.content.split()
     for word in words:
-        if 'youtube.com/watch' in word:
+        if 'youtube.com/' in word:
             urls.append(word)
     return urls
 
