@@ -4,6 +4,7 @@ import logging
 from asyncpg import Pool
 from redis.asyncio import Redis
 
+from business_logic.images import parse_image_tags
 from misc import (
     db,
     redis
@@ -27,11 +28,13 @@ from misc.service import (
 )
 from .config import (
     WORKER_QUEUE_NAME,
-    GPT_CHAT
+    GPT_CHAT,
+    GET_IMAGE_TAGS
 )
 from .models.asynctask import (
     GptChat,
-    GptChatResponse
+    GptChatResponse,
+    ImageUrl
 )
 
 # https://discordpy.readthedocs.io/en/stable/api.html
@@ -54,6 +57,12 @@ class UtilsService(BaseService):
 
         self.gigachat_client: GigachatClient | None = None
         self.asynctask_worker: Worker | None = None
+
+    async def on_get_image_tags(self, ctx: Context):
+        data: ImageUrl = ctx.data
+        logger.info(f"Handling image url: {data.url}")
+        result = await parse_image_tags(data.url)
+        await ctx.success(result)
 
     async def on_gpt_chat(self, ctx: Context):
         data: GptChat = ctx.data
@@ -93,6 +102,11 @@ class UtilsService(BaseService):
             GPT_CHAT,
             self.on_gpt_chat,
             GptChat
+        )
+        self.asynctask_worker.register(
+            GET_IMAGE_TAGS,
+            self.on_get_image_tags,
+            ImageUrl
         )
 
     async def close(self):

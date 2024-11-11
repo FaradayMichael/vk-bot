@@ -19,7 +19,6 @@ from misc import (
 )
 from misc.config import Config
 from misc.service import BaseService
-from services.parser_service.client import ParserClient
 from services.utils.client import UtilsClient
 from services.vk_bot.client import VkBotClient
 
@@ -41,7 +40,6 @@ class DiscordService(BaseService):
         self.db_pool: Pool | None = None
         self.redis_conn: Redis | None = None
 
-        self.parser_client: ParserClient | None = None
         self.vk_pot_client: VkBotClient | None = None
         self.utils_client: UtilsClient | None = None
 
@@ -65,7 +63,6 @@ class DiscordService(BaseService):
         self.db_pool = await db.init(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
 
-        self.parser_client = await ParserClient.create(self.amqp)
         self.vk_pot_client = await VkBotClient.create(self.amqp)
         self.utils_client = await UtilsClient.create(self.amqp)
 
@@ -197,9 +194,6 @@ class DiscordService(BaseService):
             await redis.close(self.redis_conn)
             self.redis_conn = None
 
-        if self.parser_client:
-            await self.parser_client.close()
-            self.parser_client = None
         if self.vk_pot_client:
             await self.vk_pot_client.close()
             self.vk_pot_client = None

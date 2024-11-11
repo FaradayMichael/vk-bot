@@ -2,13 +2,16 @@ import aio_pika
 
 from misc.asynctask.client import Client
 from misc.asynctask.serializer import JsonSerializer
+from models.images import ImageTags
 from .config import (
     WORKER_QUEUE_NAME,
-    GPT_CHAT
+    GPT_CHAT,
+    GET_IMAGE_TAGS
 )
 from .models.asynctask import (
     GptChat,
-    GptChatResponse
+    GptChatResponse,
+    ImageUrl
 )
 
 
@@ -21,6 +24,14 @@ class UtilsClient(Client):
             **kwargs
     ) -> 'Client':
         return await super().create(conn, WORKER_QUEUE_NAME, JsonSerializer())
+
+    async def get_image_tags(self, image_url: str) -> ImageTags:
+        return await self.call(
+            method=GET_IMAGE_TAGS,
+            data=ImageUrl(url=image_url),
+            response_class=ImageTags,
+            expiration=90
+        )
 
     async def gpt_chat(
             self,

@@ -72,8 +72,6 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-      parser_service:
-        condition: service_started
       utils_service:
         condition: service_started
     env_file:
@@ -101,8 +99,6 @@ services:
         condition: service_started
       db:
         condition: service_healthy
-      parser_service:
-        condition: service_started
       utils_service:
         condition: service_started
     env_file:
@@ -121,24 +117,6 @@ services:
       - dbmate
     depends_on:
       db:
-        condition: service_healthy
-    env_file:
-      - .env
-
-  parser_service:
-    build:
-      context: .
-      dockerfile: docker/selenium/Dockerfile
-      target: selenium
-    working_dir: /code
-    container_name: parser_service
-    command: /usr/bin/run_parser
-    volumes:
-      - .:/code
-    links:
-      - rabbitmq
-    depends_on:
-      rabbitmq:
         condition: service_healthy
     env_file:
       - .env

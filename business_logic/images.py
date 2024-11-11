@@ -21,14 +21,19 @@ from models.images import ImageTags
 logger = logging.getLogger(__name__)
 
 
+BASE_SEARCH_URL = "https://yandex.ru/images/search?rpt=imageview&url="
+
+
+def get_search_url(base_link: str) -> str:
+    return BASE_SEARCH_URL + quote(base_link)
+
 async def parse_image_tags(
         image_link: str,
         tries: int = 3
 ) -> ImageTags:
     match_str = "https://yandex.ru/images/search?text="
-    base_search_url = "https://yandex.ru/images/search?rpt=imageview&url="
 
-    search_url = base_search_url + quote(image_link)
+    search_url = get_search_url(image_link)
     logger.info(search_url)
 
     result = ImageTags()

@@ -83,7 +83,7 @@ async def on_message(service: DiscordService, message: Message):
     if image_urls:
         result_tags: list[ImageTags] = []
         for image_url in image_urls:
-            tags = await service.parser_client.get_image_tags(image_url)
+            tags = await service.utils_client.get_image_tags(image_url)
             if tags and (tags.tags or tags.description):
                 result_tags.append(tags)
         logger.info(f"{result_tags=}")
