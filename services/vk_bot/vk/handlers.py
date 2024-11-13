@@ -204,11 +204,10 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
                     ydl.download([video_url])
                     info = ydl.extract_info(video_url, download=True)
                     logger.info(f"Downloaded {info['title']}")
-                    fp = f"{download_dir}/{info['title']}.{info['video_ext']}"
+
                     await service.client_vk.upload.video_wall_and_post(
-                        fp,
+                        f"{download_dir}/{info['title']}.{info['video_ext']}"
                     )
-                    await service.client_vk.polls.edit(poll_id, question=str(vote_result))
             except Exception as e:
                 logger.exception(e)
             finally:
@@ -216,6 +215,8 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
                     fp = os.path.join(download_dir, f)
                     if os.path.isfile(fp):
                         os.remove(fp)
+
+        await service.client_vk.polls.edit(poll_id, question=str(vote_result))
 
 
 async def _on_command(
