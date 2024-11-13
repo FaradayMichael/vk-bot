@@ -183,8 +183,9 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
         logger.error(f"Poll not found: {poll_id}")
 
     attachment = poll.question
-    if not attachment:
-        return
+    for v in VOTES_MAP.values():
+        if attachment == str(v):
+            return
 
     vote_result: bool | None = None
     for answer in poll.answers:
@@ -207,7 +208,7 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
                     await service.client_vk.upload.video_wall_and_post(
                         fp,
                     )
-                    await service.client_vk.polls.edit(poll_id, question='')
+                    await service.client_vk.polls.edit(poll_id, question=str(vote_result))
             except Exception as e:
                 logger.exception(e)
             finally:
