@@ -126,9 +126,9 @@ async def shutdown(app):
     if state.amqp:
         await state.amqp.close()
         state.amqp = None
-    if state.vk_pot_client:
-        await state.vk_pot_client.close()
-        state.vk_pot_client = None
+    if state.vk_bot_client:
+        await state.vk_bot_client.close()
+        state.vk_bot_client = None
 
 
 async def startup_jinja(app):
