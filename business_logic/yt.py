@@ -10,7 +10,6 @@ async def download_video(
         url: str,
         folder: str = DOWNLOADS_DIR
 ) -> str:
-    url = reformat_short(url)
     ydl_opts = {'outtmpl': f'{folder}/%(title)s.mp4', 'quiet': True, }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         filename = await asyncio.to_thread(ydl.download, url)

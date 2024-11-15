@@ -8,6 +8,7 @@ from yt_dlp.utils import DownloadError
 
 from business_logic.yt import (
     download_video as download_video_yt,
+    reformat_short,
 )
 from misc.vk_client import VkClient
 from models.vk import (
@@ -121,6 +122,7 @@ async def post_yt_video(
         client: VkClient,
         url: str,
 ):
+    url = reformat_short(url)
     try:
         fp = await download_video_yt(url)
         if not fp:
