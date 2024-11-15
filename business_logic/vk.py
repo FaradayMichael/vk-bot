@@ -4,6 +4,8 @@ import os
 import random
 from enum import StrEnum
 
+from yt_dlp.utils import DownloadError
+
 from business_logic.yt import (
     download_video as download_video_yt,
 )
@@ -119,12 +121,15 @@ async def post_yt_video(
         client: VkClient,
         url: str,
 ):
-    fp = await download_video_yt(url)
-    if not fp:
-        logger.error(f'Failed to download {url}')
-        return None
-    await client.upload.video_wall_and_post(fp)
-    os.remove(fp)
+    try:
+        fp = await download_video_yt(url)
+        if not fp:
+            logger.error(f'Failed to download {url}')
+            return None
+        await client.upload.video_wall_and_post(fp)
+        os.remove(fp)
+    except DownloadError:
+        await client.upload.video_wall_and_post(link=url)
 
 
 async def download_video(
