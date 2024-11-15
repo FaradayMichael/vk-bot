@@ -10,6 +10,7 @@ async def download_video(
         url: str,
         folder: str = DOWNLOADS_DIR
 ) -> str:
+    url = reformat_short(url)
     ydl_opts = {'outtmpl': f'{folder}/%(title)s.mp4', 'quiet': True, }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         filename = await asyncio.to_thread(ydl.download, url)
@@ -22,3 +23,8 @@ def _download(
     ydl.download([url])
     info = ydl.extract_info(url, download=True)
     return f"{info['title']}.{info['video_ext']}"
+
+def reformat_short(url: str) -> str:
+    if 'shorts' in url:
+        return f"https://youtu.be/{url.split('/')[-1]}"
+    return url
