@@ -4,7 +4,6 @@ import random
 from pprint import pformat
 from typing import Callable, Awaitable
 
-import aiofiles
 from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
 
