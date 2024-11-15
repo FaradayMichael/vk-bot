@@ -38,7 +38,7 @@ class SendMessageResponse(SuccessResponse):
 
 
 class WallPostInput(BaseModel):
-    files: list[DataURL]
+    yt_url: str
 
 
 class MessagesHistoryResponse(BaseModel):

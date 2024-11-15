@@ -22,11 +22,14 @@ from models.send_on_schedule import (
     SendOnScheduleSuccessResponse,
     SendOnScheduleNew
 )
+from models.vk.io import WallPostInput
 from models.vk.redis import (
     RedisCommands,
     RedisCommandData,
     RedisMessage
 )
+from services.rest_api.depends.rpc import get_vk
+from services.vk_bot.client import VkBotClient
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +90,14 @@ async def api_create_send_on_schedule_task(
         logger.error(f"Failed to send redis command: {message}")
 
     return SendOnScheduleSuccessResponse(data=result)
+
+
+@admin_router.post('/rpc/wall_post', response_model=SuccessResponse)
+async def api_rpc_wall_post(
+        data: WallPostInput,
+        vk_bot_client: VkBotClient = Depends(get_vk)
+) -> SuccessResponse | JSONResponse:
+    await vk_bot_client.vk_bot_post(
+        yt_url=data.yt_url,
+    )
+    return SuccessResponse()

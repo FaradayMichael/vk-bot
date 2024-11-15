@@ -3,6 +3,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+import aio_pika
 from fastapi import (
     FastAPI,
     Depends,
@@ -23,6 +24,7 @@ from misc.depends.session import (
 from misc.handlers import register_exception_handler
 from models.base import ErrorResponse, UpdateErrorResponse
 from .state import State
+from services.vk_bot.client import VkBotClient
 
 logger = logging.getLogger(__name__)
 
@@ -94,9 +96,19 @@ async def handler_shutdown(app):
 async def startup(app):
     state: State = app.state
 
-    state.db_pool = await db.init(app.state.config.db)
-    state.redis_pool = await redis.init(app.state.config.redis)
-    state.smtp = await smtp.init(app.state.config.smtp)
+    state.db_pool = await db.init(state.config.db)
+    state.redis_pool = await redis.init(state.config.redis)
+    state.smtp = await smtp.init(state.config.smtp)
+
+    state.amqp = await asyncio.wait_for(
+        aio_pika.connect_robust(
+            str(state.config.amqp),
+            loop=state.loop,
+            timeout=300
+        ),
+        timeout=30
+    )
+    state.vk_bot_client = await VkBotClient.create(state.amqp)
 
     app = await startup_jinja(app)
     return app
@@ -106,10 +118,17 @@ async def shutdown(app):
     state: State = app.state
     if state.db_pool:
         await db.close(state.db_pool)
-    state.db_pool = None
+        state.db_pool = None
     if state.redis_pool:
         await redis.close(state.redis_pool)
-    state.redis_pool = None
+        state.redis_pool = None
+
+    if state.amqp:
+        await state.amqp.close()
+        state.amqp = None
+    if state.vk_pot_client:
+        await state.vk_pot_client.close()
+        state.vk_pot_client = None
 
 
 async def startup_jinja(app):

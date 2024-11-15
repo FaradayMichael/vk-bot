@@ -15,7 +15,7 @@ class VkBotClient(Client):
     @classmethod
     async def create(
             cls,
-            conn: aio_pika.RobustConnection | aio_pika.Connection,
+            conn: aio_pika.RobustConnection | aio_pika.Connection | aio_pika.abc.AbstractRobustConnection,
             **kwargs
     ) -> 'Client':
         return await super().create(conn, WORKER_QUEUE_NAME, JsonSerializer())
