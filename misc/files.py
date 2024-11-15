@@ -18,6 +18,8 @@ url_alias = str
 filepath_alias = str
 
 
+DOWNLOADS_DIR = 'downloads'
+
 class TempFileModel(BaseModel):
     filepath: filepath_alias
     content_type: str | None = None
@@ -162,3 +164,13 @@ async def download_file(
         filepath=filepath,
         content_type=content_type
     )
+
+
+async def clear_dir(path: str = DOWNLOADS_DIR):
+    for f in os.listdir(path):
+        fp = os.path.join(path, f)
+        if os.path.isfile(fp):
+            await asyncio.to_thread(
+                os.remove,
+                fp
+            )

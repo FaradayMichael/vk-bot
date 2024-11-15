@@ -202,7 +202,7 @@ class VkBotService(BaseService):
             return await self.client_vk.upload.video_wall_and_post(fp)
 
         async def handle_yt(link: str):
-            return await self.client_vk.upload.video_wall_and_post(link=link)
+            return await vk_bl.post_yt_video(self.client_vk, link)
 
         message: VkBotPost = ctx.data
         if message.is_empty():

@@ -1,4 +1,3 @@
-import base64
 import datetime
 
 import pandas as pd
@@ -8,6 +7,7 @@ from plotly import (
 from plotly.graph_objs import Figure
 
 from misc.dataurl import DataURL
+from misc.plotly import figure_to_image_dataurl
 from services.discord.models.activities import (
     ActivitySession
 )
@@ -21,7 +21,7 @@ def create_figure_image_gantt(
     figure = create_figure_gantt(activities, now, tz)
     if not figure:
         return None
-    return _figure_to_image_dataurl(figure)
+    return figure_to_image_dataurl(figure)
 
 
 def create_figure_gantt(
@@ -63,7 +63,3 @@ def create_figure_gantt(
     )
 
 
-def _figure_to_image_dataurl(figure: Figure) -> DataURL:
-    img_bytes = figure.to_image(format='png')
-    base64_data = base64.b64encode(img_bytes)
-    return DataURL.make(mimetype="image/png", data=base64_data, charset=None, base64=True)

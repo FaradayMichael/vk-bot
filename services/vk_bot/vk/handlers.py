@@ -4,7 +4,7 @@ import random
 from pprint import pformat
 from typing import Callable, Awaitable
 
-import yt_dlp
+import aiofiles
 from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
 
@@ -15,9 +15,14 @@ from db import (
 )
 from business_logic.vk import (
     post_in_group_wall,
-    GroupPostMode
+    GroupPostMode,
+    download_video as download_video_vk,
 )
-from misc.files import TempUrlFile
+from misc.files import (
+    TempUrlFile,
+    clear_dir,
+    DOWNLOADS_DIR
+)
 from misc.vk_client import VkClient
 from models.images import (
     ImageTags
@@ -196,25 +201,14 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
         logger.info(f"Drop Voting for message {attachment} [{vote_result}]")
 
         if vote_result:
-            download_dir = 'downloads'
+            download_dir = DOWNLOADS_DIR
             try:
-                video_url = " https://vk.com/" + attachment
-                ydl_opts = {'outtmpl': f'{download_dir}/%(title)s.mp4', 'quiet': True, }
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([video_url])
-                    info = ydl.extract_info(video_url, download=True)
-                    logger.info(f"Downloaded {info['title']}")
-
-                    await service.client_vk.upload.video_wall_and_post(
-                        f"{download_dir}/{info['title']}.{info['video_ext']}"
-                    )
+                fp = await download_video_vk(attachment, download_dir)
+                logger.info(f"Downloaded {fp}")
+                await service.client_vk.upload.video_wall_and_post(fp)
+                os.remove(fp)
             except Exception as e:
                 logger.exception(e)
-            finally:
-                for f in os.listdir(download_dir):
-                    fp = os.path.join(download_dir, f)
-                    if os.path.isfile(fp):
-                        os.remove(fp)
 
         await service.client_vk.polls.edit(poll_id, question=str(vote_result))
 

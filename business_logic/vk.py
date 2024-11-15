@@ -1,8 +1,12 @@
 import datetime
 import logging
+import os
 import random
 from enum import StrEnum
 
+from business_logic.yt import (
+    download_video as download_video_yt,
+)
 from misc.vk_client import VkClient
 from models.vk import (
     Message,
@@ -109,6 +113,26 @@ async def post_in_group_wall(
         case _ as arg:
             logger.error(f"Unsupported post mode: {arg}")
             return None
+
+
+async def post_yt_video(
+        client: VkClient,
+        url: str,
+):
+    fp = await download_video_yt(url)
+    if not fp:
+        logger.error(f'Failed to download {url}')
+        return None
+    await client.upload.video_wall_and_post(fp)
+    os.remove(fp)
+
+
+async def download_video(
+        attachment: str, # video-{owner_id}_{media_id}
+        folder: str,
+) -> str:
+    url = " https://vk.com/" + attachment
+    return await download_video_yt(url, folder)
 
 
 def _randomize_time(
