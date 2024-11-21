@@ -53,10 +53,10 @@ logger = logging.getLogger(__name__)
 # https://discordpy.readthedocs.io/en/stable/api.html?highlight=event#event-reference
 
 async def on_message(service: DiscordService, message: Message):
+    log_message(message)
+
     if message.author.bot:
         return None
-
-    log_message(message)
 
     d_config = await dynamic_config_db.get(service.db_pool)
     d_config_changed: bool = False
