@@ -129,7 +129,8 @@ class DiscordService(BaseService):
             'stop',
             'clown',
             'boris',
-            'clear_history',
+            #'clear_history',
+            'set_avatar',
         ]
         reply_commands = await reply_commands_db.get_all(self.db_pool)
 
@@ -161,11 +162,14 @@ class DiscordService(BaseService):
         async def on_presence_update(before, after):
             return await events.on_presence_update(self, before, after)
 
-        self._bot.event(events.on_ready)
+        async def on_ready():
+            return await events.on_ready(self)
+
         self._bot.event(on_message)
         self._bot.event(on_raw_reaction_add)
         self._bot.event(on_presence_update)
         self._bot.event(on_voice_state_update)
+        self._bot.event(on_ready)
 
     async def stop_bot(self) -> None:
         logger.info("Stopping Discord Bot")

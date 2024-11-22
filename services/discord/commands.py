@@ -1,6 +1,7 @@
 import logging
 from pprint import pformat
 
+import aiohttp
 from discord import (
     VoiceClient,
     Guild,
@@ -88,12 +89,23 @@ async def boris(ctx: Context):
             logger.exception(e)
 
 
-async def clear_history(ctx: Context):
-    service: DiscordService = ctx.command.extras['service']
-    try:
-        await service.gigachat_client.prune_chat_history(ctx.message.author.id)
-    except Exception as e:
-        logger.error(e)
+# async def clear_history(ctx: Context):
+#     service: DiscordService = ctx.command.extras['service']
+#     try:
+#         await service.utils_client.prune_chat_history(ctx.message.author.id)
+#     except Exception as e:
+#         logger.error(e)
+
+
+async def set_avatar(ctx: Context, url: str | None = None):
+    logger.info(f"Setting avatar {url}")
+    if not url:
+        return None
+
+    bot = ctx.bot
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            await bot.user.edit(avatar=await resp.read())
 
 
 async def reply(ctx: Context):

@@ -2,6 +2,7 @@ import datetime
 import logging
 from typing import Sequence
 
+import aiofiles
 from discord import (
     Message,
     VoiceClient,
@@ -180,7 +181,17 @@ async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActi
         await on_binary_vote()
 
 
-async def on_ready():
+async def on_ready(service: DiscordService):
+    bot = service.bot
+
+    try:
+        async with aiofiles.open('static/avatar.jpg', 'rb') as f:
+            await bot.user.edit(
+                avatar=await f.read(),
+            )
+    except FileNotFoundError:
+        pass
+
     logger.info('Ready')
 
 
