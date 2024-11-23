@@ -19,7 +19,6 @@ from business_logic.vk import (
 )
 from misc.files import (
     TempUrlFile,
-    clear_dir,
     DOWNLOADS_DIR
 )
 from misc.vk_client import VkClient
@@ -46,7 +45,7 @@ logger = logging.getLogger(__name__)
 backslash_n = '\n'  # Expression fragments inside f-strings cannot include backslashes
 
 VOTES_MAP = {
-    "Да (yes)": True,
+    "💀": True,
     "Нет (no)": False,
 }
 VOTES_THRESHOLD = 2
