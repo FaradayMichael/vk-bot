@@ -24,7 +24,7 @@ class GigachatClient:
             role: MessagesRole = MessagesRole.SYSTEM,
             init_payload_message: str = "Ты внимательный бот, который помогает пользователю решить его проблемы.",
             temperature: float = 0.7,
-            max_tokens: int = 100,
+            max_tokens: int = 500,
     ):
         self.config = config
         self.db_pool = db_pool
