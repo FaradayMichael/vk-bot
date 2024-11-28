@@ -19,6 +19,7 @@ from db import (
     dynamic_config as dynamic_config_db,
     activity_sessions as activity_sessions_db
 )
+from misc import redis
 from models.base import AttachmentType
 from models.images import ImageTags
 from .consts import (
@@ -304,6 +305,11 @@ async def on_voice_state_update(
 
 
 async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):
+    redis_key = 'cyberbool_cooldown_flag'
+    if await redis.get(service.redis_conn, key=redis_key):
+        logger.info('cyberbool cooldown')
+        return None
+
     async with service.db_pool.acquire() as conn:
         d_conf = await dynamic_config_db.get(conn)
     if any([i in state.playing.started for i in d_conf.get('cyberbool', [])]):
@@ -311,6 +317,8 @@ async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, me
             bot_voice: VoiceClient = await connect_to_voice_channel(service.bot, voice.channel)
             try:
                 await play_file(bot_voice, 'static/boris.mp4')
+
+                await redis.setex(service.redis_conn, redis_key, 3600, '1')
             except Exception as e:
                 logger.error(e)
 
