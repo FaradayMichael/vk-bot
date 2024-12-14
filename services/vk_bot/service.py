@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import os
+import traceback
 from asyncio import AbstractEventLoop
 from typing import (
     Callable,
@@ -158,7 +159,10 @@ class VkBotService(BaseService):
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
             except Exception as e:
-                task.errors.append(e)
+                if "Access denied" in str(e):
+                    continue
+
+                task.errors.append(traceback.format_exc())
                 if task.tries <= 3:
                     await self._queue.put(task)
                 else:

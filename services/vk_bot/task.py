@@ -24,7 +24,7 @@ class Task:
         self.func: Callable = func
         self.args: tuple = args
         self.kwargs: dict = kwargs
-        self.errors: list[Exception] = []
+        self.errors: list[Exception | str] = []
 
         self.created: datetime.datetime = datetime.datetime.now()
         self.started: datetime.datetime | None = None
