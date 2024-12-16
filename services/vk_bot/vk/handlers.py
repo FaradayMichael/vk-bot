@@ -160,7 +160,6 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 )
                 logger.info(f"Created poll {poll_db}")
 
-
         if photo_attachments_from_msg:
             await post_in_group_wall(
                 service.client_vk,
@@ -199,7 +198,7 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
 
     try:
         poll_id_db = int(poll.question)
-    except TypeError as e:
+    except (TypeError, ValueError,) as e:
         logger.error(e)
         return
 
