@@ -12,3 +12,4 @@ class DBTables(StrEnum):
     DISCORD_ACTIVITY_SESSIONS = 'discord_activity_sessions'
     DISCORD_REPLY_COMMANDS = 'discord_reply_commands'
     GIGACHAT_MESSAGES = 'gigachat_messages'
+    POLLS = 'polls'

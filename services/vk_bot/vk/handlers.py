@@ -10,7 +10,8 @@ from vk_api.bot_longpoll import VkBotMessageEvent
 from db import (
     triggers_answers as triggers_answers_db,
     know_ids as know_ids_db,
-    triggers_history as triggers_history_db
+    triggers_history as triggers_history_db,
+    polls as polls_db,
 )
 from business_logic.vk import (
     post_in_group_wall,
@@ -25,6 +26,7 @@ from misc.vk_client import VkClient
 from models.images import (
     ImageTags
 )
+from models.polls import PollCreate, PollServices
 from models.triggers_answers import Answer
 from models.triggers_history import TriggersHistoryNew
 from models.vk import (
@@ -137,8 +139,16 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                             [tmp.filepath]
                         )
             if a.type == 'video' and a.video:
+                poll_db = await polls_db.create(
+                    service.db_pool,
+                    PollCreate(
+                        key=a.video.attachment_str,
+                        service=PollServices.VK
+                    )
+                )
+
                 poll = await service.client_vk.polls.create(
-                    question=a.video.attachment_str,
+                    question=str(poll_db.id),
                     add_answers=list(VOTES_MAP.keys())
                 )
                 await service.client_vk.messages.send(
@@ -148,6 +158,8 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                         attachment=poll.attachment_str
                     )
                 )
+                logger.info(f"Created poll {poll_db}")
+
 
         if photo_attachments_from_msg:
             await post_in_group_wall(
@@ -185,10 +197,11 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
     if not poll:
         logger.error(f"Poll not found: {poll_id}")
 
-    attachment = poll.question
-    for v in VOTES_MAP.values():
-        if attachment == str(v):
-            return
+    try:
+        poll_id_db = int(poll.question)
+    except TypeError as e:
+        logger.error(e)
+        return
 
     vote_result: bool | None = None
     for answer in poll.answers:
@@ -196,19 +209,24 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
             vote_result = VOTES_MAP.get(answer.text)
 
     if vote_result is not None:
-        logger.info(f"Drop Voting for message {attachment} [{vote_result}]")
+        poll_db = await polls_db.disable(service.db_pool, poll_id_db)
+        if not poll_db:
+            logger.info(f"Not found poll id {poll_id_db}")
+            return
+
+        logger.info(f"Drop Voting[{vote_result}] {poll_db}")
 
         if vote_result:
             download_dir = DOWNLOADS_DIR
             try:
-                fp = await download_video_vk(attachment, download_dir)
+                fp = await download_video_vk(poll_db.key, download_dir)
                 logger.info(f"Downloaded {fp}")
                 await service.client_vk.upload.video_wall_and_post(fp)
                 os.remove(fp)
             except Exception as e:
                 logger.exception(e)
 
-        await service.client_vk.polls.edit(poll_id, question=str(vote_result))
+        # await service.client_vk.polls.edit(poll_id, question=str(vote_result))
 
 
 async def _on_command(
