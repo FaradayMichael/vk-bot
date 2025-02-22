@@ -109,3 +109,17 @@ async def delete(
 ) -> StatusSession | None:
     record = await db.delete(conn, TABLE, pk)
     return db.record_to_model(StatusSession, record)
+
+async def get_users_data(
+        conn: asyncpg.Connection | asyncpg.Pool,
+) -> list[tuple[int, str]]:
+    query = f"""
+        SELECT 
+            user_id, user_name
+        FROM {TABLE} 
+        GROUP BY user_id, user_name
+    """
+    records = await conn.fetch(query)
+    return [
+        (r['user_id'], r['user_name']) for r in records
+    ]

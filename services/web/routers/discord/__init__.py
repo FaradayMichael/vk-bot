@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 
 from . import (
     activities,
-    messages
+    messages,
+    statuses
 )
 from ...depends.auth import check_auth
 
@@ -13,6 +14,9 @@ def register_routes(parent: APIRouter, debug: bool = True) -> APIRouter:
     )
     router.include_router(
         activities.router,
+    )
+    router.include_router(
+        statuses.router,
     )
     router.include_router(
         messages.router,
