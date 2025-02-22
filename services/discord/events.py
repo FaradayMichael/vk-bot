@@ -17,7 +17,8 @@ from discord.member import (
 
 from db import (
     dynamic_config as dynamic_config_db,
-    activity_sessions as activity_sessions_db
+    activity_sessions as activity_sessions_db,
+    status_sessions as status_sessions_db,
 )
 from misc import redis
 from models.base import AttachmentType
@@ -45,7 +46,9 @@ from .models.activities import (
     ActivitiesState,
     BaseActivities,
     ActivitySessionCreate,
-    ActivitySessionUpdate
+    ActivitySessionUpdate,
+    StatusSessionUpdate,
+    StatusSessionCreate
 )
 from .service import DiscordService
 
@@ -197,6 +200,50 @@ async def on_ready(service: DiscordService):
 
 
 async def on_presence_update(service: DiscordService, before: Member, after: Member):
+    await _handel_activities_update(service, before, after)
+    await _handle_status_update(service, before, after)
+
+
+async def on_voice_state_update(
+        service: DiscordService,
+        member: Member,
+        before: VoiceState,
+        after: VoiceState
+):
+    async def on_leave_channel():
+        channel = before.channel
+        logger.info(f"Member {member.name} has left the voice channel {channel.name}")
+
+    async def on_join_channel():
+        channel = after.channel
+        logger.info(f"Member {member.name} joined voice channel {channel.name}")
+
+    async def on_move():
+        from_channel = before.channel
+        to_channel = after.channel
+        logger.info(f"Member {member.name} moved from {from_channel.name} to {to_channel.name}")
+
+    async def on_start_stream():
+        channel = after.channel
+        logger.info(f"Member {member.name} started streaming in {channel.name}")
+
+    bot = service.bot
+    await leave_from_empty_voice_channel(bot)
+    if before.channel and after.channel:
+        if before.channel.id == after.channel.id:
+            if not before.self_stream and after.self_stream:
+                await on_start_stream()
+            return None
+        await on_move()
+    else:
+        if before.channel:
+            await on_leave_channel()
+        if after.channel:
+            await on_join_channel()
+    return None
+
+
+async def _handel_activities_update(service: DiscordService, before: Member, after: Member):
     def get_activities_state() -> ActivitiesState:
         def get_core_attr(activity: ActivityTypes) -> str:
             if activity.type not in (ActivityType.playing, ActivityType.custom,):
@@ -265,43 +312,28 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
         await _execute_cyberbool(service, state, after)
 
 
-async def on_voice_state_update(
-        service: DiscordService,
-        member: Member,
-        before: VoiceState,
-        after: VoiceState
-):
-    async def on_leave_channel():
-        channel = before.channel
-        logger.info(f"Member {member.name} has left the voice channel {channel.name}")
+async def _handle_status_update(service: DiscordService, before: Member, after: Member):
+    if before.status == after.status:
+        return None
 
-    async def on_join_channel():
-        channel = after.channel
-        logger.info(f"Member {member.name} joined voice channel {channel.name}")
+    before_status = str(before.status)
+    after_status = str(after.status)
 
-    async def on_move():
-        from_channel = before.channel
-        to_channel = after.channel
-        logger.info(f"Member {member.name} moved from {from_channel.name} to {to_channel.name}")
+    logger.info(f"{before.name} change status from {before_status} to {after_status}")
 
-    async def on_start_stream():
-        channel = after.channel
-        logger.info(f"Member {member.name} started streaming in {channel.name}")
-
-    bot = service.bot
-    await leave_from_empty_voice_channel(bot)
-    if before.channel and after.channel:
-        if before.channel.id == after.channel.id:
-            if not before.self_stream and after.self_stream:
-                await on_start_stream()
-            return None
-        await on_move()
-    else:
-        if before.channel:
-            await on_leave_channel()
-        if after.channel:
-            await on_join_channel()
-    return None
+    session_db = await status_sessions_db.get_last(service.db_pool, after.id, before_status)
+    if session_db:
+        await status_sessions_db.update(
+            service.db_pool, session_db.id, StatusSessionUpdate(finished_at=datetime.datetime.utcnow())
+        )
+    await status_sessions_db.create(
+        service.db_pool,
+        StatusSessionCreate(
+            user_id=after.id,
+            user_name=after.name,
+            status=after_status
+        )
+    )
 
 
 async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):

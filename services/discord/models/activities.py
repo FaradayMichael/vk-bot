@@ -31,7 +31,6 @@ class ActivitiesState(BaseModel):
     watching: BaseActivities = BaseActivities()
 
 
-
 class ActivitySessionCreate(BaseModel):
     started_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
     finished_at: datetime.datetime | None = None
@@ -51,6 +50,30 @@ class ActivitySessionUpdate(BaseModel):
 
 
 class ActivitySession(ActivitySessionCreate):
+    id: int
+    started_at_tz: datetime.datetime | None = None
+    finished_at_tz: datetime.datetime | None = None
+
+
+class StatusSessionCreate(BaseModel):
+    started_at: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    finished_at: datetime.datetime | None = None
+    user_id: int
+    user_name: str
+    status: str
+    extra_data: dict = Field(default_factory=dict)
+
+
+class StatusSessionUpdate(BaseModel):
+    started_at: datetime.datetime | None = None
+    finished_at: datetime.datetime | None = None
+    user_id: int | None = None
+    user_name: str | None = None
+    status: str | None = None
+    extra_data: dict | None = None
+
+
+class StatusSession(StatusSessionCreate):
     id: int
     started_at_tz: datetime.datetime | None = None
     finished_at_tz: datetime.datetime | None = None

@@ -100,6 +100,7 @@ class DiscordService(BaseService):
         from .scheduled import (
             send_on_schedule,
             drop_broken_activities,
+            drop_broken_status_sessions
             # cb_task
         )
         self._tasks.append(
@@ -117,6 +118,14 @@ class DiscordService(BaseService):
                 drop_broken_activities(
                     self,
                     "0 0 * * *"
+                )
+            )
+        )
+        self._tasks.append(
+            self.loop.create_task(
+                drop_broken_status_sessions(
+                    self,
+                    "0 0 * * *",
                 )
             )
         )
