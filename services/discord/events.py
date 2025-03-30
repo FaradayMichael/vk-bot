@@ -113,12 +113,11 @@ async def on_ready(service: DiscordService):
     except FileNotFoundError as e:
         logger.error(e)
 
-
-    d_config = await dynamic_config_db.get(service.db_pool)
-    bot_activity_name = d_config.get('bot_activity_name')
-    if bot_activity_name:
-        await bot.change_presence(activity=CustomActivity(name=bot_activity_name))
-
+    async with service.db_helper.get_session() as session:
+        d_config = await dynamic_config_db.get(session)
+        bot_activity_name = d_config.get('bot_activity_name')
+        if bot_activity_name:
+            await bot.change_presence(activity=CustomActivity(name=bot_activity_name))
 
 
 async def on_presence_update(service: DiscordService, before: Member, after: Member):
