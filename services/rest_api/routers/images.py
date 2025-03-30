@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse
 from business_logic.images import (
     parse_image_tags
 )
-from models.images import (
+from schemas.images import (
     ImageUrl,
     ImageTagsResponse
 )

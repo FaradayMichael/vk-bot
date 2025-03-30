@@ -1,59 +1,12 @@
-from datetime import (
-    datetime
-)
+from sqlalchemy.orm import Mapped, mapped_column
 
-from pydantic import (
-    BaseModel,
-    Field
-)
-
-from models.base import (
-    SuccessResponse,
-    ListData,
-)
+from .base import BaseTable
 
 
-class UserCreate(BaseModel):
-    username: str
-    email: str
+class User(BaseTable):
+    __tablename__ = 'users'
 
-
-class BaseUser(BaseModel):
-    id: int = 0
-    en: bool | None = None
-
-    username: str
-    email: str
-    is_admin: bool = False
-
-    ctime: datetime | None = Field(None)
-    atime: datetime | None = None
-    dtime: datetime | None = None
-
-    @property
-    def is_authenticated(self):
-        return bool(self.id)
-
-
-BaseUser.model_rebuild()
-
-
-class Anonymous(BaseUser):
-    username: str = ''
-    email: str = ''
-
-
-class User(BaseUser):
-    pass
-
-
-class UsersSuccessResponse(SuccessResponse):
-    data: User
-
-
-class UsersListData(ListData):
-    items: list[User] = []
-
-
-class UsersListSuccessResponse(SuccessResponse):
-    data: UsersListData
+    username: Mapped[str] = mapped_column(index=True)
+    email: Mapped[str] = mapped_column(index=True, unique=True)
+    password: Mapped[str]
+    is_admin: Mapped[bool] = mapped_column(default=False)

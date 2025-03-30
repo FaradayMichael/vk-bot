@@ -1,30 +1,31 @@
 import asyncio
 import logging
 
-from asyncpg import Pool
 from redis.asyncio import Redis
 
 from business_logic.images import parse_image_tags
-from misc import (
-    db,
-    redis
-)
-from misc.asynctask.models import (
+
+from utils import redis
+from utils.asynctask import (
     ErrorData
 )
-from misc.asynctask.serializer import (
+from utils.asynctask.serializer import (
     JsonSerializer
 )
-from misc.asynctask.worker import (
+from utils.asynctask.worker import (
     Worker,
     Context
 )
-from misc.config import Config
-from misc.gigachat_client import (
+from utils.config import Config
+from utils.gigachat_client import (
     GigachatClient
 )
-from misc.service import (
+from utils.service import (
     BaseService
+)
+from utils.db import (
+    DBHelper,
+    init_db
 )
 from .config import (
     WORKER_QUEUE_NAME,
@@ -52,7 +53,7 @@ class UtilsService(BaseService):
     ):
         super().__init__(config, controller_name, loop, **kwargs)
 
-        self.db_pool: Pool | None = None
+        self.db_helper: DBHelper | None = None
         self.redis_conn: Redis | None = None
 
         self.gigachat_client: GigachatClient | None = None
@@ -90,9 +91,9 @@ class UtilsService(BaseService):
         return await super().create(config, 'utils_service', loop, **kwargs)  # noqa
 
     async def init(self):
-        self.db_pool = await db.init(self.config.db)
+        self.db_helper = await init_db(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
-        self.gigachat_client = GigachatClient(self.config.gigachat, self.db_pool)
+        self.gigachat_client = GigachatClient(self.config.gigachat, self.db_helper)
 
         self.asynctask_worker = await Worker.create(self.amqp, WORKER_QUEUE_NAME, JsonSerializer())
         self._register_handlers_worker()
@@ -110,9 +111,9 @@ class UtilsService(BaseService):
         )
 
     async def close(self):
-        if self.db_pool:
-            await db.close(self.db_pool)
-            self.db_pool = None
+        if self.db_helper:
+            await self.db_helper.close()
+            self.db_helper = None
         if self.redis_conn:
             await redis.close(self.redis_conn)
             self.redis_conn = None

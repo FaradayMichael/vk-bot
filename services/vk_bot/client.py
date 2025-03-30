@@ -1,8 +1,8 @@
 import aio_pika
 
-from misc.asynctask.client import Client
-from misc.asynctask.serializer import JsonSerializer
-from misc.dataurl import DataURL
+from utils.asynctask.client import Client
+from utils.asynctask.serializer import JsonSerializer
+from utils.dataurl import DataURL
 from .config import (
     WORKER_QUEUE_NAME,
     VK_BOT_POST

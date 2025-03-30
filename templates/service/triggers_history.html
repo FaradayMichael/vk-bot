@@ -3,7 +3,7 @@
 <h1>Triggers history</h1>
 <form class="form-inline" method="post" action="/service/triggers_history">
     <div class="form-group mb-2 mr-2">
-        <input type="text" class="form-control" placeholder="Search" name="search" value="{{q}}">
+        <input type="text" class="form-control" placeholder="Use '|' for pass multiple pattens" name="search" value="{{q}}">
     </div>
     <input type="submit" class="btn btn-primary mb-2" value="Search">
 </form>
@@ -23,7 +23,7 @@
         <td>{{r.ctime.strftime("%Y-%m-%d %H:%M:%S")}}</td>
         <td>{{r.know_id if r.know_id else r.vk_id}}</td>
         <td>{{r.trigger_answer.trigger + ' | ' + r.trigger_answer.answer}}</td>
-        <td>{{r.message_data.short_str}}</td>
+        <td>{{r.message_data_model.short_str}}</td>
     </tr>
     {% endfor %}
     </tbody>

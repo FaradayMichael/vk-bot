@@ -17,17 +17,17 @@ from fastapi.responses import (
 )
 from jinja2 import Environment
 
-from misc.config import Config
-from misc.depends.conf import (
+from utils.config import Config
+from utils.fastapi.depends.conf import (
     get as get_config
 )
-from misc.depends.session import (
+from utils.fastapi.depends.session import (
     get as ges_session
 )
-from misc.depends.jinja import (
+from utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from misc.session import Session
+from utils.fastapi.session import Session
 
 logger = logging.getLogger(__name__)
 

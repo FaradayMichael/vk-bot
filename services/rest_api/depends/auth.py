@@ -1,21 +1,19 @@
 from fastapi import Depends
 
-from misc.depends.session import (
+from utils.fastapi.depends.session import (
     get as get_session
 )
-from misc.handlers import (
+from utils.fastapi.handlers import (
     UnauthenticatedException,
     ForbiddenException
 )
-from misc.session import Session
+from utils.fastapi.session import Session
 
 
 async def check_auth(
         session: Session = Depends(get_session)
 ):
     if not session.user:
-        raise UnauthenticatedException()
-    if not session.user.is_authenticated:
         raise UnauthenticatedException()
 
 

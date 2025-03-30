@@ -1,21 +1,14 @@
-import datetime
-from enum import StrEnum, IntEnum
+from enum import Enum
 
-from pydantic import BaseModel
+from sqlalchemy import JSON, Integer
+from sqlalchemy.orm import Mapped, mapped_column
 
+from .base import BaseTable
 
-class PollServices(IntEnum):
-    VK = 0
+class PollServiceEnum(Enum):
+    Discord = 0
 
-
-class PollCreate(BaseModel):
-    data: dict | None = None
-    key: str
-    service: PollServices | None = None
-
-
-class Poll(PollCreate):
-    id: int
-    ctime: datetime.datetime
-    atime: datetime.datetime | None = None
-    dtime: datetime.datetime | None = None
+class Poll(BaseTable):
+    data: Mapped[dict | None] = mapped_column(JSON)
+    key: Mapped[str]
+    service: Mapped[PollServiceEnum] = mapped_column(Integer,default=PollServiceEnum.Discord)

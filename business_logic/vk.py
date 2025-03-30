@@ -10,12 +10,12 @@ from business_logic.yt import (
     download_video as download_video_yt,
     reformat_short,
 )
-from misc.vk_client import VkClient
-from models.vk import (
+from utils.vk_client import VkClient
+from schemas.vk import (
     Message,
     WallPost
 )
-from models.base import AttachmentType
+from models_old.base import AttachmentType
 from services.vk_bot.models.vk import WallItemFilter
 
 logger = logging.getLogger(__name__)

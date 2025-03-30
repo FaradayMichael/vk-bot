@@ -180,7 +180,7 @@
         </ul>
 
         <ul class="nav navbar-nav navbar-right">
-            {% if user.id != 0 %}
+            {% if user %}
             <li class="nav-item">
                 <a class="nav-link">{{ user.username }}</a>
             </li>

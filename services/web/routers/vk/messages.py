@@ -10,31 +10,47 @@ from fastapi.responses import (
     HTMLResponse,
     RedirectResponse
 )
-from jinja2 import Environment
+from jinja2 import (
+    Environment
+)
 
-from business_logic.vk import file_to_vk_attachment
+from business_logic.vk import (
+    file_to_vk_attachment
+)
 from db import (
     know_ids as know_ids_db
 )
-from misc.db import Connection
-from misc.depends.db import (
-    get as get_conn
+from schemas.vk import (
+    Message
 )
-from misc.depends.vk_client import (
+from schemas.base import (
+    AttachmentType
+)
+from utils.db import (
+    Session as DBSession,
+)
+from utils.fastapi.depends.db import (
+    get as get_db
+)
+from utils.fastapi.depends.vk_client import (
     get as get_vk_client
 )
-from misc.depends.session import (
+from utils.fastapi.depends.session import (
     get as ges_session
 )
-from misc.depends.jinja import (
+from utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from misc.files import TempUploadFile
-from misc.session import Session
-from misc.vk_client import VkClient
+from utils.files import (
+    TempUploadFile
+)
+from utils.fastapi.session import (
+    Session
+)
+from utils.vk_client import (
+    VkClient
+)
 
-from models.vk import Message
-from models.base import AttachmentType
 
 router = APIRouter(prefix='/messages')
 
@@ -44,9 +60,9 @@ async def vk_messages_view(
         request: Request,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
-        conn: Connection = Depends(get_conn)
+        conn: DBSession = Depends(get_db)
 ):
-    know_ids = await know_ids_db.get_all(conn)
+    know_ids = await know_ids_db.get_list(conn)
     return jinja.get_template('vk/messages.html').render(
         user=session.user,
         request=request,

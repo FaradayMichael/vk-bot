@@ -1,58 +1,51 @@
 import datetime
-import logging
 
-from misc import db
-from misc.db_tables import DBTables
-from models.vk_tasks import (
-    VkTask
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models.vk_tasks import VkTask
+from schemas.vk_tasks import (
+    VkTask as VkTaskSchema
 )
-
-TABLE = DBTables.VK_TASKS
-
-logger = logging.getLogger(__name__)
 
 
 async def create(
-        conn: db.Connection,
-        task: VkTask
+        session: AsyncSession,
+        model: VkTaskSchema
 ) -> VkTask:
-    record = await db.create(conn, TABLE, task.model_dump(exclude_none=True))
-    return db.record_to_model(VkTask, record)
+    obj = VkTask(**model.model_dump())
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def get_list(
-        conn: db.Connection,
+        session: AsyncSession,
         from_dt: datetime.datetime | None = None,
         to_dt: datetime.datetime | None = None,
         funcs_in: list[str] | None = None,
         uuid_in: list[str] | None = None
 ) -> list[VkTask]:
     where = []
-    values = []
-    idx = 1
-
-    if from_dt is not None:
-        where.append(f"ctime >= ${idx}")
-        values.append(from_dt)
-        idx += 1
+    if from_dt:
+        where.append(
+            VkTask.ctime <= from_dt
+        )
     if to_dt:
-        where.append(f"ctime <= ${idx}")
-        values.append(to_dt)
-        idx += 1
-    if funcs_in is not None:
-        where.append(f"func = ANY (${idx})")
-        values.append(funcs_in)
-        idx += 1
+        where.append(
+            VkTask.ctime <= to_dt
+        )
+    if funcs_in:
+        where.append(
+            VkTask.func.in_(funcs_in)
+        )
     if uuid_in:
-        where.append(f"uuid = ANY (${idx})")
-        values.append(uuid_in)
-        idx += 1
+        where.append(
+            VkTask.uuid.in_(uuid_in)
+        )
 
-    records = await db.get_by_where(
-        conn=conn,
-        table=TABLE,
-        where=' AND '.join(where),
-        values=values,
-        return_rows=True
+    stmt = select(VkTask).where(
+        and_(*where)
     )
-    return db.record_to_model_list(VkTask, records)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

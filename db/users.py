@@ -1,103 +1,73 @@
-import logging
-from typing import (
-    Optional
+from sqlalchemy import (
+    select,
+    or_,
+    and_,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from misc import db
-from misc.db_tables import DBTables
-from models.auth import RegisterModel
-
-from models.users import (
-    User
-)
-
-logger = logging.getLogger(__name__)
-
-TABLE = DBTables.USERS
+from models import User
+from schemas.auth import RegisterModel
 
 
-async def create_user(
-        conn: db.Connection,
-        user_data: RegisterModel,
-        password: str
-) -> Optional[User]:
-    user_dict = user_data.model_dump()
-    user_dict['password'] = password
-    result = await db.create(
-        conn,
-        TABLE,
-        user_dict
+async def create(
+        session: AsyncSession,
+        model: RegisterModel,
+        hashed_password: str
+) -> User:
+    obj = User(
+        password=hashed_password,
+        **model.model_dump()
     )
-    return db.record_to_model(User, result)
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
-async def get_user(
-        conn: db.Connection,
+async def get(
+        session: AsyncSession,
         pk: int
-) -> Optional[User]:
-    values = [pk]
-    result = await db.get_by_where(
-        conn,
-        TABLE,
-        'id = $1 AND en',
-        values,
-    )
-    return db.record_to_model(User, result)
+) -> User | None:
+    return await session.get(User, pk)
 
 
-async def get_user_by_credentials(
-        conn: db.Connection,
+async def get_by_credentials(
+        session: AsyncSession,
         username_or_email: str,
-        password: str
-) -> Optional[User]:
-    result = await db.get_by_where(
-        conn,
-        TABLE,
-        '(email=$1 OR username=$1) AND password=$2 AND en',
-        values=[username_or_email, password]
+        password: str,
+) -> User | None:
+    stmt = select(User).where(
+        and_(
+            or_(User.username == username_or_email, User.email == username_or_email),
+            User.password == password
+        )
     )
-    return db.record_to_model(User, result)
+    result = await session.scalars(stmt)
+    return result.first()
 
 
 async def email_exists(
-        conn: db.Connection,
-        email: str
+        session: AsyncSession,
+        email: str,
 ) -> bool:
-    user = await db.get_by_where(
-        conn,
-        TABLE,
-        "email=$1 AND en=True",
-        values=[email],
-        fields=['id']
-    )
-    return True if user else False
+    stmt = select(User).where(email == User.email)
+    result = await session.execute(stmt)
+    return result.scalars().first() is not None
 
 
 async def login_exists(
-        conn: db.Connection,
-        login: str,
-        pk: Optional[int] = None
+        session: AsyncSession,
+        username: str,
 ) -> bool:
-    where = ["username=$1 AND en=True"]
-    values = [login]
-    if pk:
-        where.append('id <> $2')
-        values.append(pk)
-    return await db.exists(
-        conn=conn,
-        table=TABLE,
-        where=' AND '.join(where),
-        values=values
-    )
+    stmt = select(User).where(username == User.username)
+    result = await session.execute(stmt)
+    return result.scalars().first() is not None
 
 
 async def set_password(
-        conn: db.Connection,
-        email: str,
-        password: str
-) -> Optional[int]:
-    data = await conn.fetchrow(
-        f"UPDATE {TABLE} SET password=$2  WHERE email=$1 RETURNING id",
-        email, password
-    )
-    return data['id'] if data else None
+        session: AsyncSession,
+        user: User,
+        hashed_password: str
+) -> User:
+    user.password = hashed_password
+    await session.commit()
+    return user

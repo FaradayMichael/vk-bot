@@ -5,7 +5,7 @@ from typing import Callable, Any, Awaitable
 
 import croniter
 
-from models.vk import Message
+from schemas.vk import Message
 from ..service import VkBotService
 
 logger = logging.getLogger(__name__)

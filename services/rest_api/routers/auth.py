@@ -9,29 +9,34 @@ from starlette.responses import JSONResponse
 from db import (
     users as users_db
 )
-from misc.config import Config
-from misc.db import Connection
-from misc.depends.conf import (
-    get as get_conf
-)
-from misc.depends.db import (
-    get as get_db
-)
-from misc.depends.session import (
-    get as get_session
-)
-from misc.handlers import error_404
-from misc.password import get_password_hash
-from misc.session import Session
-from models.auth import (
+from schemas.auth import (
     MeSuccessResponse,
     MeResponse,
     LoginModel,
     PasswordModel
 )
-from models.base import SuccessResponse
-from models.users import Anonymous
+from schemas.base import SuccessResponse
+from schemas.users import (
+    Anonymous,
+    User
+)
 from services.rest_api.depends.auth import check_auth
+from utils.config import Config
+from utils.db import (
+    Session as DBSession,
+)
+from utils.fastapi.depends.conf import (
+    get as get_conf
+)
+from utils.fastapi.depends.db import (
+    get as get_db
+)
+from utils.fastapi.depends.session import (
+    get as get_session
+)
+from utils.fastapi.handlers import error_404
+from utils.password import get_password_hash
+from utils.fastapi.session import Session
 
 router = APIRouter(
     prefix='/auth',
@@ -45,22 +50,23 @@ logger = logging.getLogger(__name__)
 async def about_me(
         session: Session = Depends(get_session)
 ):
+    print(session.user)
     match session.user:
         case None:
             return MeSuccessResponse(data=MeResponse(me=Anonymous(), token=session.key))
         case _:
-            return MeSuccessResponse(data=MeResponse(me=session.user, token=session.key))
+            return MeSuccessResponse(data=MeResponse(me=User(**session.user.__dict__), token=session.key))
 
 
 @router.post('/login', name='login', response_model=MeSuccessResponse)
 async def login_user(
         auth: LoginModel,
-        conn: Connection = Depends(get_db),
+        conn: DBSession = Depends(get_db),
         session: Session = Depends(get_session),
         conf: Config = Depends(get_conf)
 ) -> MeSuccessResponse | JSONResponse:
     hashed_password = await get_password_hash(auth.password, conf.salt)
-    user = await users_db.get_user_by_credentials(
+    user = await users_db.get_by_credentials(
         conn,
         auth.username_or_email,
         hashed_password
@@ -72,7 +78,7 @@ async def login_user(
     session.set_user(user)
     return MeSuccessResponse(
         data=MeResponse(
-            me=session.user,
+            me=User(**session.user.__dict__),
             token=session.key
         )
     )
@@ -84,20 +90,25 @@ async def logout(
 ) -> MeSuccessResponse | JSONResponse:
     session.reset_user()
 
-    return MeSuccessResponse(data=MeResponse(me=session.user, token=session.key))
+    return MeSuccessResponse(
+        data=MeResponse(
+            me=session.user or Anonymous(),
+            token=session.key
+        )
+    )
 
 
 @router.post('/set_password', response_model=SuccessResponse, dependencies=[Depends(check_auth)])
 async def set_new_password(
-        model: PasswordModel,
-        conn: Connection = Depends(get_db),
+        data: PasswordModel,
+        conn: DBSession = Depends(get_db),
         session: Session = Depends(get_session),
         conf: Config = Depends(get_conf)
 ) -> SuccessResponse | JSONResponse:
-    hashed_password = await get_password_hash(model.password, conf.salt)
+    hashed_password = await get_password_hash(data.password, conf.salt)
     await users_db.set_password(
         conn,
-        session.user.email,
+        session.user,
         hashed_password
     )
     return SuccessResponse()

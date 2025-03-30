@@ -13,22 +13,24 @@ from jinja2 import Environment
 from db import (
     users as users_db
 )
-from misc.config import Config
-from misc.db import Connection
-from misc.depends.db import (
-    get as get_conn
+from utils.config import Config
+from utils.fastapi.depends.db import (
+    get as get_db
 )
-from misc.depends.conf import (
+from utils.fastapi.depends.conf import (
     get as get_conf
 )
-from misc.depends.session import (
+from utils.fastapi.depends.session import (
     get as ges_session
 )
-from misc.depends.jinja import (
+from utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from misc.password import get_password_hash
-from misc.session import Session
+from utils.password import get_password_hash
+from utils.fastapi.session import Session
+from utils.db import (
+    Session as DBSession
+)
 
 router = APIRouter(prefix='/auth')
 
@@ -51,10 +53,10 @@ async def login_submit(
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
         conf: Config = Depends(get_conf),
-        conn: Connection = Depends(get_conn)
+        conn: DBSession = Depends(get_db)
 ):
     hashed_password = await get_password_hash(password, conf.salt)
-    user = await users_db.get_user_by_credentials(
+    user = await users_db.get_by_credentials(
         conn,
         username_or_email,
         hashed_password
@@ -66,7 +68,7 @@ async def login_submit(
             message="Wrong credentials",
             request=request
         )
-
+    print(user)
     session.set_user(user)
 
     return RedirectResponse('/', status_code=302)

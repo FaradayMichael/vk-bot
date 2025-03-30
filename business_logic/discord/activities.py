@@ -6,15 +6,14 @@ from plotly import (
 )
 from plotly.graph_objs import Figure
 
-from misc.dataurl import DataURL
-from misc.plotly import figure_to_image_dataurl
-from services.discord.models.activities import (
-    ActivitySession
-)
+from utils.dataurl import DataURL
+from utils.plotly import figure_to_image_dataurl
+from models.discord_activity_sessions import DiscordActivitySession
+from models.discord_status_sessions import DiscordStatusSession
 
 
 def create_figure_image_gantt(
-        activities: list[ActivitySession],
+        activities: list[DiscordActivitySession],
         now: datetime.datetime | None = None,
         tz: datetime.tzinfo | None = None,
 ) -> DataURL | None:
@@ -25,7 +24,7 @@ def create_figure_image_gantt(
 
 
 def create_figure_gantt(
-        activities: list[ActivitySession],
+        activities: list[DiscordActivitySession | DiscordStatusSession],
         now: datetime.datetime | None = None,
         tz: datetime.tzinfo | None = None,
 ) -> Figure | None:
@@ -37,18 +36,20 @@ def create_figure_gantt(
     hours_data: dict = {}
     for activity in activities:
         hours = hours_data.get(activity.activity_name, 0)
-        finished_at = activity.finished_at or now
+        finished_at = activity.finished_at or datetime.datetime.now()
         hours_data[
             activity.activity_name
         ] = round(hours + (finished_at - activity.started_at).total_seconds() / 3600, 1)
 
     df_list = []
     activities.sort(key=lambda x: hours_data[x.activity_name], reverse=True)
+
     for a in activities:
+        print(a.started_at_tz(tz), a.started_at)
         df_list.append({
             'Activity': a.activity_name,
-            'Start': (a.started_at_tz or a.started_at).strftime("%Y-%m-%d %H:%M:%S"),
-            'Finish': (a.finished_at_tz or a.finished_at or now).strftime("%Y-%m-%d %H:%M:%S"),
+            'Start': (a.started_at_tz(tz) or a.started_at).strftime("%Y-%m-%d %H:%M:%S"),
+            'Finish': (a.finished_at_tz(tz) or a.finished_at or now).strftime("%Y-%m-%d %H:%M:%S"),
             'Total hours': f"{a.activity_name} — {hours_data[a.activity_name]}"
         })
     df = pd.DataFrame(df_list)

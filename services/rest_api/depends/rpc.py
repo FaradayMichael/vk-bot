@@ -2,8 +2,8 @@ import logging
 
 import fastapi
 
-from services.rest_api.state import State
 from services.vk_bot.client import VkBotClient
+from utils.fastapi.state import State
 
 logger = logging.getLogger()
 

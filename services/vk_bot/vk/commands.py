@@ -1,4 +1,4 @@
-from models.vk import Message
+from schemas.vk import Message
 from services.vk_bot.models.vk import VkMessage
 from services.vk_bot.service import VkBotService
 from . import callbacks

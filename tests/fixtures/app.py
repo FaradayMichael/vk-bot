@@ -7,13 +7,12 @@ from asgi_lifespan import LifespanManager
 from httpx import AsyncClient
 
 from misc import (
-    db,
-    config,
-    env
+    db
 )
-from misc.ctrl import CONFIG_ENV_KEY
-from misc.dataurl import DataURL
-from misc.db_tables import DBTables
+from utils import config, env
+from utils.ctrl import CONFIG_ENV_KEY
+from utils.dataurl import DataURL
+from utils.db_tables import DBTables
 from services.rest_api.main import factory
 
 

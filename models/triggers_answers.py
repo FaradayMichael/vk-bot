@@ -1,59 +1,10 @@
-import datetime
-import json
+from sqlalchemy.orm import Mapped, mapped_column
 
-from pydantic import BaseModel, model_validator
+from .base import BaseTable
 
-from models.base import (
-    SuccessResponse
-)
+class TriggerAnswer(BaseTable):
+    __tablename__ = 'triggers_answers'
 
-
-class TriggerBase(BaseModel):
-    trigger: str
-
-
-class AnswerBase(BaseModel):
-    answer: str
-    attachment: str | None = None
-
-    def __hash__(self):
-        return hash(f"{self.answer} {self.attachment}")
-
-
-class TriggerAnswerCreateBase(TriggerBase, AnswerBase):
-    trigger: str
-    answer: str
-    attachment: str | None = None
-
-
-class TriggerAnswer(TriggerAnswerCreateBase):
-    id: int
-    en: bool
-    ctime: datetime.datetime
-
-
-class Answer(AnswerBase):
-    id: int
-
-
-class TriggerGroup(TriggerBase):
-    trigger: str
-    answers: list[Answer]
-
-    @model_validator(mode='before')
-    def json_to_list(cls, data: dict): # noqa
-        if data.get('answers', None) is not None:
-            data['answers'] = json.loads(data['answers'])
-        return data
-
-
-class AnswerGroup(AnswerBase):
-    triggers: list[TriggerBase]
-
-
-class TriggerAnswerListResponse(SuccessResponse):
-    data: list[TriggerAnswer]
-
-
-class TriggerGroupListResponse(SuccessResponse):
-    data: list[TriggerGroup]
+    trigger: Mapped[str] = mapped_column(index=True, unique=True)
+    answer: Mapped[str | None] = mapped_column(default=None)
+    attachment: Mapped[str | None] = mapped_column(default=None)

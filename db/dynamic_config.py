@@ -1,24 +1,33 @@
-import asyncpg
+from sqlalchemy import (
+    select,
+    update as update_
+)
 
-from misc import db
-from misc.db_tables import DBTables
-
-TABLE = DBTables.DYNAMIC_CONFIG
-
-
-async def get(conn: asyncpg.Pool | asyncpg.Connection) -> dict:
-    record = await db.get(conn, TABLE, 1)
-    return record.get('data', {}) if record else {}
+from models import DynamicConfig
+from utils import db
 
 
-async def update(conn: asyncpg.Pool | asyncpg.Connection, data: dict, **update_data) -> dict:
+async def get(
+        session: db.Session
+) -> dict:
+    stmt = select(DynamicConfig).limit(1)
+    result = await session.execute(stmt)
+    exist = result.scalars().first()
+    if not exist:
+        exist = DynamicConfig()
+        session.add(exist)
+        await session.commit()
+    return exist.data
+
+
+async def update(
+        session: db.Session,
+        data: dict,
+        **update_data
+) -> dict:
     data.update(update_data)
-    record = await db.update(
-        conn,
-        TABLE,
-        1,
-        {
-            'data': data
-        }
-    )
-    return record.get('data', {}) if record else {}
+    stmt = update_(DynamicConfig).values(**data).returning(DynamicConfig)
+    result = await session.execute(stmt)
+    await session.commit()
+    obj = result.scalars().first()
+    return obj.data or {}

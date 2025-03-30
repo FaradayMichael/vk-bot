@@ -1,28 +1,23 @@
-import asyncpg
+from sqlalchemy import select
 
-from misc import db, db_tables
-from models.send_on_schedule import (
-    SendOnSchedule,
-    SendOnScheduleNew
-)
-
-TABLE = db_tables.DBTables.SEND_ON_SCHEDULE
+from models import SendOnSchedule
+from schemas.send_on_schedule import SendOnScheduleNew
+from utils import db
 
 
 async def create(
-        conn: db.Connection,
+        session: db.Session,
         model: SendOnScheduleNew
 ) -> SendOnSchedule:
-    record = await db.create(conn, TABLE, model.model_dump())
-    return db.record_to_model(SendOnSchedule, record)
+    obj = SendOnSchedule(**model.model_dump())
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def get_list(
-        conn: db.Connection | asyncpg.Pool
+        session: db.Session,
 ) -> list[SendOnSchedule]:
-    records = await db.get_list(
-        conn=conn,
-        table=TABLE,
-        where="en"
-    )
-    return db.record_to_model_list(SendOnSchedule, records)
+    stmt = select(SendOnSchedule).where(SendOnSchedule.en)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

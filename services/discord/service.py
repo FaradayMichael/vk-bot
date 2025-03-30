@@ -1,7 +1,6 @@
 import asyncio
 import logging
 
-from asyncpg import Pool
 from discord import (
     Intents,
     Message,
@@ -13,14 +12,15 @@ from redis.asyncio import Redis
 from db import (
     reply_commands as reply_commands_db
 )
-from misc import (
-    db,
-    redis
-)
-from misc.config import Config
-from misc.service import BaseService
 from services.utils.client import UtilsClient
 from services.vk_bot.client import VkBotClient
+from utils.db import (
+    DBHelper,
+    init_db
+)
+from utils import redis
+from utils.config import Config
+from utils.service import BaseService
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
@@ -37,7 +37,7 @@ class DiscordService(BaseService):
     ):
         super().__init__(config, controller_name, loop, **kwargs)
 
-        self.db_pool: Pool | None = None
+        self.db_helper: DBHelper | None = None
         self.redis_conn: Redis | None = None
 
         self.vk_pot_client: VkBotClient | None = None
@@ -60,7 +60,7 @@ class DiscordService(BaseService):
         return await super().create(config, 'discord_service', loop, **kwargs)  # noqa
 
     async def init(self):
-        self.db_pool = await db.init(self.config.db)
+        self.db_helper = await init_db(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
 
         self.vk_pot_client = await VkBotClient.create(self.amqp)
@@ -141,7 +141,8 @@ class DiscordService(BaseService):
             #'clear_history',
             'set_avatar',
         ]
-        reply_commands = await reply_commands_db.get_all(self.db_pool)
+        async with self.db_helper.get_session() as session:
+            reply_commands = await reply_commands_db.get_list(session)
 
         from . import commands
         commands_map = {
@@ -162,8 +163,8 @@ class DiscordService(BaseService):
         async def on_message(message: Message):
             return await events.on_message(self, message)
 
-        async def on_raw_reaction_add(payload):
-            return await events.on_raw_reaction_add(self, payload)
+        # async def on_raw_reaction_add(payload):
+        #     return await events.on_raw_reaction_add(self, payload)
 
         async def on_voice_state_update(member, before, after):
             return await events.on_voice_state_update(self, member, before, after)
@@ -175,7 +176,7 @@ class DiscordService(BaseService):
             return await events.on_ready(self)
 
         self._bot.event(on_message)
-        self._bot.event(on_raw_reaction_add)
+        # self._bot.event(on_raw_reaction_add)
         self._bot.event(on_presence_update)
         self._bot.event(on_voice_state_update)
         self._bot.event(on_ready)
@@ -200,9 +201,9 @@ class DiscordService(BaseService):
 
         await self.stop_bot()
 
-        if self.db_pool:
-            await db.close(self.db_pool)
-            self.db_pool = None
+        if self.db_helper:
+            await self.db_helper.close()
+            self.db_helper = None
         if self.redis_conn:
             await redis.close(self.redis_conn)
             self.redis_conn = None

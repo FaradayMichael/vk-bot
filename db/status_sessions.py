@@ -1,125 +1,110 @@
 import datetime
 
-import asyncpg
-
-from misc import (
-    db,
-    db_tables
+from sqlalchemy import (
+    and_,
+    or_,
+    select,
+    update as update_,
+    delete as delete_,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models.discord_status_sessions import DiscordStatusSession
 from services.discord.models.activities import (
-    StatusSessionCreate,
     StatusSessionUpdate,
-    StatusSession
+    StatusSessionCreate
 )
-
-TABLE = db_tables.DBTables.DISCORD_STATUS_SESSIONS
 
 
 async def create(
-        conn: asyncpg.Pool | asyncpg.Connection,
+        session: AsyncSession,
         model: StatusSessionCreate
-) -> StatusSession:
-    record = await db.create(conn, TABLE, model.model_dump())
-    return db.record_to_model(StatusSession, record)
-
-
-async def get_all(
-        conn: asyncpg.Connection | asyncpg.Pool,
-        user_id: int | None = None,
-        user_name: str | None = None,
-        from_dt: datetime.datetime | None = None,
-        to_dt: datetime.datetime | None = None,
-        with_tz: datetime.tzinfo | None = None,
-        unfinished: bool | None = None,
-) -> list[StatusSession]:
-    where = []
-    values = []
-    idx = 1
-    if user_id:
-        where.append(f"user_id = ${idx}")
-        values.append(user_id)
-        idx += 1
-    if user_name:
-        where.append(f"user_name = ${idx}")
-        values.append(user_name)
-        idx += 1
-    if from_dt:
-        where.append(f"started_at >= ${idx}")
-        values.append(from_dt)
-        idx += 1
-    if to_dt:
-        where.append(f"(finished_at IS NULL OR finished_at <= ${idx})")
-        values.append(to_dt)
-        idx += 1
-    if unfinished is not None:
-        if unfinished:
-            where.append("finished_at IS NULL")
-        else:
-            where.append("finished_at IS NOT NULL")
-
-    select = ['*']
-    if with_tz:
-        select += [
-            f"timezone('{with_tz.tzname(None)}', started_at) as started_at_tz",
-            f"timezone('{with_tz.tzname(None)}', finished_at) as finished_at_tz"
-        ]
-    query = f"""
-        SELECT 
-            {', '.join(select)}
-        FROM {TABLE} 
-        """
-    if where:
-        query += f" WHERE {' AND '.join(where)}"
-    records = await conn.fetch(query, *values)
-    return db.record_to_model_list(StatusSession, records)
-
-
-async def get_last(
-        conn: asyncpg.Connection | asyncpg.Pool,
-        user_id: int,
-        status: str
-) -> StatusSession | None:
-    query = f"""
-        SELECT * FROM {TABLE} 
-        WHERE user_id = $1 AND status = $2 
-        ORDER BY started_at DESC 
-        LIMIT 1
-    """
-    record = await conn.fetchrow(query, user_id, status)
-    return db.record_to_model(StatusSession, record)
+) -> DiscordStatusSession:
+    obj = DiscordStatusSession(**model.model_dump())
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def update(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: AsyncSession,
         pk: int,
-        model: StatusSessionUpdate
-) -> StatusSession:
-    record = await db.update(
-        conn,
-        TABLE,
-        pk,
-        model.model_dump(exclude_none=True)
-    )
-    return db.record_to_model(StatusSession, record)
+        model: StatusSessionUpdate | None = None,
+        **update_data
+) -> DiscordStatusSession | None:
+    data = {}
+    if model:
+        data = model.model_dump(exclude_none=True)
+    data.update(update_data)
+
+    stmt = update_(DiscordStatusSession).values(**data).where(pk == DiscordStatusSession.id).returning(
+        DiscordStatusSession)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.scalars().first()
+
 
 
 async def delete(
-        conn: asyncpg.Connection | asyncpg.Pool,
-        pk: int
-) -> StatusSession | None:
-    record = await db.delete(conn, TABLE, pk)
-    return db.record_to_model(StatusSession, record)
+        session: AsyncSession,
+        pk: int,
+) -> DiscordStatusSession | None:
+    stmt = delete_(DiscordStatusSession).where(pk == DiscordStatusSession.id).returning(DiscordStatusSession)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.scalars().first()
+
+
+async def get_list(
+        session: AsyncSession,
+        user_id: str | None = None,
+        user_name: str | None = None,
+        from_dt: datetime.datetime | None = None,
+        to_dt: datetime.datetime | None = None,
+        unfinished: bool | None = None,
+) -> list[DiscordStatusSession]:
+    where_stmts = []
+    if user_id:
+        where_stmts.append(DiscordStatusSession.user_id == user_id)
+    if user_name:
+        where_stmts.append(user_name == DiscordStatusSession.user_name)
+    if from_dt:
+        where_stmts.append(DiscordStatusSession.started_at >= from_dt)
+    if to_dt:
+        where_stmts.append(
+            or_(DiscordStatusSession.finished_at is None, DiscordStatusSession.started_at <= to_dt)
+        )
+    if unfinished is not None:
+        if unfinished:
+            where_stmts.append(DiscordStatusSession.finished_at is None)
+        else:
+            where_stmts.extend(DiscordStatusSession.finished_at is not None)
+
+    stmt = select(DiscordStatusSession).where(and_(*where_stmts))
+    result = await session.scalars(stmt)
+    return list(result.all())
+
+
+async def get_first_unfinished(
+        session: AsyncSession,
+        user_id: str | int,
+        status: str
+) -> DiscordStatusSession | None:
+    user_id = str(user_id)
+    stmt = select(DiscordStatusSession).where(
+        and_(user_id == DiscordStatusSession.user_id, status == DiscordStatusSession.status)
+    ).order_by(DiscordStatusSession.started_at.desc()).limit(1)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
 
 async def get_users_data(
-        conn: asyncpg.Connection | asyncpg.Pool,
-) -> list[tuple[int, str]]:
-    query = f"""
-        SELECT 
-            user_id, user_name
-        FROM {TABLE} 
-        GROUP BY user_id, user_name
-    """
-    records = await conn.fetch(query)
-    return [
-        (r['user_id'], r['user_name']) for r in records
-    ]
+        session: AsyncSession,
+) -> list[tuple[str, str]]:
+    stmt = select(
+        DiscordStatusSession.user_id, DiscordStatusSession.user_name
+    ).group_by(
+        DiscordStatusSession.user_id, DiscordStatusSession.user_name
+    )
+    result = await session.execute(stmt)
+    return list(result.tuples())

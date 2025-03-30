@@ -6,13 +6,13 @@ from fastapi import (
 from fastapi.responses import HTMLResponse
 from jinja2 import Environment
 
-from misc.depends.session import (
+from utils.fastapi.depends.session import (
     get as ges_session
 )
-from misc.depends.jinja import (
+from utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from misc.session import Session
+from utils.fastapi.session import Session
 
 router = APIRouter()
 

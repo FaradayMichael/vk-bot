@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+from typing import Any
 
 import croniter
 import discord
@@ -60,12 +61,12 @@ async def drop_broken_activities(
             await asyncio.sleep(sleep)
 
             now = datetime.datetime.now(tz=datetime.timezone.utc)
-            async with service.db_pool.acquire() as conn:
-                activities = await activity_sessions_db.get_all(conn, unfinished=True)
+            async with service.db_helper.get_session() as session:
+                activities = await activity_sessions_db.get_list(session, unfinished=True)
                 for activity in activities:
                     if (now - activity.started_at).total_seconds() / 3600 >= timeout_hours:
                         logger.info(f"Drop activity from db: {activity}")
-                        await activity_sessions_db.delete(conn, activity.id)
+                        await activity_sessions_db.delete(session, activity.id)
 
         except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
             break
@@ -81,18 +82,18 @@ async def drop_broken_status_sessions(
     while not service.stopping:
         try:
             sleep = _get_sleep_seconds(cron)
-            logger.info(f"Schedule drop activities {sleep=}")
+            logger.info(f"Schedule drop discord sessions {sleep=}")
             await asyncio.sleep(sleep)
 
-            async with service.db_pool.acquire() as conn:
-                sessions = await status_sessions_db.get_all(conn, unfinished=True)
+            async with service.db_helper.get_session() as session:
+                sessions = await status_sessions_db.get_list(session, unfinished=True)
 
-                sessions_map = {}
-                for session in sessions:
-                    if sessions_map.get(session.user_id):
-                        sessions_map[session.user_id].append(session)
+                sessions_map: dict[Any, list] = {}
+                for session_db in sessions:
+                    if sessions_map.get(session_db.user_id):
+                        sessions_map[session_db.user_id].append(session_db)
                     else:
-                        sessions_map[session.user_id] = [session]
+                        sessions_map[session_db.user_id] = [session_db]
 
                 to_delete: list[StatusSession] = []
                 for sessions in sessions_map.values():
@@ -101,7 +102,7 @@ async def drop_broken_status_sessions(
                         to_delete += sessions[:-1]
 
                 for i in to_delete:
-                    await status_sessions_db.delete(conn, i.id)
+                    await status_sessions_db.delete(session, i.id)
 
         except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
             break

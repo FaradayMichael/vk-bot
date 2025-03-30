@@ -1,6 +1,6 @@
 from pydantic import BaseModel, AnyUrl, model_validator
 
-from misc.dataurl import DataURL
+from utils.dataurl import DataURL
 
 
 class VkBotPost(BaseModel):

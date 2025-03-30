@@ -3,8 +3,8 @@ import logging
 from vk_api.bot_longpoll import VkBotMessageEvent
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 
-from misc import redis
-from models.vk import Message
+from utils import redis
+from schemas.vk import Message
 from services.vk_bot.service import VkBotService
 
 logger = logging.getLogger(__name__)
