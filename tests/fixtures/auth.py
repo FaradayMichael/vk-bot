@@ -5,7 +5,7 @@ from typing import Tuple
 import pytest
 
 from misc import db
-from models.users import User
+from schemas.users import User
 from tests.fixtures.app import reset_table
 from tests.fixtures.mailhog import MailHOG
 

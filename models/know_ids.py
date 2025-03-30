@@ -1,10 +1,14 @@
-from pydantic import BaseModel
+from sqlalchemy import Text, JSON
+from sqlalchemy.orm import Mapped, mapped_column
+
+from .base import BaseTable
 
 
-class KnowIds(BaseModel):
-    id: int
-    en: bool
-    name: str
-    vk_id: int | None = None
-    note: str | None = None
-    extra_data: dict | None = None
+class KnowId(BaseTable):
+    __tablename__ = 'know_ids'
+
+    name: Mapped[str]
+    note: Mapped[str | None] = mapped_column(Text, default=None)
+    extra_data: Mapped[dict | None] = mapped_column(JSON, default=None)
+    vk_id: Mapped[int | None] = mapped_column(default=None)
+    discord_id: Mapped[int | None] = mapped_column(default=None)

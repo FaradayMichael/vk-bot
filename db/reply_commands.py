@@ -1,26 +1,19 @@
-import asyncpg
+from sqlalchemy import select
 
-from misc import db
-from misc.db_tables import DBTables
-from services.discord.models.reply_commands import (
-    ReplyCommand
-)
-
-TABLE = DBTables.DISCORD_REPLY_COMMANDS
+from models.discord_reply_commands import DiscordReplyCommand
+from utils import db
 
 
 async def get(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: db.Session,
         command: str
-) -> ReplyCommand | None:
-    record = await db.get_by_where(conn, TABLE, where='command = $1', values=[command])
-    return db.record_to_model(ReplyCommand, record)
+) -> DiscordReplyCommand | None:
+    return await session.get(DiscordReplyCommand, command)
 
 
-async def get_all(conn: asyncpg.Connection | asyncpg.Pool) -> list[ReplyCommand]:
-    records = await db.get_list(
-        conn,
-        TABLE,
-        where='en',
-    )
-    return db.record_to_model_list(ReplyCommand, records)
+async def get_list(
+        session: db.Session
+) -> list[DiscordReplyCommand]:
+    stmt = select(DiscordReplyCommand).where(DiscordReplyCommand.en)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

@@ -7,7 +7,7 @@ from typing import Callable, Awaitable
 from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
 
-from db import (
+from db_old import (
     triggers_answers as triggers_answers_db,
     know_ids as know_ids_db,
     triggers_history as triggers_history_db,
@@ -18,18 +18,18 @@ from business_logic.vk import (
     GroupPostMode,
     download_video as download_video_vk,
 )
-from misc.files import (
+from utils.files import (
     TempUrlFile,
     DOWNLOADS_DIR
 )
-from misc.vk_client import VkClient
-from models.images import (
+from utils.vk_client import VkClient
+from schemas.images import (
     ImageTags
 )
-from models.polls import PollCreate, PollServices
-from models.triggers_answers import Answer
-from models.triggers_history import TriggersHistoryNew
-from models.vk import (
+from models_old.polls import PollCreate, PollServices
+from models_old.triggers_answers import Answer
+from models_old.triggers_history import TriggersHistoryNew
+from schemas.vk import (
     Message
 )
 from . import callbacks

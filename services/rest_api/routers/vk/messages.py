@@ -8,32 +8,34 @@ from business_logic import (
     vk as vk_bl
 )
 from db import (
-    tasks as vk_tasks_db
+    vk_tasks as vk_tasks_db
 )
-from misc.db import Connection
-from misc.depends.db import (
-    get as get_db
-)
-from misc.depends.session import (
-    get as get_session
-)
-from misc.depends.vk_client import (
-    get as get_vk_client
-)
-from misc.files import TempBase64File
-from misc.handlers import error_403
-from misc.session import Session
-from misc.vk_client import VkClient
-from models.vk import (
+from schemas.vk import (
     Message,
     SendMessage
 )
-from models.vk.io import (
+from schemas.vk.io import (
     SendMessageInput,
     SendMessageResponse,
     MessagesHistoryResponse
 )
 from services.vk_bot.models.vk import VkMessage
+from utils.db import (
+    Session as DBSession,
+)
+from utils.fastapi.depends.db import (
+    get as get_db
+)
+from utils.fastapi.depends.session import (
+    get as get_session
+)
+from utils.fastapi.depends.vk_client import (
+    get as get_vk_client
+)
+from utils.files import TempBase64File
+from utils.fastapi.handlers import error_403
+from utils.fastapi.session import Session
+from utils.vk_client import VkClient
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +85,7 @@ async def api_get_history(
         peer_id: int | None = None,
         from_dt: datetime.datetime = datetime.datetime.now(),
         to_dt: datetime.datetime = datetime.datetime.now(),
-        conn: Connection = Depends(get_db),
+        conn: DBSession = Depends(get_db),
         session: Session = Depends(get_session)
 ) -> MessagesHistoryResponse | JSONResponse:
     """
@@ -96,7 +98,7 @@ async def api_get_history(
         return await error_403("This peer_id is not allowed")
 
     tasks = await vk_tasks_db.get_list(
-        conn=conn,
+        session=conn,
         from_dt=from_dt,
         to_dt=to_dt,
         funcs_in=['on_new_message']

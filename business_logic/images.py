@@ -16,7 +16,7 @@ from PIL import (
     ImageDraw
 )
 
-from models.images import ImageTags
+from schemas.images import ImageTags
 
 logger = logging.getLogger(__name__)
 

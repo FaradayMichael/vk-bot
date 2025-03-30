@@ -1,25 +1,21 @@
-import datetime
+from datetime import datetime
 
-from pydantic import BaseModel
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, TIMESTAMP, Text, text
 
-
-class VkTaskFilterModel(BaseModel):
-    from_dt: datetime.datetime | None = None
-    to_dt: datetime.datetime | None = None
-    funcs_in: list[str] | None = None
-    uuid_in: list[str] | None = None
+from .base import Base, utc_now_default
 
 
-class VkTask(BaseModel):
-    uuid: str
-    func: str
-    args: dict | None
-    kwargs: dict | None
-    errors: str | None
-    tries: int
+class VkTask(Base):
+    __tablename__ = 'vk_tasks'
 
-    created: datetime.datetime
-    started: datetime.datetime | None = None
-    done: datetime.datetime | None = None
-
-    ctime: datetime.datetime | None = None
+    uuid: Mapped[str] = mapped_column(primary_key=True)
+    func: Mapped[str]
+    args: Mapped[dict | None] = mapped_column(JSON, default=None)
+    kwargs: Mapped[dict | None] = mapped_column(JSON, default=None)
+    errors: Mapped[str | None] = mapped_column(Text, default=None)
+    tries: Mapped[int]
+    created: Mapped[datetime | None] = mapped_column(TIMESTAMP, default=None)
+    started: Mapped[datetime | None] = mapped_column(TIMESTAMP, default=None)
+    done: Mapped[datetime | None] = mapped_column(TIMESTAMP, default=None)
+    ctime: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=utc_now_default)

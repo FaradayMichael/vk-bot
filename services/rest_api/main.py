@@ -10,21 +10,21 @@ from fastapi import (
 )
 from starlette.staticfiles import StaticFiles
 
-from misc import (
-    db,
-    ctrl,
-    redis,
-    smtp,
-    config
-)
-from misc.config import Config
-from misc.depends.session import (
+from services.utils.client import UtilsClient
+from utils.config import Config
+from utils.fastapi.depends.session import (
     get as get_session
 )
-from misc.handlers import register_exception_handler
-from models.base import ErrorResponse, UpdateErrorResponse
-from .state import State
+from schemas.base import (
+    ErrorResponse,
+    UpdateErrorResponse
+)
 from services.vk_bot.client import VkBotClient
+from utils.fastapi.handlers import register_exception_handler
+from utils.fastapi.state import State
+from utils import (
+    ctrl, db, config, smtp, redis
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ async def handler_shutdown(app):
 async def startup(app):
     state: State = app.state
 
-    state.db_pool = await db.init(state.config.db)
+    state.db_helper = await db.init_db(state.config.db)
     state.redis_pool = await redis.init(state.config.redis)
     state.smtp = await smtp.init(state.config.smtp)
 
@@ -109,6 +109,7 @@ async def startup(app):
         timeout=30
     )
     state.vk_bot_client = await VkBotClient.create(state.amqp)
+    state.utils_client = await UtilsClient.create(state.amqp)
 
     app = await startup_jinja(app)
     return app
@@ -116,9 +117,9 @@ async def startup(app):
 
 async def shutdown(app):
     state: State = app.state
-    if state.db_pool:
-        await db.close(state.db_pool)
-        state.db_pool = None
+    if state.db_helper:
+        await state.db_helper.close()
+        state.db_helper = None
     if state.redis_pool:
         await redis.close(state.redis_pool)
         state.redis_pool = None
@@ -129,6 +130,9 @@ async def shutdown(app):
     if state.vk_bot_client:
         await state.vk_bot_client.close()
         state.vk_bot_client = None
+    if state.utils_client:
+        await state.utils_client.close()
+        state.utils_client = None
 
 
 async def startup_jinja(app):

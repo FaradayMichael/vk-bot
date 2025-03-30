@@ -8,24 +8,30 @@ from fastapi.responses import (
     HTMLResponse,
     RedirectResponse
 )
-from jinja2 import Environment
+from jinja2 import (
+    Environment
+)
 
 from db import (
     triggers_answers as triggers_answers_db
 )
-from misc.db import Connection
-from misc.depends.db import (
-    get as get_conn
+from schemas.triggers_answers import (
+    TriggerAnswerCreate
 )
-from misc.depends.session import (
+from utils.fastapi.depends.db import (
+    get as get_db
+)
+from utils.fastapi.depends.session import (
     get as ges_session
 )
-from misc.depends.jinja import (
+from utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from misc.session import Session
-from models.triggers_answers import (
-    TriggerAnswerCreateBase
+from utils.fastapi.session import (
+    Session
+)
+from utils.db import (
+    Session as DBSession
 )
 
 router = APIRouter(prefix='/triggers_answers')
@@ -36,7 +42,7 @@ async def triggers_answers_view(
         request: Request,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
-        conn: Connection = Depends(get_conn)
+        conn: DBSession = Depends(get_db)
 ):
     rows = await triggers_answers_db.get_list(conn)
     return jinja.get_template('service/triggers_answers.html').render(
@@ -51,13 +57,13 @@ async def triggers_answers_create(
         trigger: str = Form(),
         answer: str = Form(),
         attachment: str = Form(default=None),
-        conn: Connection = Depends(get_conn)
+        conn: DBSession = Depends(get_db)
 ):
     attachment = attachment or ''
     if trigger.strip() and answer.strip() + attachment.strip():
         await triggers_answers_db.create(
             conn,
-            TriggerAnswerCreateBase(
+            TriggerAnswerCreate(
                 trigger=trigger,
                 answer=answer,
                 attachment=attachment
@@ -69,7 +75,9 @@ async def triggers_answers_create(
 @router.post('/delete', response_class=RedirectResponse)
 async def triggers_answers_delete(
         pk: int = Form(),
-        conn: Connection = Depends(get_conn)
+        conn: DBSession = Depends(get_db)
 ):
-    await triggers_answers_db.delete(conn, pk)
+    exist = await triggers_answers_db.get(conn, pk)
+    if exist:
+        await triggers_answers_db.delete(conn, exist)
     return RedirectResponse('/service/triggers_answers', status_code=302)

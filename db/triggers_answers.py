@@ -1,95 +1,71 @@
-from misc import db
-from misc.db_tables import DBTables
-from models.triggers_answers import (
-    TriggerAnswerCreateBase,
-    TriggerAnswer,
-    TriggerGroup
-)
+from sqlalchemy import select, func, and_
 
-TABLE = DBTables.TRIGGERS_ANSWERS
+from models.triggers_answers import TriggerAnswer
+from schemas.triggers_answers import TriggerAnswerCreate, TriggerGroup
+
+from utils import db
 
 
 async def create(
-        conn: db.Connection,
-        model: TriggerAnswerCreateBase
+        session: db.Session,
+        model: TriggerAnswerCreate
 ) -> TriggerAnswer:
-    record = await db.create(
-        conn,
-        TABLE,
-        model.model_dump()
+    obj = TriggerAnswer(
+        **model.model_dump()
     )
-    return db.record_to_model(TriggerAnswer, record)
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def delete(
-        conn: db.Connection,
-        pk: int
-) -> TriggerAnswer | None:
-    record = await db.delete(conn, TABLE, pk)
-    return db.record_to_model(TriggerAnswer, record)
+        session: db.Session,
+        obj: TriggerAnswer
+) -> None:
+    await session.delete(obj)
+    await session.commit()
 
 
 async def get(
-        conn: db.Connection,
+        session: db.Session,
         pk: int
 ) -> TriggerAnswer | None:
-    record = await db.get(conn, TABLE, pk)
-    return db.record_to_model(TriggerAnswer, record)
+    return await session.get(TriggerAnswer, pk)
 
 
 async def get_list(
-        conn: db.Connection,
+        session: db.Session,
         trigger_q: str = '',
-        answer_q: str = ''
+        answer_q: str = '',
 ) -> list[TriggerAnswer]:
-    records = await db.get_by_where(
-        conn=conn,
-        table=TABLE,
-        where="en AND lower(trigger) LIKE $1 AND lower(answer) LIKE $2",
-        values=[f"%{trigger_q.strip().lower()}%", f"%{answer_q.strip().lower()}%"],
-        return_rows=True
+    stmt = select(TriggerAnswer).where(
+        TriggerAnswer.trigger.contains(f"{trigger_q.strip().lower()}"),
+        TriggerAnswer.answer.contains(f"{answer_q.strip().lower()}"),
     )
-    return db.record_to_model_list(TriggerAnswer, records)
+    # print(stmt)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
 
 
 async def get_triggers_group(
-        conn: db.Connection,
+        session: db.Session,
         q: str = ''
 ) -> list[TriggerGroup]:
-    query = f"""
-        SELECT 
-            trigger,
-            json_agg(
-                json_build_object(
-                    'answer', answer,
-                    'attachment', attachment
-                )
-            ) as answers
-        FROM {TABLE.value}
-        WHERE en AND lower(trigger) LIKE $1 
-        GROUP BY trigger
-    """
-    records = await conn.fetch(query, f"%{q.strip().lower()}%")
-    return db.record_to_model_list(TriggerGroup, records)
-
-
-async def get_for_like(
-        conn: db.Connection,
-        q: str = ''
-) -> list[TriggerGroup]:
-    query = f"""
-        SELECT 
-            trigger,
-            json_agg(
-                json_build_object(
-                    'id', {TABLE.value}.id,
-                    'answer', {TABLE.value}.answer,
-                    'attachment', attachment
-                )
-            ) as answers
-        FROM {TABLE.value}
-        WHERE en AND $1 LIKE '%' || lower(trigger) || '%'
-        GROUP BY trigger
-    """
-    records = await conn.fetch(query, q.strip().lower())
-    return db.record_to_model_list(TriggerGroup, records)
+    stmt = select(
+        TriggerAnswer.trigger,
+        func.json_agg(
+            func.json_build_object(
+                "id", TriggerAnswer.id,
+                "answer", TriggerAnswer.answer,
+                "attachment", TriggerAnswer.attachment
+            )
+        ).label("answers")
+    ).where(
+        and_(
+            TriggerAnswer.trigger.contains(f"{q}"),
+        )
+    ).group_by(TriggerAnswer.trigger)
+    result = await session.execute(stmt)
+    return [
+        TriggerGroup.model_validate(i) for i in result.mappings().all()
+    ]

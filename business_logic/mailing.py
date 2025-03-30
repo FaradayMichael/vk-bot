@@ -5,8 +5,8 @@ from jinja2 import (
     Environment as JinjaEnvironment
 )
 
-from misc.config import Config
-from misc.smtp import (
+from utils.config import Config
+from utils.smtp import (
     SMTP as SMTPConnection,
     send as send_mail
 )

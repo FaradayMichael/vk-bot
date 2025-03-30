@@ -1,26 +1,19 @@
-import datetime
+from enum import StrEnum
 
-from pydantic import BaseModel
+from sqlalchemy import JSON
+from sqlalchemy.orm import Mapped, mapped_column
 
-from models.base import SuccessResponse
-from models.vk import Message
-
-
-class SendOnScheduleMessage(BaseModel):
-    peer_id: int
-    message: Message
+from schemas.send_on_schedule import SendOnScheduleMessage
+from .base import BaseTable
 
 
-class SendOnScheduleNew(BaseModel):
-    cron: str
-    message_data: SendOnScheduleMessage
+class SendOnScheduleServiceEnum(StrEnum):
+    VK = 'vk'
 
 
-class SendOnSchedule(SendOnScheduleNew):
-    id: int
-    ctime: datetime.datetime
-    etime: datetime.datetime | None = None
+class SendOnSchedule(BaseTable):
+    __tablename__ = 'send_on_schedule'
 
-
-class SendOnScheduleSuccessResponse(SuccessResponse):
-    data: SendOnSchedule
+    cron: Mapped[str]
+    message_data: Mapped[SendOnScheduleMessage] = mapped_column(JSON)
+    service: Mapped[SendOnScheduleServiceEnum | None] = mapped_column(default=None)

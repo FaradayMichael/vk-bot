@@ -3,7 +3,7 @@ import os
 
 import yt_dlp
 
-from misc.files import DOWNLOADS_DIR
+from utils.files import DOWNLOADS_DIR
 
 
 async def download_video(

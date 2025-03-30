@@ -1,124 +1,107 @@
 import datetime
 
-import asyncpg
-
-from misc import db
-from misc.db_tables import DBTables
-from services.discord.models.activities import (
-    ActivitySession,
-    ActivitySessionCreate,
-    ActivitySessionUpdate
+from sqlalchemy import (
+    and_,
+    or_,
+    select,
+    update as update_,
+    delete as delete_,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
-TABLE = DBTables.DISCORD_ACTIVITY_SESSIONS
+from models.discord_activity_sessions import DiscordActivitySession
+from services.discord.models.activities import ActivitySessionCreate, ActivitySessionUpdate
 
 
 async def create(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: AsyncSession,
         model: ActivitySessionCreate
-) -> ActivitySession:
-    record = await db.create(conn, TABLE, model.model_dump())
-    return db.record_to_model(ActivitySession, record)
+) -> DiscordActivitySession:
+    obj = DiscordActivitySession(**model.model_dump())
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def update(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: AsyncSession,
         pk: int,
-        model: ActivitySessionUpdate
-) -> ActivitySession:
-    record = await db.update(
-        conn,
-        TABLE,
-        pk,
-        model.model_dump(exclude_none=True)
-    )
-    return db.record_to_model(ActivitySession, record)
+        model: ActivitySessionUpdate | None = None,
+        **update_data
+) -> DiscordActivitySession | None:
+    data = {}
+    if model:
+        data = model.model_dump(exclude_none=True)
+    data.update(update_data)
 
-
-async def get_unfinished(
-        conn: asyncpg.Connection | asyncpg.Pool,
-        user_id: int,
-        activity_name: str
-) -> ActivitySession | None:
-    query = f"""
-        SELECT * FROM {TABLE} 
-        WHERE user_id = $1 AND activity_name = $2 
-        ORDER BY started_at DESC 
-        LIMIT 1
-    """
-    record = await conn.fetchrow(query, user_id, activity_name)
-    return db.record_to_model(ActivitySession, record)
-
-
-async def get_all(
-        conn: asyncpg.Connection | asyncpg.Pool,
-        user_id: int | None = None,
-        user_name: str | None = None,
-        from_dt: datetime.datetime | None = None,
-        to_dt: datetime.datetime | None = None,
-        with_tz: datetime.tzinfo | None = None,
-        unfinished: bool | None = None,
-) -> list[ActivitySession]:
-    where = []
-    values = []
-    idx = 1
-    if user_id:
-        where.append(f"user_id = ${idx}")
-        values.append(user_id)
-        idx += 1
-    if user_name:
-        where.append(f"user_name = ${idx}")
-        values.append(user_name)
-        idx += 1
-    if from_dt:
-        where.append(f"started_at >= ${idx}")
-        values.append(from_dt)
-        idx += 1
-    if to_dt:
-        where.append(f"(finished_at IS NULL OR finished_at <= ${idx})")
-        values.append(to_dt)
-        idx += 1
-    if unfinished is not None:
-        if unfinished:
-            where.append("finished_at IS NULL")
-        else:
-            where.append("finished_at IS NOT NULL")
-
-    select = ['*']
-    if with_tz:
-        select += [
-            f"timezone('{with_tz.tzname(None)}', started_at) as started_at_tz",
-            f"timezone('{with_tz.tzname(None)}', finished_at) as finished_at_tz"
-        ]
-    query = f"""
-        SELECT 
-            {', '.join(select)}
-        FROM {TABLE} 
-        """
-    if where:
-        query += f" WHERE {' AND '.join(where)}"
-    records = await conn.fetch(query, *values)
-    return db.record_to_model_list(ActivitySession, records)
-
-
-async def get_users_data(
-        conn: asyncpg.Connection | asyncpg.Pool,
-) -> list[tuple[int, str]]:
-    query = f"""
-        SELECT 
-            user_id, user_name
-        FROM {TABLE} 
-        GROUP BY user_id, user_name
-    """
-    records = await conn.fetch(query)
-    return [
-        (r['user_id'], r['user_name']) for r in records
-    ]
+    stmt = update_(DiscordActivitySession).values(**data).where(pk == DiscordActivitySession.id).returning(
+        DiscordActivitySession)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.scalars().first()
 
 
 async def delete(
-        conn: asyncpg.Connection | asyncpg.Pool,
-        pk: int
-) -> ActivitySession | None:
-    record = await db.delete(conn, TABLE, pk)
-    return db.record_to_model(ActivitySession, record)
+        session: AsyncSession,
+        pk: int,
+) -> DiscordActivitySession | None:
+    stmt = delete_(DiscordActivitySession).where(pk == DiscordActivitySession.id).returning(DiscordActivitySession)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.scalars().first()
+
+
+async def get_first_unfinished(
+        session: AsyncSession,
+        user_id: str | int,
+        activity_name: str
+) -> DiscordActivitySession | None:
+    user_id = str(user_id)
+    stmt = select(DiscordActivitySession).where(
+        and_(user_id == DiscordActivitySession.user_id, activity_name == DiscordActivitySession.activity_name)
+    ).order_by(DiscordActivitySession.started_at.desc()).limit(1)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
+
+async def get_list(
+        session: AsyncSession,
+        user_id: str | None = None,
+        user_name: str | None = None,
+        from_dt: datetime.datetime | None = None,
+        to_dt: datetime.datetime | None = None,
+        unfinished: bool | None = None,
+) -> list[DiscordActivitySession]:
+    where_stmts = []
+    if user_id:
+        user_id = str(user_id)
+        where_stmts.append(DiscordActivitySession.user_id == user_id)
+    if user_name:
+        where_stmts.append(DiscordActivitySession.user_name == user_name)
+    if from_dt:
+        where_stmts.append(DiscordActivitySession.started_at >= from_dt)
+    if to_dt:
+        where_stmts.append(
+            or_(DiscordActivitySession.finished_at is None, DiscordActivitySession.started_at <= to_dt)
+        )
+    if unfinished is not None:
+        if unfinished:
+            where_stmts.append(DiscordActivitySession.finished_at is None)
+        else:
+            where_stmts.extend(DiscordActivitySession.finished_at is not None)
+
+    stmt = select(DiscordActivitySession).where(and_(*where_stmts))
+    result = await session.scalars(stmt)
+    return list(result.all())
+
+
+async def get_users_data(
+        session: AsyncSession,
+) -> list[tuple[str, str]]:
+    stmt = select(
+        DiscordActivitySession.user_id, DiscordActivitySession.user_name
+    ).group_by(
+        DiscordActivitySession.user_id, DiscordActivitySession.user_name
+    )
+    result = await session.execute(stmt)
+    return list(result.tuples())

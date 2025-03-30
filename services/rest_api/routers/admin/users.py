@@ -6,45 +6,49 @@ from business_logic.mailing import send_password_email
 from db import (
     users as users_db
 )
-from misc.depends.db import (
-    get as get_conn
-)
-from misc.depends.conf import (
-    get as get_conf
-)
-from misc.depends.smtp import (
-    get as get_smtp
-)
-from misc.depends.jinja import (
-    get as get_jinja
-)
-from misc.config import Config
-from misc.db import (
-    Connection
-)
-from misc.smtp import (
-    SMTP as SMTPConnection
-)
-from misc.handlers import error_400
-from misc.password import generate_password, get_password_hash
-from models.auth import (
+from schemas.auth import (
     RegisterModel
 )
-from models.users import UsersSuccessResponse
+from schemas.users import User
+from utils.fastapi.depends.db import (
+    get as get_db
+)
+from utils.fastapi.depends.conf import (
+    get as get_conf
+)
+from utils.fastapi.depends.smtp import (
+    get as get_smtp
+)
+from utils.fastapi.depends.jinja import (
+    get as get_jinja
+)
+from utils.fastapi.handlers import error_400
+from utils.db import (
+    Session as DBSession,
+)
+from utils.config import Config
+
+from utils.smtp import (
+    SMTP as SMTPConnection
+)
+from utils.password import (
+    generate_password,
+    get_password_hash
+)
 
 router = APIRouter(
     prefix='/users'
 )
 
 
-@router.post('/', response_model=UsersSuccessResponse)
+@router.post('/', response_model=User)
 async def api_create_user(
         data: RegisterModel,
-        conn: Connection = Depends(get_conn),
+        conn: DBSession = Depends(get_db),
         config: Config = Depends(get_conf),
         smtp: SMTPConnection = Depends(get_smtp),
         jinja: JinjaEnvironment = Depends(get_jinja),
-) -> UsersSuccessResponse | JSONResponse:
+) -> User | JSONResponse:
     if await users_db.email_exists(conn, data.email):
         return await error_400("Email already exist")
     if await users_db.login_exists(conn, data.username):
@@ -52,7 +56,7 @@ async def api_create_user(
 
     password = await generate_password()
     hashed_password = await get_password_hash(password, config.salt)
-    user = await users_db.create_user(
+    user = await users_db.create(
         conn,
         data,
         hashed_password
@@ -60,4 +64,4 @@ async def api_create_user(
     if not user:
         return await error_400()
     await send_password_email(smtp, user.email, password, jinja, config)
-    return UsersSuccessResponse(data=user)
+    return user

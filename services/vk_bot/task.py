@@ -3,11 +3,13 @@ import logging
 import uuid
 from typing import Callable, Any
 
-import asyncpg
+from sqlalchemy.ext.asyncio import AsyncSession
 from vk_api.bot_longpoll import VkBotEvent
 
-from db import tasks as tasks_db
-from models.vk_tasks import VkTask
+from db import (
+    tasks as tasks_db
+)
+from schemas.vk_tasks import VkTask
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +71,11 @@ async def execute_task(task: Task) -> Any | None:
 
 
 async def save_task(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: AsyncSession,
         task: Task
 ) -> VkTask:
     task.done = datetime.datetime.now()
     try:
-        return await tasks_db.create(conn, task.model)
+        return await tasks_db.create(session, task.model)
     except Exception as ex:
         logger.info(f'Saving task {task.uuid} failed with {ex=}')

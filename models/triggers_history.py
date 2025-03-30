@@ -1,21 +1,25 @@
-import datetime
+from datetime import datetime
 
-from pydantic import BaseModel
+from sqlalchemy import ForeignKey, TIMESTAMP, func, JSON, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from models.know_ids import KnowIds
-from models.triggers_answers import TriggerAnswer
 from services.vk_bot.models.vk import VkMessage
+from .base import Base, utc_now_default
+from .know_ids import KnowId
+from .triggers_answers import TriggerAnswer
 
 
-class TriggersHistoryNew(BaseModel):
-    trigger_answer_id: int
-    vk_id: int
-    message_data: VkMessage
+class TriggerHistory(Base):
+    __tablename__ = 'triggers_history'
 
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ctime: Mapped[datetime] = mapped_column(TIMESTAMP,server_default=utc_now_default)
+    trigger_answer_id: Mapped[int] = mapped_column(ForeignKey("triggers_answers.id"))
+    vk_id: Mapped[int]
+    message_data: Mapped[dict] = mapped_column(JSON)
 
-class TriggersHistory(TriggersHistoryNew):
-    id: int
-    ctime: datetime.datetime
+    trigger_answer: Mapped[TriggerAnswer] = relationship(TriggerAnswer, lazy="joined")
 
-    know_id: KnowIds | None
-    trigger_answer: TriggerAnswer
+    @property
+    def message_data_model(self) -> VkMessage:
+        return VkMessage(**self.message_data)

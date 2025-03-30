@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from misc.config import Config
+from utils.config import Config
 from services.vk_bot.service import VkBotService
 
 

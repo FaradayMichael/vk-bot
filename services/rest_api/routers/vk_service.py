@@ -7,29 +7,31 @@ from redis.asyncio import Redis
 from db import (
     send_on_schedule as send_on_schedule_db
 )
-from misc.consts import VK_SERVICE_REDIS_QUEUE
-from misc.db import Connection
-from misc.handlers import error_500
-from misc.redis import publish
-from misc.depends.db import (
-    get as get_conn
-)
-from misc.depends.redis import (
-    get as get_redis
-)
-from models.base import SuccessResponse
-from models.send_on_schedule import (
-    SendOnScheduleSuccessResponse,
+from schemas.base import SuccessResponse
+from schemas.send_on_schedule import (
+    SendOnSchedule,
     SendOnScheduleNew
 )
-from models.vk.io import WallPostInput
-from models.vk.redis import (
+from schemas.vk.io import WallPostInput
+from schemas.vk.redis import (
     RedisCommands,
     RedisCommandData,
     RedisMessage
 )
 from services.rest_api.depends.rpc import get_vk
 from services.vk_bot.client import VkBotClient
+from utils.consts import VK_SERVICE_REDIS_QUEUE
+from utils.db import (
+    Session as DBSession,
+)
+from utils.fastapi.handlers import error_500
+from utils.redis import publish
+from utils.fastapi.depends.db import (
+    get as get_db
+)
+from utils.fastapi.depends.redis import (
+    get as get_redis
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,12 +67,12 @@ async def api_send_command(
     return SuccessResponse(data=result)
 
 
-@admin_router.post('/send_on_schedule_tasks', response_model=SendOnScheduleSuccessResponse)
+@admin_router.post('/send_on_schedule_tasks', response_model=SendOnSchedule)
 async def api_create_send_on_schedule_task(
         data: SendOnScheduleNew,
         redis: Redis = Depends(get_redis),
-        conn: Connection = Depends(get_conn)
-) -> SendOnScheduleSuccessResponse | JSONResponse:
+        conn: DBSession = Depends(get_db)
+) -> SendOnSchedule | JSONResponse:
     result = await send_on_schedule_db.create(
         conn,
         data
@@ -89,7 +91,7 @@ async def api_create_send_on_schedule_task(
     if not redis_result:
         logger.error(f"Failed to send redis command: {message}")
 
-    return SendOnScheduleSuccessResponse(data=result)
+    return result
 
 
 @admin_router.post('/rpc/wall_post', response_model=SuccessResponse)

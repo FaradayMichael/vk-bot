@@ -9,7 +9,6 @@ from typing import (
     Coroutine,
 )
 
-from asyncpg import Pool
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
@@ -24,30 +23,29 @@ from db import (
     tasks as tasks_db,
     send_on_schedule as send_on_schedule_db
 )
-from misc import (
-    db,
-    redis
+from schemas.base import AttachmentType
+from schemas.vk import (
+    Message
 )
-from misc.asynctask.serializer import JsonSerializer
-from misc.asynctask.worker import Worker, Context
-from misc.config import Config
-from misc.consts import VK_SERVICE_REDIS_QUEUE
-from misc.files import (
+from schemas.vk.redis import (
+    RedisMessage,
+    RedisCommands
+)
+from utils import redis
+from utils.asynctask.serializer import JsonSerializer
+from utils.asynctask.worker import Worker, Context
+from utils.config import Config
+from utils.consts import VK_SERVICE_REDIS_QUEUE
+from utils.db import DBHelper, init_db
+from utils.files import (
     TempBase64File,
     TempUrlFile,
     TempSftpFile
 )
-from misc.service import BaseService
-from misc.sftp import SftpClient
-from misc.vk_client import VkClient
-from models.base import AttachmentType
-from models.vk import (
-    Message
-)
-from models.vk.redis import (
-    RedisMessage,
-    RedisCommands
-)
+from utils.service import BaseService
+from utils.sftp import SftpClient
+from utils.vk_client import VkClient
+
 from .config import (
     WORKER_QUEUE_NAME,
     VK_BOT_POST
@@ -72,7 +70,7 @@ class VkBotService(BaseService):
     def __init__(self, config: Config, controller_name: str, loop: AbstractEventLoop, **kwargs):
         super().__init__(config, controller_name, loop, **kwargs)
 
-        self.db_pool: Pool | None = None
+        self.db_helper: DBHelper | None = None
         self.redis_conn: Redis | None = None
 
         self._pubsub: PubSub | None = None
@@ -91,7 +89,6 @@ class VkBotService(BaseService):
         self.utils_client: UtilsClient | None = None
         self.asynctask_worker: Worker | None = None
 
-
     @classmethod
     async def create(
             cls,
@@ -102,7 +99,7 @@ class VkBotService(BaseService):
         return await super().create(config, 'vk_bot_service', loop, **kwargs)  # noqa
 
     async def init(self):
-        self.db_pool = await db.init(self.config.db)
+        self.db_helper = await init_db(self.config.db)
         self.redis_conn = await redis.init(self.config.redis)
 
         self.utils_client = await UtilsClient.create(self.amqp)
@@ -155,7 +152,7 @@ class VkBotService(BaseService):
 
             try:
                 await execute_task(task)
-                await save_task(self.db_pool, task)
+                await self._save_task(task)
             except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):
                 break
             except Exception as e:
@@ -166,7 +163,7 @@ class VkBotService(BaseService):
                 if task.tries <= 3:
                     await self._queue.put(task)
                 else:
-                    await save_task(self.db_pool, task)
+                    await self._save_task(task)
                 raise
 
     async def execute_in_worker(
@@ -320,6 +317,10 @@ class VkBotService(BaseService):
             await self.client_vk.close()
             self.client_vk = None
 
+    async def _save_task(self, task: Task):
+        async with self.db_helper.get_session() as session:
+            await save_task(session, task)
+
     async def _init_background_tasks(self):
         self.start_background_task(
             coro=self._main_task()
@@ -331,22 +332,23 @@ class VkBotService(BaseService):
 
         logger.info("Starting send on schedule tasks")
 
-        schedule_tasks = await send_on_schedule_db.get_list(self.db_pool)
-        for s_t in schedule_tasks:
-            self.start_schedule_task(
-                coro=send_on_schedule(
-                    self,
-                    cron=s_t.cron,
-                    peer_id=s_t.message_data.peer_id,
-                    message=s_t.message_data.message
+        async with self.db_helper.get_session() as session:
+            schedule_tasks = await send_on_schedule_db.get_list(session)
+            for s_t in schedule_tasks:
+                self.start_schedule_task(
+                    coro=send_on_schedule(
+                        self,
+                        cron=s_t.cron,
+                        peer_id=s_t.message_data.peer_id,
+                        message=s_t.message_data.message
+                    )
                 )
-            )
 
         async def _get_daily_statistic_message_data(peer_id: int) -> tuple[int, Message]:
             now = datetime.datetime.now()
-            async with self.db_pool.acquire() as conn:
+            async with self.db_helper.get_session() as db_session:
                 tasks = await tasks_db.get_list(
-                    conn,
+                    db_session,
                     from_dt=now - datetime.timedelta(days=1),
                     to_dt=now
                 )
@@ -462,9 +464,9 @@ class VkBotService(BaseService):
             await self._pubsub.aclose()
             self._pubsub = None
 
-        if self.db_pool:
-            await self.db_pool.close()
-            self.db_pool = None
+        if self.db_helper:
+            await self.db_helper.close()
+            self.db_helper = None
 
         if self.redis_conn:
             await redis.close(self.redis_conn)

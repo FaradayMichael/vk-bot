@@ -1,6 +1,6 @@
 import uvicorn
 
-from misc import log
+from utils import log
 from services.web.main import factory
 
 slog = log

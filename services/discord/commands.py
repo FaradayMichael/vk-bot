@@ -12,13 +12,13 @@ from discord.ext.commands import Context
 from db import (
     reply_commands as reply_commands_db
 )
+from .service import (
+    DiscordService
+)
 from .utils.voice_channels import (
     connect_to_voice_channel,
     play_yt_url,
     play_file
-)
-from .service import (
-    DiscordService
 )
 
 logger = logging.getLogger(__name__)
@@ -110,10 +110,11 @@ async def set_avatar(ctx: Context, url: str | None = None):
 
 async def reply(ctx: Context):
     service: DiscordService = ctx.command.extras['service']
-    command_db = await reply_commands_db.get(
-        service.db_pool,
-        ctx.command.name
-    )
+    async with service.db_helper.get_session() as session:
+        command_db = await reply_commands_db.get(
+            session,
+            ctx.command.name
+        )
     if command_db:
         if command_db.reply:
             await ctx.reply(command_db.text)

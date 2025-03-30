@@ -1,44 +1,38 @@
-import asyncpg
 from gigachat.models import Messages
+from sqlalchemy import select, delete
 
-from misc import db, db_tables
-
-TABLE = db_tables.DBTables.GIGACHAT_MESSAGES
+from models import GigachatMessage
+from utils import db
 
 
 async def create(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: db.Session,
         user_id: str,
         model: Messages
-) -> Messages:
+) -> GigachatMessage:
     data = model.dict()
     data['user_id'] = user_id
-    record = await db.create(conn, TABLE, data)
-    return Messages.parse_obj(record)
+    obj = GigachatMessage(**data)
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def get_by_user(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: db.Session,
         user_id: str,
 ) -> list[Messages]:
-    records = await db.get_list(
-        conn=conn,
-        table=TABLE,
-        where=f"user_id = $1",
-        values=[user_id]
-    )
-    return [Messages.parse_obj(r) for r in records]
-
+    stmt = select(GigachatMessage).where(user_id == GigachatMessage.user_id)
+    result = await session.execute(stmt)
+    return [
+        Messages.parse_obj(i.__dict__)
+        for i in result.scalars().all()
+    ]
 
 async def delete_by_user(
-        conn: asyncpg.Connection | asyncpg.Pool,
+        session: db.Session,
         user_id: str,
-) -> list[Messages]:
-    records = await db.delete_by_where(
-        conn=conn,
-        table=TABLE,
-        where=f"user_id = $1",
-        values=[user_id],
-        return_rows=True
-    )
-    return [Messages.parse_obj(r) for r in records]
+) -> None:
+    stmt = delete(GigachatMessage).where(user_id == GigachatMessage.user_id)
+    await session.execute(stmt)
+    await session.commit()

@@ -5,9 +5,9 @@ import os
 
 import croniter
 
-from misc.config import Config
-from misc.vk_client import VkClient
-from models.vk import Message
+from utils.config import Config
+from utils.vk_client import VkClient
+from schemas.vk import Message
 
 logger = logging.getLogger(__name__)
 

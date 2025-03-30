@@ -10,7 +10,9 @@ from fastapi import (
 from fastapi.responses import (
     HTMLResponse
 )
-from jinja2 import Environment
+from jinja2 import (
+    Environment
+)
 
 from business_logic.discord import (
     activities as discord_activities_bl,
@@ -18,17 +20,21 @@ from business_logic.discord import (
 from db import (
     activity_sessions as activity_sessions_db
 )
-from misc.db import Connection
-from misc.depends.db import (
-    get as get_conn
+from utils.fastapi.depends.db import (
+    get as get_db
 )
-from misc.depends.session import (
+from utils.fastapi.depends.session import (
     get as ges_session
 )
-from misc.depends.jinja import (
+from utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from misc.session import Session
+from utils.fastapi.session import (
+    Session
+)
+from utils import (
+    db
+)
 
 
 logger = logging.getLogger(__name__)
@@ -37,15 +43,15 @@ router = APIRouter(prefix='/activities')
 
 
 @router.get('/', response_class=HTMLResponse)
-async def vk_messages_view(
+async def activity_sessions_view(
         request: Request,
-        user_id: int = None,
+        user_id: str = None,
         from_date: datetime.date = None,
         to_date: datetime.date = None,
         # group: bool = False,
         jinja: Environment = Depends(get_jinja),
         session: Session = Depends(ges_session),
-        conn: Connection = Depends(get_conn),
+        conn: db.Session = Depends(get_db),
 ):
     tz = pytz.timezone('Europe/Moscow')
     now = datetime.datetime.now(tz=tz)
@@ -53,12 +59,11 @@ async def vk_messages_view(
 
     image_base64_data = None
     if user_id:
-        activities = await activity_sessions_db.get_all(
-            conn=conn,
+        activities = await activity_sessions_db.get_list(
+            session=conn,
             user_id=user_id,
             from_dt=from_date,
             to_dt=to_date,
-            with_tz=tz
         )
         if activities:
             image_dataurl_gantt = discord_activities_bl.create_figure_image_gantt(activities, now, tz)
