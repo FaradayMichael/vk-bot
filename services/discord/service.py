@@ -86,6 +86,9 @@ class DiscordService(BaseService):
             await asyncio.sleep(30)
         logger.info(f"Started Discord Bot {self._bot.user.id}")
 
+        from .events import on_ready
+        await on_ready(self)
+
     async def run_bot(self, bot: Bot) -> None:
         logger.info(f"Run Discord Bot")
         try:
@@ -171,8 +174,8 @@ class DiscordService(BaseService):
         async def on_presence_update(before, after):
             return await events.on_presence_update(self, before, after)
 
-        async def on_ready():
-            return await events.on_ready(self)
+        async def on_ready(*args, **kwargs):
+            return await events.on_ready_event(*args, **kwargs)
 
         self._bot.event(on_message)
         self._bot.event(on_raw_reaction_add)

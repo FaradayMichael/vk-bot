@@ -9,7 +9,10 @@ from discord import (
     ActivityType,
     RawReactionActionEvent,
 )
-from discord.activity import ActivityTypes
+from discord.activity import (
+    ActivityTypes,
+    CustomActivity
+)
 from discord.member import (
     Member,
     VoiceState
@@ -185,18 +188,30 @@ async def on_raw_reaction_add(service: DiscordService, reaction: RawReactionActi
         await on_binary_vote()
 
 
+async def on_ready_event(*args, **kwargs):
+    logger.info(f"{args=} {kwargs=}")
+    logger.info('Ready')
+
+
 async def on_ready(service: DiscordService):
     bot = service.bot
 
     try:
-        async with aiofiles.open('static/avatar.jpg', 'rb') as f:
+        avatar_path = "static/avatar.jpg"
+        async with aiofiles.open(avatar_path, 'rb') as f:
             await bot.user.edit(
                 avatar=await f.read(),
             )
-    except FileNotFoundError:
-        pass
+        logger.info(f"Loaded avatar {avatar_path}")
+    except FileNotFoundError as e:
+        logger.error(e)
 
-    logger.info('Ready')
+
+    d_config = await dynamic_config_db.get(service.db_pool)
+    bot_activity_name = d_config.get('bot_activity_name')
+    if bot_activity_name:
+        await bot.change_presence(activity=CustomActivity(name=bot_activity_name))
+
 
 
 async def on_presence_update(service: DiscordService, before: Member, after: Member):
