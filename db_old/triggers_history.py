@@ -6,7 +6,7 @@ from db_old import (
 )
 from misc import db
 from utils.db_tables import DBTables
-from models_old.triggers_history import (
+from schemas.triggers_history import (
     TriggersHistoryNew,
     TriggersHistory
 )

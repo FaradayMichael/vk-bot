@@ -7,7 +7,7 @@ from typing import Callable, Awaitable
 from pydantic import ValidationError
 from vk_api.bot_longpoll import VkBotMessageEvent
 
-from db_old import (
+from db import (
     triggers_answers as triggers_answers_db,
     know_ids as know_ids_db,
     triggers_history as triggers_history_db,
@@ -26,9 +26,9 @@ from utils.vk_client import VkClient
 from schemas.images import (
     ImageTags
 )
-from models_old.polls import PollCreate, PollServices
-from models_old.triggers_answers import Answer
-from models_old.triggers_history import TriggersHistoryNew
+from schemas.polls import PollCreate, PollServices
+from schemas.triggers_answers import Answer
+from schemas.triggers_history import TriggersHistoryNew
 from schemas.vk import (
     Message
 )
@@ -74,16 +74,16 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         await _send_tags(service.client_vk, tags_models, peer_id)
 
     # Find triggers, send answer
-    async with service.db_pool.acquire() as conn:
+    async with service.db_helper.get_session() as session:
         find_triggers = await triggers_answers_db.get_for_like(
-            conn,
+            session,
             f"{message_model.text}{''.join([t.tags_text + str(t.description) for t in tags_models])}"
         )
         logger.info(f"{find_triggers=}")
         answers = list(set(
             sum([i.answers for i in find_triggers], [])
         ))
-        know_id = await know_ids_db.get_by_vk_id(conn, from_id)
+        know_id = await know_ids_db.get_by_vk_id(session, from_id)
         know_id_place = f"({know_id.name})" if know_id else ''
         if answers:
             answer: Answer = random.choice(answers)
@@ -95,7 +95,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 )
             )
             await triggers_history_db.create(
-                conn,
+                session,
                 TriggersHistoryNew(
                     trigger_answer_id=answer.id,
                     vk_id=from_id,
@@ -103,71 +103,71 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 )
             )
 
-    # answer gpt
-    if (
-            str(config.vk.main_group_id) in message_model.text
-            or config.vk.main_group_alias in message_model.text
-            or (message_model.reply_message and message_model.reply_message.from_id == -config.vk.main_group_id)
-            or not from_chat
-    ):
-        payload_text = ''
-        if message_model.reply_message and message_model.reply_message.text:
-            payload_text = message_model.reply_message.text + '\n'
-        payload_text += message_model.text
+        # answer gpt
+        if (
+                str(config.vk.main_group_id) in message_model.text
+                or config.vk.main_group_alias in message_model.text
+                or (message_model.reply_message and message_model.reply_message.from_id == -config.vk.main_group_id)
+                or not from_chat
+        ):
+            payload_text = ''
+            if message_model.reply_message and message_model.reply_message.text:
+                payload_text = message_model.reply_message.text + '\n'
+            payload_text += message_model.text
 
-        response_message = await service.utils_client.gpt_chat(
-            from_id,
-            payload_text,
-        )
-        if response_message:
-            await service.client_vk.messages.send(
-                peer_id=peer_id,
-                message=Message(
-                    text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {response_message.message}",
-                )
+            response_message = await service.utils_client.gpt_chat(
+                from_id,
+                payload_text,
             )
-
-    # Posting on group wall
-    if from_chat and peer_id == 2000000001:
-        photo_attachments_from_msg = []
-        for a in message_model.attachments:
-            if a.type == 'photo' and a.photo:
-                url = a.photo.sizes[0].url
-                async with TempUrlFile(url) as tmp:
-                    if tmp:
-                        photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
-                            [tmp.filepath]
-                        )
-            if a.type == 'video' and a.video:
-                poll_db = await polls_db.create(
-                    service.db_pool,
-                    PollCreate(
-                        key=a.video.attachment_str,
-                        service=PollServices.VK
-                    )
-                )
-
-                poll = await service.client_vk.polls.create(
-                    question=str(poll_db.id),
-                    add_answers=list(VOTES_MAP.keys())
-                )
+            if response_message:
                 await service.client_vk.messages.send(
                     peer_id=peer_id,
                     message=Message(
-                        text="mems?",
-                        attachment=poll.attachment_str
+                        text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {response_message.message}",
                     )
                 )
-                logger.info(f"Created poll {poll_db}")
 
-        if photo_attachments_from_msg:
-            await post_in_group_wall(
-                service.client_vk,
-                message_text='',
-                attachments=photo_attachments_from_msg,
-                mode=GroupPostMode.COMPILE_9,
-                notify=True
-            )
+        # Posting on group wall
+        if from_chat and peer_id == 2000000001:
+            photo_attachments_from_msg = []
+            for a in message_model.attachments:
+                if a.type == 'photo' and a.photo:
+                    url = a.photo.sizes[0].url
+                    async with TempUrlFile(url) as tmp:
+                        if tmp:
+                            photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
+                                [tmp.filepath]
+                            )
+                if a.type == 'video' and a.video:
+                    poll_db = await polls_db.create(
+                        session,
+                        PollCreate(
+                            key=a.video.attachment_str,
+                            service=PollServices.VK
+                        )
+                    )
+
+                    poll = await service.client_vk.polls.create(
+                        question=str(poll_db.id),
+                        add_answers=list(VOTES_MAP.keys())
+                    )
+                    await service.client_vk.messages.send(
+                        peer_id=peer_id,
+                        message=Message(
+                            text="mems?",
+                            attachment=poll.attachment_str
+                        )
+                    )
+                    logger.info(f"Created poll {poll_db}")
+
+            if photo_attachments_from_msg:
+                await post_in_group_wall(
+                    service.client_vk,
+                    message_text='',
+                    attachments=photo_attachments_from_msg,
+                    mode=GroupPostMode.COMPILE_9,
+                    notify=True
+                )
 
 
 async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
@@ -208,7 +208,8 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
             vote_result = VOTES_MAP.get(answer.text)
 
     if vote_result is not None:
-        poll_db = await polls_db.disable(service.db_pool, poll_id_db)
+        async with service.db_helper.get_session() as session:
+            poll_db = await polls_db.disable(session, poll_id_db)
         if not poll_db:
             logger.info(f"Not found poll id {poll_id_db}")
             return

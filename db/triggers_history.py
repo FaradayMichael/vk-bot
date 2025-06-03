@@ -1,9 +1,19 @@
 from sqlalchemy import select, or_, cast, String, and_
-from sqlalchemy.orm import joinedload
 
-from models.triggers_history import TriggerHistory, TriggerAnswer, KnowId
+from models.triggers_history import TriggerHistory, TriggerAnswer
+from schemas.triggers_history import TriggersHistoryNew
 
 from utils import db
+
+
+async def create(
+        session: db.Session,
+        model: TriggersHistoryNew
+) -> TriggerHistory:
+    obj = TriggerHistory(**model.model_dump())
+    session.add(obj)
+    await session.commit()
+    return obj
 
 
 async def get_list(

@@ -39,8 +39,8 @@ async def get_list(
         answer_q: str = '',
 ) -> list[TriggerAnswer]:
     stmt = select(TriggerAnswer).where(
-        TriggerAnswer.trigger.contains(f"{trigger_q.strip().lower()}"),
-        TriggerAnswer.answer.contains(f"{answer_q.strip().lower()}"),
+        TriggerAnswer.trigger.icontains(f"{trigger_q.strip().lower()}"),
+        TriggerAnswer.answer.icontains(f"{answer_q.strip().lower()}"),
     )
     # print(stmt)
     result = await session.execute(stmt)
@@ -62,7 +62,33 @@ async def get_triggers_group(
         ).label("answers")
     ).where(
         and_(
-            TriggerAnswer.trigger.contains(f"{q}"),
+            TriggerAnswer.en,
+            TriggerAnswer.trigger.icontains(f"{q.strip().lower()}"),
+        )
+    ).group_by(TriggerAnswer.trigger)
+    result = await session.execute(stmt)
+    return [
+        TriggerGroup.model_validate(i) for i in result.mappings().all()
+    ]
+
+
+async def get_for_like(
+        session: db.Session,
+        q: str = ''
+) -> list[TriggerGroup]:
+    stmt = select(
+        TriggerAnswer.trigger,
+        func.json_agg(
+            func.json_build_object(
+                "id", TriggerAnswer.id,
+                "answer", TriggerAnswer.answer,
+                "attachment", TriggerAnswer.attachment
+            )
+        ).label("answers")
+    ).where(
+        and_(
+            TriggerAnswer.en,
+            TriggerAnswer.trigger.icontains(f"{q.strip().lower()}"),
         )
     ).group_by(TriggerAnswer.trigger)
     result = await session.execute(stmt)

@@ -1,6 +1,6 @@
 from misc import db
 from utils import db_tables
-from models_old.polls import (
+from schemas.polls import (
     PollCreate,
     Poll,
     PollServices
