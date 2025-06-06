@@ -261,8 +261,8 @@ async def on_voice_state_update(
 async def _handel_activities_update(service: DiscordService, before: Member, after: Member):
     def get_activities_state() -> ActivitiesState:
         def get_core_attr(activity: ActivityTypes) -> str:
-            if activity.type not in (ActivityType.playing, ActivityType.custom,):
-                logger.info(repr(activity))
+            if activity.type not in (ActivityType.playing, ActivityType.custom, ActivityType.listening):
+                logger.info(f"Unknown activity: {repr(activity)}")
             return activity.name
 
         state_dict = {}
@@ -325,6 +325,8 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
         log_activities(state.playing)
         await handle_activities_on_db(state.playing)
         await _execute_cyberbool(service, state, after)
+    if state.listening.has_changes:
+        log_activities(state.listening)
 
 
 async def _handle_status_update(service: DiscordService, before: Member, after: Member):
