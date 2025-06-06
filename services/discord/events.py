@@ -11,7 +11,7 @@ from discord import (
 )
 from discord.activity import (
     ActivityTypes,
-    CustomActivity
+    CustomActivity, Spotify
 )
 from discord.member import (
     Member,
@@ -261,7 +261,10 @@ async def on_voice_state_update(
 async def _handel_activities_update(service: DiscordService, before: Member, after: Member):
     def get_activities_state() -> ActivitiesState:
         def get_core_attr(activity: ActivityTypes) -> str:
-            if activity.type not in (ActivityType.playing, ActivityType.custom, ActivityType.listening):
+            if activity.type == ActivityType.listening:
+                activity: Spotify
+                return f"{activity.artist} - {activity.title}"
+            if activity.type not in (ActivityType.playing, ActivityType.custom,):
                 logger.info(f"Unknown activity: {repr(activity)}")
             return activity.name
 
