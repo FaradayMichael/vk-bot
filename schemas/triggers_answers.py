@@ -26,6 +26,12 @@ class TriggerAnswerCreate(TriggerBase, AnswerBase):
     attachment: str | None = None
 
 
+class TriggerAnswer(TriggerAnswerCreate):
+    id: int
+    en: bool
+    ctime: datetime.datetime
+
+
 class Answer(AnswerBase):
     id: int
 

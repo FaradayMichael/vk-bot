@@ -15,7 +15,7 @@ from schemas.vk import (
     Message,
     WallPost
 )
-from models_old.base import AttachmentType
+from schemas.base import AttachmentType
 from services.vk_bot.models.vk import WallItemFilter
 
 logger = logging.getLogger(__name__)
