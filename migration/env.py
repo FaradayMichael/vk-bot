@@ -9,7 +9,7 @@ from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-from utils.config import from_env
+from app.utils.config import from_env
 conf = from_env()
 
 config = context.config
@@ -24,7 +24,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from models.base import Base
+from app.models.base import Base
 
 target_metadata = Base.metadata
 

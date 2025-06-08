@@ -14,6 +14,8 @@ services:
       - db
       - mailhog
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       mailhog:
@@ -39,6 +41,8 @@ services:
       - mailhog
       - rabbitmq
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       mailhog:
@@ -63,6 +67,8 @@ services:
       - mailhog
       - rabbitmq
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -90,6 +96,8 @@ services:
 #      - dbmate
       - mailhog
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -115,6 +123,8 @@ services:
       - db
 #      - dbmate
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     env_file:
@@ -134,6 +144,8 @@ services:
 #      - dbmate
       - mailhog
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -160,7 +172,6 @@ services:
       timeout: 5s
       retries: 5
 
-
   migrations:
     build:
       context: .
@@ -177,19 +188,6 @@ services:
         condition: service_healthy
     env_file:
       - .env
-
-#  dbmate:
-#    image: amacneil/dbmate
-#    command: -d "/code/etc/db/migrations" up
-#    volumes:
-#      - .:/code
-#    links:
-#      - db
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#    environment:
-#      - DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
 
   redis:
     image: redis
@@ -233,7 +231,7 @@ services:
     container_name: nginx
     image: nginx
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./etc/nginx.conf:/etc/nginx/nginx.conf
       - ./static/:/static/
     ports:
       - "8080:80"

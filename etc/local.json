@@ -2,7 +2,7 @@
   "debug": true,
   "salt": "qCdzo6ECvh8Bf9Uy6rz7p2",
   "db": {
-    "dsn": "postgresql://postgres:postgres@db/vk_bot"
+    "dsn": "postgresql+asyncpg://postgres:postgres@db/vk_bot"
   },
   "redis": {
     "dsn": "redis://redis"
