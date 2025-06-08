@@ -9,15 +9,19 @@ from discord import (
 )
 from discord.activity import (
     ActivityTypes,
-    CustomActivity
+    CustomActivity,
+    Spotify
 )
 from discord.member import (
     Member,
     VoiceState
 )
 
-from app.db import dynamic_config as dynamic_config_db, activity_sessions as activity_sessions_db, \
-    status_sessions as status_sessions_db
+from app.db import (
+    dynamic_config as dynamic_config_db,
+    activity_sessions as activity_sessions_db,
+    status_sessions as status_sessions_db,
+)
 from app.schemas.base import AttachmentType
 from app.schemas.images import ImageTags
 from .consts import (
@@ -166,8 +170,11 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
 
         def get_activities_state() -> ActivitiesState:
             def get_core_attr(activity: ActivityTypes) -> str:
+                if activity.type == ActivityType.listening:
+                    activity: Spotify
+                    return f"{activity.artist} - {activity.title}"
                 if activity.type not in (ActivityType.playing, ActivityType.custom,):
-                    logger.info(repr(activity))
+                    logger.info(f"Unknown activity: {repr(activity)}")
                 return activity.name
 
             state_dict = {}
@@ -229,7 +236,8 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
         if state.playing.has_changes:
             log_activities(state.playing)
             await handle_activities_on_db(state.playing)
-            # await _execute_cyberbool(service, state, after)
+        if state.listening.has_changes:
+            log_activities(state.listening)
 
 
 async def _handle_status_update(service: DiscordService, before: Member, after: Member):
@@ -256,25 +264,6 @@ async def _handle_status_update(service: DiscordService, before: Member, after: 
                 status=after_status
             )
         )
-
-
-# async def _execute_cyberbool(service: DiscordService, state: ActivitiesState, member: Member):
-#     redis_key = 'cyberbool_cooldown_flag'
-#     if await redis.get(service.redis_conn, key=redis_key):
-#         logger.info('cyberbool cooldown')
-#         return None
-#
-#     async with service.db_pool.acquire() as conn:
-#         d_conf = await dynamic_config_db.get(conn)
-#     if any([i in state.playing.started for i in d_conf.get('cyberbool', [])]):
-#         if voice := member.voice:
-#             bot_voice: VoiceClient = await connect_to_voice_channel(service.bot, voice.channel)
-#             try:
-#                 await play_file(bot_voice, 'static/boris.mp4')
-#
-#                 await redis.setex(service.redis_conn, redis_key, 3600, '1')
-#             except Exception as e:
-#                 logger.error(e)
 
 
 def _get_video_attachment_urls_from_message(
