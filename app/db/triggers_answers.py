@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, bindparam
 
 from app.models.triggers_answers import TriggerAnswer
 from app.schemas.triggers_answers import TriggerAnswerCreate, TriggerGroup
@@ -88,7 +88,8 @@ async def get_for_like(
     ).where(
         and_(
             TriggerAnswer.en,
-            TriggerAnswer.trigger.icontains(f"{q.strip().lower()}"),
+            bindparam('q', q.strip().lower()).icontains(TriggerAnswer.trigger),
+            # TriggerAnswer.trigger.icontains(f"{q.strip().lower()}"),
         )
     ).group_by(TriggerAnswer.trigger)
     result = await session.execute(stmt)
