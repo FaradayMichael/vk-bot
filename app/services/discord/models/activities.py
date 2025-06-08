@@ -25,10 +25,15 @@ class PlayingActivities(BaseActivities):
     rel_name: str = 'playing'
 
 
+class ListeningActivities(BaseActivities):
+    rel_name: str = 'listening'
+
+
 class ActivitiesState(BaseModel):
     playing: PlayingActivities = PlayingActivities()
     streaming: BaseActivities = BaseActivities()
     watching: BaseActivities = BaseActivities()
+    listening: ListeningActivities = ListeningActivities()
 
 
 class ActivitySessionCreate(BaseModel):
