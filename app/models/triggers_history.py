@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, TIMESTAMP, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.services.vk_bot.models.vk import VkMessage
@@ -15,7 +16,7 @@ class TriggerHistory(Base):
     ctime: Mapped[datetime] = mapped_column(TIMESTAMP,server_default=utc_now_default)
     trigger_answer_id: Mapped[int] = mapped_column(ForeignKey("triggers_answers.id"))
     vk_id: Mapped[int]
-    message_data: Mapped[dict] = mapped_column(JSON)
+    message_data: Mapped[dict] = mapped_column(JSONB)
 
     trigger_answer: Mapped[TriggerAnswer] = relationship(TriggerAnswer, lazy="joined")
 

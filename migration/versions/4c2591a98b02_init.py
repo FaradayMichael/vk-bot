@@ -1,8 +1,8 @@
 """init
 
-Revision ID: 27cc57cd3333
+Revision ID: 4c2591a98b02
 Revises: 
-Create Date: 2025-06-07 18:53:28.286402
+Create Date: 2025-06-08 10:47:52.302126
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '27cc57cd3333'
+revision: str = '4c2591a98b02'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -28,7 +28,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.String(), nullable=False),
     sa.Column('user_name', sa.String(), nullable=False),
     sa.Column('activity_name', sa.String(), nullable=False),
-    sa.Column('extra_data', sa.JSON(), nullable=True),
+    sa.Column('extra_data', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_discord_activity_sessions_user_id'), 'discord_activity_sessions', ['user_id'], unique=False)
@@ -47,7 +47,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.String(), nullable=False),
     sa.Column('user_name', sa.String(), nullable=False),
     sa.Column('status', sa.String(), nullable=False),
-    sa.Column('extra_data', sa.JSON(), nullable=True),
+    sa.Column('extra_data', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_discord_status_sessions_user_id'), 'discord_status_sessions', ['user_id'], unique=False)
@@ -64,17 +64,17 @@ def upgrade() -> None:
     sa.Column('id_', sa.String(), nullable=True),
     sa.Column('role', sa.String(), nullable=True),
     sa.Column('content', sa.Text(), nullable=True),
-    sa.Column('function_call', sa.JSON(), nullable=True),
+    sa.Column('function_call', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('name', sa.String(), nullable=True),
-    sa.Column('attachments', sa.JSON(), nullable=True),
-    sa.Column('data_for_context', sa.JSON(), nullable=True),
+    sa.Column('attachments', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('data_for_context', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_gigachat_messages_user_id'), 'gigachat_messages', ['user_id'], unique=False)
     op.create_table('know_ids',
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('note', sa.Text(), nullable=True),
-    sa.Column('extra_data', sa.JSON(), nullable=True),
+    sa.Column('extra_data', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=True),
     sa.Column('vk_id', sa.Integer(), nullable=True),
     sa.Column('discord_id', sa.Integer(), nullable=True),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
@@ -85,7 +85,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('polls',
-    sa.Column('data', sa.JSON(), nullable=True),
+    sa.Column('data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('key', sa.String(), nullable=False),
     sa.Column('service', sa.Integer(), nullable=False),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
@@ -97,7 +97,7 @@ def upgrade() -> None:
     )
     op.create_table('send_on_schedule',
     sa.Column('cron', sa.String(), nullable=False),
-    sa.Column('message_data', sa.JSON(), nullable=False),
+    sa.Column('message_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('service', sa.Enum('VK', name='sendonscheduleserviceenum'), nullable=True),
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
     sa.Column('en', sa.Boolean(), nullable=False),
@@ -135,8 +135,8 @@ def upgrade() -> None:
     op.create_table('vk_tasks',
     sa.Column('uuid', sa.String(), nullable=False),
     sa.Column('func', sa.String(), nullable=False),
-    sa.Column('args', sa.JSON(), nullable=True),
-    sa.Column('kwargs', sa.JSON(), nullable=True),
+    sa.Column('args', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=True),
+    sa.Column('kwargs', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=True),
     sa.Column('errors', sa.Text(), nullable=True),
     sa.Column('tries', sa.Integer(), nullable=False),
     sa.Column('created', sa.TIMESTAMP(), nullable=True),
@@ -150,7 +150,7 @@ def upgrade() -> None:
     sa.Column('ctime', sa.TIMESTAMP(), server_default=sa.text("(NOW() at time zone 'utc')"), nullable=False),
     sa.Column('trigger_answer_id', sa.BigInteger(), nullable=False),
     sa.Column('vk_id', sa.Integer(), nullable=False),
-    sa.Column('message_data', sa.JSON(), nullable=False),
+    sa.Column('message_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.ForeignKeyConstraint(['trigger_answer_id'], ['triggers_answers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
