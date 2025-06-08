@@ -1,8 +1,7 @@
-from misc import log
+from app.utils import log
+from app.services.vk_bot.main import main
 
-from services.vk_bot.main import main
-
-from misc import ctrl
+from app.utils import ctrl
 
 if __name__ == '__main__':
     ctrl.main_with_parses(None, main)

@@ -1,7 +1,7 @@
 import uvicorn
 
-from misc import log
-from services.rest_api.main import factory
+from app.utils import log
+from app.services.rest_api.main import factory
 
 slog = log
 app = factory()

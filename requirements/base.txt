@@ -27,3 +27,5 @@ paramiko==3.4.1
 aio-pika==9.4.3
 yt-dlp==2024.11.4
 aiofiles==24.1.0
+sqlalchemy==2.0.38
+alembic==1.15.1

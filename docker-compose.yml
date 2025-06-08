@@ -12,9 +12,10 @@ services:
     links:
       - redis
       - db
-      - dbmate
       - mailhog
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       mailhog:
@@ -37,10 +38,11 @@ services:
     links:
       - redis
       - db
-      - dbmate
       - mailhog
       - rabbitmq
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_started
       mailhog:
@@ -61,10 +63,12 @@ services:
     links:
       - redis
       - db
-      - dbmate
+#      - dbmate
       - mailhog
       - rabbitmq
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -89,9 +93,11 @@ services:
     links:
       - redis
       - db
-      - dbmate
+#      - dbmate
       - mailhog
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -115,8 +121,10 @@ services:
       - .:/code
     links:
       - db
-      - dbmate
+#      - dbmate
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     env_file:
@@ -133,9 +141,11 @@ services:
     links:
       - redis
       - db
-      - dbmate
+#      - dbmate
       - mailhog
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       redis:
@@ -150,8 +160,8 @@ services:
   db:
     image: postgres:15
     container_name: db
-    #    ports:
-    #      - "5433:5432"
+    ports:
+      - "5433:5432"
     environment:
       - POSTGRES_DB=vk_bot
       - POSTGRES_USER=postgres
@@ -162,9 +172,13 @@ services:
       timeout: 5s
       retries: 5
 
-  dbmate:
-    image: amacneil/dbmate
-    command: -d "/code/etc/db/migrations" up
+  migrations:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: migrations
+    command:  alembic upgrade head
+    #command:  alembic revision --autogenerate -m "init"
     volumes:
       - .:/code
     links:
@@ -172,8 +186,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
+    env_file:
+      - .env
 
   redis:
     image: redis
@@ -187,17 +201,17 @@ services:
       - "1025:1025"
       - "8025:8025"
 
-#  pgweb:
-#    image: sosedoff/pgweb
-#    ports:
-#      - "8081:8081"
-#    links:
-#      - db
-#    environment:
-#      - PGWEB_DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
-#    depends_on:
-#      db:
-#        condition: service_healthy
+  pgweb:
+    image: sosedoff/pgweb
+    ports:
+      - "8081:8081"
+    links:
+      - db
+    environment:
+      - PGWEB_DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
   
   cloudbeaver:
     container_name: dbeaver
@@ -217,8 +231,8 @@ services:
     container_name: nginx
     image: nginx
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./static/:/static/files/
+      - ./etc/nginx.conf:/etc/nginx/nginx.conf
+      - ./static/:/static/
     ports:
       - "8080:80"
       #environment:

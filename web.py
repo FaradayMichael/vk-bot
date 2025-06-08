@@ -1,7 +1,7 @@
 import uvicorn
 
-from misc import log
-from services.web.main import factory
+from app.utils import log
+from app.services.web.main import factory
 
 slog = log
 app = factory()
