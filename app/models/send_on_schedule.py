@@ -16,5 +16,5 @@ class SendOnSchedule(BaseTable):
     __tablename__ = 'send_on_schedule'
 
     cron: Mapped[str]
-    message_data: Mapped[SendOnScheduleMessage] = mapped_column(JSONB)
+    message_data: Mapped[SendOnScheduleMessage | dict] = mapped_column(JSONB)
     service: Mapped[SendOnScheduleServiceEnum | None] = mapped_column(default=None)

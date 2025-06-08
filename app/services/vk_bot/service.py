@@ -337,8 +337,8 @@ class VkBotService(BaseService):
                     coro=send_on_schedule(
                         self,
                         cron=s_t.cron,
-                        peer_id=s_t.message_data.peer_id,
-                        message=s_t.message_data.message
+                        peer_id=s_t.message_data['peer_id'],
+                        message=s_t.message_data['message']
                     )
                 )
 
