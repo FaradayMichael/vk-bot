@@ -338,7 +338,7 @@ class VkBotService(BaseService):
                         self,
                         cron=s_t.cron,
                         peer_id=s_t.message_data['peer_id'],
-                        message=s_t.message_data['message']
+                        message=Message(**s_t.message_data['message'])
                     )
                 )
 
