@@ -1,6 +1,5 @@
 import datetime
 import logging
-from typing import Sequence
 
 import aiofiles
 from discord import (
@@ -22,13 +21,9 @@ from app.db import (
     activity_sessions as activity_sessions_db,
     status_sessions as status_sessions_db,
 )
-from app.schemas.base import AttachmentType
 from app.schemas.images import ImageTags
-from .consts import (
-    DISCORD_MEDIA_PREFIX,
-    DISCORD_ATTACHMENT_PREFIX,
-    IMG_EXT,
-    VIDEO_EXT,
+from .utils.attachments import (
+    get_image_attachment_urls_from_message,
 )
 from .utils.messages import (
     log_message,
@@ -40,7 +35,7 @@ from .models.activities import (
     ActivitiesState,
     BaseActivities,
     ActivitySessionCreate,
-    StatusSessionCreate
+    StatusSessionCreate,
 )
 from .service import DiscordService
 
@@ -74,7 +69,7 @@ async def on_message(service: DiscordService, message: Message):
 
         await service.bot.process_commands(message)
 
-        image_urls = _get_image_attachment_urls_from_message(message)
+        image_urls = get_image_attachment_urls_from_message(message)
         # video_urls = _get_video_attachment_urls_from_message(message)
         # yt_urls = _get_yt_urls_from_message(message)
 
@@ -98,7 +93,7 @@ async def on_message(service: DiscordService, message: Message):
 
 async def on_ready_event(*args, **kwargs):
     logger.info(f"{args=} {kwargs=}")
-    logger.info('Ready')
+
 
 
 async def on_ready(service: DiscordService):
@@ -168,41 +163,6 @@ async def on_voice_state_update(
 async def _handel_activities_update(service: DiscordService, before: Member, after: Member):
     async with service.db_helper.get_session() as session:
 
-        def get_activities_state() -> ActivitiesState:
-            def get_core_attr(activity: ActivityTypes) -> str:
-                if activity.type == ActivityType.listening:
-                    activity: Spotify
-                    return f"{activity.artist} - {activity.title}"
-                if activity.type not in (ActivityType.playing, ActivityType.custom,):
-                    logger.info(f"Unknown activity: {repr(activity)}")
-                return activity.name
-
-            state_dict = {}
-            for a_type in ActivityType:
-                a_type_name = a_type.name.lower()
-
-                before_activities = set([get_core_attr(act) for act in before.activities if act.type is a_type])
-                after_activities = set([get_core_attr(act) for act in after.activities if act.type is a_type])
-                started_activities = after_activities.difference(before_activities)
-                finished_activities = before_activities.difference(after_activities)
-                unmodified_activities = before_activities.intersection(after_activities)
-
-                state_dict[a_type_name] = {
-                    'before': before_activities,
-                    'after': after_activities,
-                    'started': started_activities,
-                    'finished': finished_activities,
-                    'unmodified': unmodified_activities
-                }
-            return ActivitiesState.model_validate(state_dict)
-
-        def log_activities(activity_model: BaseActivities, rel_name: str | None = None) -> None:
-            activity = rel_name or activity_model.rel_name
-            if activity_model.started:
-                logger.info(f"{before.name} start {activity=} {activity_model.started}")
-            if activity_model.finished:
-                logger.info(f"{before.name} finish {activity=} {activity_model.finished}")
-
         async def handle_activities_on_db(activities: BaseActivities):
             if activities.started:
                 for a in activities.started:
@@ -211,15 +171,15 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
                     await activity_sessions_db.create(
                         session,
                         ActivitySessionCreate(
-                            user_id=after.id,
-                            user_name=after.name,
+                            user_id=activities.user_id,
+                            user_name=activities.user_name,
                             activity_name=a
                         )
                     )
 
             if activities.finished:
                 for a in activities.finished:
-                    activity_db = await activity_sessions_db.get_first_unfinished(session, after.id, a)
+                    activity_db = await activity_sessions_db.get_first_unfinished(session, activities.user_id, a)
                     if activity_db:
                         await activity_sessions_db.update(
                             session, activity_db.id, finished_at=datetime.datetime.utcnow()
@@ -228,16 +188,16 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
         dynamic_config = await dynamic_config_db.get(session)
         exclude_activities = dynamic_config.get('exclude_activities', [])
 
-        state = get_activities_state()
+        state = _get_activities_state(before, after)
         if state.watching.has_changes:
-            log_activities(state.watching, 'watching')
+            _log_activities(state.watching, 'watching')
         if state.streaming.has_changes:
-            log_activities(state.streaming, 'streaming')
+            _log_activities(state.streaming, 'streaming')
         if state.playing.has_changes:
-            log_activities(state.playing)
+            _log_activities(state.playing)
             await handle_activities_on_db(state.playing)
         if state.listening.has_changes:
-            log_activities(state.listening)
+            _log_activities(state.listening)
 
 
 async def _handle_status_update(service: DiscordService, before: Member, after: Member):
@@ -266,50 +226,43 @@ async def _handle_status_update(service: DiscordService, before: Member, after: 
         )
 
 
-def _get_video_attachment_urls_from_message(
-        message: Message
-) -> list[str]:
-    video_urls = _get_discord_urls_from_text(message.content, VIDEO_EXT)
-    if message.attachments:
-        for attachment in message.attachments:
-            if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.VIDEO:
-                video_urls.append(attachment.url)
-    return video_urls
+def _get_activities_state(before: Member, after: Member) -> ActivitiesState:
+    def get_core_attr(activity: ActivityTypes) -> str:
+        if activity.type == ActivityType.listening:
+            activity: Spotify
+            return f"{activity.artist} - {activity.title}"
+        if activity.type not in (ActivityType.playing, ActivityType.custom,):
+            logger.info(f"Unknown activity: {repr(activity)}")
+        return activity.name
+
+    user_id = before.id
+    user_name = before.name
+
+    state_dict = {}
+    for a_type in ActivityType:
+        a_type_name = a_type.name.lower()
+
+        before_activities = set([get_core_attr(act) for act in before.activities if act.type is a_type])
+        after_activities = set([get_core_attr(act) for act in after.activities if act.type is a_type])
+        started_activities = after_activities.difference(before_activities)
+        finished_activities = before_activities.difference(after_activities)
+        unmodified_activities = before_activities.intersection(after_activities)
+
+        state_dict[a_type_name] = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'before': before_activities,
+            'after': after_activities,
+            'started': started_activities,
+            'finished': finished_activities,
+            'unmodified': unmodified_activities
+        }
+    return ActivitiesState.model_validate(state_dict)
 
 
-def _get_image_attachment_urls_from_message(
-        message: Message
-) -> list[str]:
-    image_urls = _get_discord_urls_from_text(message.content)
-    if message.attachments:
-        for attachment in message.attachments:
-            if AttachmentType.by_content_type(attachment.content_type) is AttachmentType.PHOTO:
-                image_urls.append(attachment.url)
-    return image_urls
-
-
-def _get_yt_urls_from_message(
-        message: Message
-) -> list[str]:
-    if not message.content:
-        return []
-
-    urls = []
-    words = message.content.split()
-    for word in words:
-        if 'youtube.com/' in word:
-            urls.append(word)
-    return urls
-
-
-def _get_discord_urls_from_text(text: str, patterns_set: Sequence = IMG_EXT) -> list[str]:
-    if not text:
-        return []
-
-    urls = []
-    words = text.split()
-    for word in words:
-        if word.startswith(DISCORD_MEDIA_PREFIX) or word.startswith(DISCORD_ATTACHMENT_PREFIX):
-            if any(p in word.lower() for p in patterns_set):
-                urls.append(word)
-    return urls
+def _log_activities(activity_model: BaseActivities, rel_name: str | None = None) -> None:
+    activity = rel_name or activity_model.rel_name
+    if activity_model.started:
+        logger.info(f"{activity_model.user_name} start {activity=} {activity_model.started}")
+    if activity_model.finished:
+        logger.info(f"{activity_model.user_name} finish {activity=} {activity_model.finished}")

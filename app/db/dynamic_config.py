@@ -17,7 +17,6 @@ async def get(
         exist = DynamicConfig()
         session.add(exist)
         await session.commit()
-    print(exist.data, type(exist.data))
     return exist.data
 
 

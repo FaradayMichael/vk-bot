@@ -9,6 +9,9 @@ from pydantic import (
 class BaseActivities(BaseModel):
     rel_name: str | None = None
 
+    user_id: str | None = None
+    user_name: str | None = None
+
     before: set[str] = Field(default_factory=set)
     after: set[str] = Field(default_factory=set)
 
@@ -20,6 +23,14 @@ class BaseActivities(BaseModel):
     def has_changes(self) -> bool:
         return self.before != self.after
 
+    @model_validator(mode='before')
+    def validate_user_id(
+            cls,  # noqa
+            data: dict
+    ):
+        data['user_id'] = str(data['user_id'])
+        return data
+
 
 class PlayingActivities(BaseActivities):
     rel_name: str = 'playing'
@@ -30,10 +41,10 @@ class ListeningActivities(BaseActivities):
 
 
 class ActivitiesState(BaseModel):
-    playing: PlayingActivities = PlayingActivities()
-    streaming: BaseActivities = BaseActivities()
-    watching: BaseActivities = BaseActivities()
-    listening: ListeningActivities = ListeningActivities()
+    playing: PlayingActivities = Field(default_factory=PlayingActivities)
+    streaming: BaseActivities = Field(default_factory=BaseActivities)
+    watching: BaseActivities = Field(default_factory=BaseActivities)
+    listening: ListeningActivities = Field(default_factory=ListeningActivities)
 
 
 class ActivitySessionCreate(BaseModel):
@@ -50,7 +61,6 @@ class ActivitySessionCreate(BaseModel):
         return data
 
 
-
 class ActivitySessionUpdate(BaseModel):
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
@@ -60,7 +70,10 @@ class ActivitySessionUpdate(BaseModel):
     extra_data: dict | None = None
 
     @model_validator(mode='before')
-    def validate_user_id(cls, data: dict):
+    def validate_user_id(
+            cls,  # noqa
+            data: dict
+    ):
         if data.get('user_id'):
             data['user_id'] = str(data['user_id'])
         return data
