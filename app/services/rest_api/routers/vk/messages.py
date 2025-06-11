@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.business_logic import vk as vk_bl
 from app.db import (
-    vk_tasks as vk_tasks_db
+    tasks as tasks_db
 )
 from app.schemas.vk import (
     Message,
@@ -95,7 +95,7 @@ async def api_get_history(
     if not session.is_admin and (not peer_id or peer_id not in allowed_ids):
         return await error_403("This peer_id is not allowed")
 
-    tasks = await vk_tasks_db.get_list(
+    tasks = await tasks_db.get_list(
         session=conn,
         from_dt=from_dt,
         to_dt=to_dt,

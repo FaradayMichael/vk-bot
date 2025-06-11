@@ -29,7 +29,7 @@ async def get_list(
     where = []
     if from_dt:
         where.append(
-            VkTask.ctime <= from_dt
+            VkTask.ctime >= from_dt
         )
     if to_dt:
         where.append(
