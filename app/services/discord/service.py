@@ -86,6 +86,8 @@ class DiscordService(BaseService):
 
         from .events import on_ready
         await on_ready(self)
+        logger.info('Ready')
+
 
     async def run_bot(self, bot: Bot) -> None:
         logger.info(f"Run Discord Bot")
