@@ -18,7 +18,7 @@ def register_routers(app):
 
     router.include_router(
         index.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
+        # dependencies=[Depends(check_auth)] if not app.debug else []
     )
     router.include_router(
         auth.router
