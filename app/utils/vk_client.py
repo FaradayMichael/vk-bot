@@ -160,7 +160,8 @@ class Wall(BaseMethod):
                 message=post.message_text,
                 attachments=post.attachments,
                 from_group=1 if from_group else 0,
-                publish_date=int(post_time.timestamp()) if post_time else None
+                publish_date=int(post_time.timestamp()) if post_time else None,
+                primary_attachments_mode='grid',
             )
         )
         return result['post_id']
