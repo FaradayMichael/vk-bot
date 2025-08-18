@@ -10,6 +10,7 @@ WORKDIR /code
 
 RUN apt update &&  \
     apt install -y --assume-yes postgresql-client-17 && \
+    apt install -y git && \
     apt-get install libgeos-dev ffmpeg -y
 
 COPY requirements requirements
