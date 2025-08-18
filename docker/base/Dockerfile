@@ -9,7 +9,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /code
 
 RUN apt update &&  \
-    apt install -y --assume-yes git postgresql-client-15 && \
+    apt install -y --assume-yes postgresql-client-17 && \
     apt-get install libgeos-dev ffmpeg -y
 
 COPY requirements requirements
