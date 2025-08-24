@@ -133,9 +133,9 @@ services:
   utils_service:
     build:
       context: .
-      dockerfile: docker/base/Dockerfile
+      dockerfile: docker/selenium/Dockerfile
     container_name: utils_service
-    command: python3 utils_service.py
+    command: /usr/bin/run_selenium
     volumes:
       - .:/code
     links:

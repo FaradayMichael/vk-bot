@@ -37,6 +37,7 @@ from .models.asynctask import (
     GptChatResponse,
     ImageUrl
 )
+from .selenium import SeleniumHelper
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
@@ -58,11 +59,12 @@ class UtilsService(BaseService):
 
         self.gigachat_client: GigachatClient | None = None
         self.asynctask_worker: Worker | None = None
+        self._selenium_helper: SeleniumHelper  = SeleniumHelper(config)
 
     async def on_get_image_tags(self, ctx: Context):
         data: ImageUrl = ctx.data
         logger.info(f"Handling image url: {data.url}")
-        result = await parse_image_tags(data.url)
+        result = await asyncio.to_thread(self._selenium_helper.get_image_tags, data.url)
         await ctx.success(result)
 
     async def on_gpt_chat(self, ctx: Context):
