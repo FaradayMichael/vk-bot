@@ -363,8 +363,8 @@ class VkClient:
         self.user_id = config.main_user_id
         self.group_id = config.main_group_id
 
-        self._session_group: VkApi = VkApi(token=config.vk_token)
-        self._session_user = VkApi(token=config.user_token)
+        self._session_group: VkApi = VkApi(token=config.vk_token, api_version=config.api_version)
+        self._session_user = VkApi(token=config.user_toke, api_version=config.api_versionn)
         self._upload_group: VkUpload = VkUpload(self._session_group)
         self._upload_user: VkUpload = VkUpload(self._session_user)
         self._bot_long_pool: VkBotLongPoll = VkBotLongPoll(self._session_group, self.group_id)

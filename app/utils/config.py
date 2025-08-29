@@ -43,6 +43,7 @@ class VkConfig(BaseModel):
     main_group_id: int
     timeout: int = 60
     main_group_alias: str = ""
+    api_version: str = '5.199'
 
 
 class KafkaConfig(BaseModel):
