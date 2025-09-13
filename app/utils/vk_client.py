@@ -103,7 +103,7 @@ class Messages(BaseMethod):
         return await self._call_group(
             "messages.send",
             dict(
-                message=message.text,
+                message=message.text[:4094],
                 attachment=message.attachment,
                 random_id=get_random_id(),
                 peer_id=peer_id,
