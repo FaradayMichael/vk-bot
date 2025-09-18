@@ -76,6 +76,11 @@ class SftpConfig(BaseModel):
     host: str
     port: int
 
+class S3Config(BaseModel):
+    access_key: str
+    secret_key: str
+    endpoint_url: str
+
 
 class Config(BaseModel):
     debug: bool = False
@@ -92,6 +97,7 @@ class Config(BaseModel):
     gigachat: GigachatConfig
     sftp: SftpConfig
     amqp: str
+    s3: S3Config
 
 
 def read_config(path: str) -> Config:

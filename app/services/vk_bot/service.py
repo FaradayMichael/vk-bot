@@ -38,7 +38,8 @@ from app.utils.db import DBHelper, init_db
 from app.utils.files import (
     TempBase64File,
     TempUrlFile,
-    TempSftpFile
+    TempSftpFile,
+    TempS3File,
 )
 from app.utils.service import BaseService
 from app.utils.sftp import SftpClient
@@ -60,6 +61,7 @@ from .task import (
     execute_task
 )
 from app.services.utils.client import UtilsClient
+from app.utils.s3 import S3Client
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,8 @@ class VkBotService(BaseService):
         self.utils_client: UtilsClient | None = None
         self.asynctask_worker: Worker | None = None
 
+        self._s3_client: S3Client | None = None
+
     @classmethod
     async def create(
             cls,
@@ -102,6 +106,9 @@ class VkBotService(BaseService):
 
         self.utils_client = await UtilsClient.create(self.amqp)
         self.asynctask_worker = await Worker.create(self.amqp, WORKER_QUEUE_NAME, JsonSerializer())
+
+        self._s3_client = S3Client(**self.config.s3.model_dump())
+        await self._s3_client.init()
 
         self._register_handlers_vk()
         self._register_commands_redis()
@@ -220,6 +227,19 @@ class VkBotService(BaseService):
                             await handle_video(tmp.filepath)
                         case _ as arg:
                             logger.error(f"Unsupported media type: {arg}")
+            return await ctx.success()
+
+        if message.bucket and message.filePath:
+            logger.info(f"Handle {message.bucket=} {message.filePath=}")
+            async with TempS3File(message.filePath, message.bucket, self._s3_client, True) as tmp:
+                attachment_type = AttachmentType.by_ext(os.path.basename(tmp.filepath).split('.')[-1])
+                match attachment_type:
+                    case AttachmentType.PHOTO:
+                        await handle_image(tmp.filepath)
+                    case AttachmentType.VIDEO:
+                        await handle_video(tmp.filepath)
+                    case _ as arg:
+                        logger.error(f"Unsupported media type: {arg}")
             return await ctx.success()
 
         if message.yt_url:
@@ -469,6 +489,10 @@ class VkBotService(BaseService):
         if self.redis_conn:
             await redis.close(self.redis_conn)
             self.redis_conn = None
+
+        if self._s3_client:
+            await self._s3_client.close()
+            self._s3_client = None
 
         if self.utils_client:
             await self.utils_client.close()

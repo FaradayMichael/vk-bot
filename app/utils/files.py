@@ -9,6 +9,7 @@ from fastapi import UploadFile
 from pydantic import BaseModel
 
 from app.utils.dataurl import DataURL
+from app.utils.s3 import S3Client
 from app.utils.sftp import SftpClient
 
 logger = logging.getLogger(__name__)
@@ -17,8 +18,8 @@ url_alias = str
 
 filepath_alias = str
 
-
 DOWNLOADS_DIR = 'downloads'
+
 
 class TempFileModel(BaseModel):
     filepath: filepath_alias
@@ -117,7 +118,7 @@ class TempSftpFile(TempFileBase):
         self.file_obj: str
 
         stat = await self._client.stat(self.file_obj)
-        logger.info(f"{stat.st_size=}")
+        logger.info(f"{self.file_obj} size: {stat.st_size}")
 
         fp = await self._client.download(self.file_obj)
         self.file_model = TempFileModel(
@@ -129,6 +130,38 @@ class TempSftpFile(TempFileBase):
         await super().__aexit__(exc_type, exc_val, exc_tb)
         if self._auto_remove:
             await self._client.remove(self.file_obj)
+
+
+class TempS3File(TempFileBase):
+    def __init__(
+            self,
+            file_obj: str,  # s3 relative path
+            bucket: str,
+            client: S3Client,
+            auto_remove: bool = False,
+    ):
+        super().__init__(file_obj)
+        self._client = client
+        self._bucket = bucket
+        self._auto_remove = auto_remove
+
+    async def __aenter__(self) -> TempFileModel:
+        self.file_obj: str
+
+        stat = await self._client.head_file(self._bucket, self.file_obj)
+        if stat:
+            logger.info(f"{self.file_obj} size: {stat.get('ContentLength', 0)}")
+
+        fp = await self._client.download(self.file_obj)
+        self.file_model = TempFileModel(
+            filepath=fp,
+        )
+        return self.file_model
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await super().__aexit__(exc_type, exc_val, exc_tb)
+        if self._auto_remove:
+            await self._client.delete_file(self._bucket, self.file_obj)
 
 
 async def download_file(

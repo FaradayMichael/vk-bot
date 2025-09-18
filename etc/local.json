@@ -53,5 +53,10 @@
     "host": "",
     "port": 2222
   },
-  "amqp": "amqp://user:pass@rabbitmq/"
+  "amqp": "amqp://user:pass@rabbitmq/",
+  "s3": {
+    "access_key": "",
+    "secret_key": "",
+    "endpoint_url": ""
+  }
 }

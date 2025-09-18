@@ -3,7 +3,12 @@ from pydantic import BaseModel, AnyUrl, model_validator
 from app.utils.dataurl import DataURL
 
 
-class VkBotPost(BaseModel):
+class S3VkPost(BaseModel):
+    bucket: str | None = None
+    filePath: str | None = None
+
+
+class VkBotPost(S3VkPost):
     base64: DataURL | None = None
     video_url: AnyUrl | None = None
     sftpUrl: str | None = None
