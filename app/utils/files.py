@@ -150,9 +150,9 @@ class TempS3File(TempFileBase):
 
         stat = await self._client.head_file(self._bucket, self.file_obj)
         if stat:
-            logger.info(f"{self.file_obj} size: {stat.get('ContentLength', 0)}")
+            logger.info(f"{self._bucket} {self.file_obj} size: {stat.get('ContentLength', 0)}")
 
-        fp = await self._client.download(self.file_obj)
+        fp = await self._client.download(self._bucket, self.file_obj)
         self.file_model = TempFileModel(
             filepath=fp,
         )

@@ -45,6 +45,7 @@ class S3Client:
 
     async def download(
             self,
+            bucket: str,
             path: str,
             folder: str = 'static',
     ) -> str | None:
@@ -52,7 +53,7 @@ class S3Client:
         filename = f'{uuid.uuid4().hex}.{ext}'
         filepath = os.path.join(folder, filename)
 
-        file_data = await self.get_file(path)
+        file_data = await self.get_file(bucket, path)
         if not file_data:
             logger.error(f"No file data: {path}")
             return None
