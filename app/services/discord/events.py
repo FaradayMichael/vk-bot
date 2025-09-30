@@ -83,7 +83,7 @@ async def on_message(service: DiscordService, message: Message):
             if result_tags:
                 await message.reply(
                     content='\n\n'.join(
-                        [f"{i + 1}. {m.text(limit=4)}" for i, m in enumerate(result_tags)]
+                        [f"{i + 1}. {m.text()}" for i, m in enumerate(result_tags)]
                     )
                 )
 
@@ -181,13 +181,8 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
                 for a in activities.finished:
                     activity_db = await activity_sessions_db.get_first_unfinished(session, activities.user_id, a)
                     if activity_db:
-                        extra_data = activity_db.extra_data
-                        extra_data['duration'] = activity_db.duration
                         await activity_sessions_db.update(
-                            session,
-                            activity_db.id,
-                            finished_at=datetime.datetime.now(datetime.timezone.utc),
-                            extra_data=extra_data
+                            session, activity_db.id, finished_at=datetime.datetime.utcnow()
                         )
 
         dynamic_config = await dynamic_config_db.get(session)
