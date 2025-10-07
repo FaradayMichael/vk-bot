@@ -106,16 +106,16 @@ class DiscordService(BaseService):
             drop_broken_status_sessions
             # cb_task
         )
-        self._tasks.append(
-            self.loop.create_task(
-                send_on_schedule(
-                    self,
-                    "0 9 * * 2",
-                    937785108696551546,
-                    filepaths=["static/test.gif"]
-                )
-            )
-        )
+        # self._tasks.append(
+        #     self.loop.create_task(
+        #         send_on_schedule(
+        #             self,
+        #             "0 9 * * 2",
+        #             937785108696551546,
+        #             filepaths=["static/test.gif"]
+        #         )
+        #     )
+        # )
         self._tasks.append(
             self.loop.create_task(
                 drop_broken_activities(
