@@ -35,7 +35,7 @@ class DBHelper:
     async def get_session(self) -> Session:
         async with self.session_maker(expire_on_commit=False) as session:
             yield session
-            await session.close()
+            # await session.close()
 
 
 async def init_db(config: PostgresqlConfig) -> DBHelper:
