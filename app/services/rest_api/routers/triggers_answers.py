@@ -36,3 +36,11 @@ async def api_get_group_triggers(
         conn: DBSession = Depends(get_db)
 ) -> list[TriggerGroup] | JSONResponse:
     return await triggers_answers_db.get_triggers_group(conn, q)
+
+
+@router.get('/find', response_model=None)
+async def api_get_find_triggers(
+        q: str = '',
+        conn: DBSession = Depends(get_db)
+) -> list[TriggerGroup] | JSONResponse:
+    return await triggers_answers_db.get_for_like(conn, q)
