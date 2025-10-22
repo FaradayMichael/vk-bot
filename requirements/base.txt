@@ -29,3 +29,5 @@ aiofiles==24.1.0
 sqlalchemy==2.0.41
 alembic==1.16.1
 aiobotocore==2.24.2
+SpeechRecognition==3.14.3
+google-cloud-speech==2.34.0

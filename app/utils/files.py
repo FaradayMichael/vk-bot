@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import os
 import uuid
@@ -85,8 +86,10 @@ class TempBase64File(TempFileBase):
     def __init__(
             self,
             file_obj: DataURL,
+            decode: bool = False,
     ):
         super().__init__(file_obj)
+        self.decode = decode
 
     async def __aenter__(self) -> TempFileModel:
         self.file_obj: DataURL
@@ -94,10 +97,13 @@ class TempBase64File(TempFileBase):
             filepath=f"static/{uuid.uuid4().hex}.{self.file_obj.ext()}",
             content_type=self.file_obj.mimetype
         )
+        data = self.file_obj.data
+        if self.decode:
+            data = base64.b64decode(data)
         with open(self.file_model.filepath, 'wb') as f:
             await asyncio.to_thread(
                 f.write,
-                self.file_obj.data
+                data
             )
         return self.file_model
 

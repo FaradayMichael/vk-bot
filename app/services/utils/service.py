@@ -1,9 +1,11 @@
 import asyncio
 import logging
+from concurrent.futures.process import ProcessPoolExecutor
 
 from redis.asyncio import Redis
 
 from app.business_logic.images import parse_image_tags
+from app.business_logic.speech_to_text import speech_to_text
 
 from ...utils import redis
 from app.utils.asynctask.models import (
@@ -30,14 +32,18 @@ from app.utils.db import (
 from .config import (
     WORKER_QUEUE_NAME,
     GPT_CHAT,
-    GET_IMAGE_TAGS
+    GET_IMAGE_TAGS,
+    SPEECH_TO_TEXT,
 )
 from .models.asynctask import (
     GptChat,
     GptChatResponse,
-    ImageUrl
+    ImageUrl,
+    SpeechToText,
+    SpeechToTextResponse,
 )
 from .selenium import SeleniumHelper
+from app.utils.files import TempBase64File
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
@@ -59,7 +65,7 @@ class UtilsService(BaseService):
 
         self.gigachat_client: GigachatClient | None = None
         self.asynctask_worker: Worker | None = None
-        self._selenium_helper: SeleniumHelper  = SeleniumHelper(config)
+        self._selenium_helper: SeleniumHelper = SeleniumHelper(config)
 
     async def on_get_image_tags(self, ctx: Context):
         data: ImageUrl = ctx.data
@@ -82,6 +88,14 @@ class UtilsService(BaseService):
         except Exception as e:
             logger.exception(e)
             return
+
+    async def on_speech_to_text(self, ctx: Context):
+        data: SpeechToText = ctx.data
+        logger.info(f'Handle message: {repr(data)}')
+        async with TempBase64File(data.base64, decode=True) as tmp:
+            with ProcessPoolExecutor() as executor:
+                text = await self.loop.run_in_executor(executor, speech_to_text, tmp.filepath)
+        await ctx.success(SpeechToTextResponse(text=text))
 
     @classmethod
     async def create(
@@ -110,6 +124,11 @@ class UtilsService(BaseService):
             GET_IMAGE_TAGS,
             self.on_get_image_tags,
             ImageUrl
+        )
+        self.asynctask_worker.register(
+            SPEECH_TO_TEXT,
+            self.on_speech_to_text,
+            SpeechToText
         )
 
     async def close(self):

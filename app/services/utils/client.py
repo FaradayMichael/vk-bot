@@ -6,12 +6,15 @@ from app.schemas.images import ImageTags
 from .config import (
     WORKER_QUEUE_NAME,
     GPT_CHAT,
-    GET_IMAGE_TAGS
+    GET_IMAGE_TAGS,
+    SPEECH_TO_TEXT,
 )
 from .models.asynctask import (
     GptChat,
     GptChatResponse,
-    ImageUrl
+    ImageUrl,
+    SpeechToText,
+    SpeechToTextResponse,
 )
 
 
@@ -46,4 +49,19 @@ class UtilsClient(Client):
             ),
             response_class=GptChatResponse,
             expiration=30
+        )
+
+    async def speech_to_text(
+            self,
+            filename: str,
+            base64: str,
+    ) -> SpeechToTextResponse:
+        return await self.call(
+            method=SPEECH_TO_TEXT,
+            data=SpeechToText(
+                filename=filename,
+                base64=base64
+            ),
+            response_class=SpeechToTextResponse,
+            expiration=120
         )

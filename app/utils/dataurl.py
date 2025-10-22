@@ -181,5 +181,9 @@ class DataURL(str):
                 return "xls"
             case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
                 return "xlsx"
+            case "application/ogg":
+                return "ogg"
+            case "audio/wav":
+                return "wav"
             case _:
                 raise RuntimeError(f'Тип {mimetype} не поддерживается')

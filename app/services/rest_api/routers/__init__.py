@@ -11,7 +11,8 @@ from . import (
     vk,
     images,
     vk_service,
-    gigachat
+    gigachat,
+    utils,
 )
 from app.services.rest_api.depends.auth import (
     check_auth,
@@ -57,6 +58,11 @@ def register_routers(app: FastAPI):
 
     router.include_router(
         gigachat.router,
+        dependencies=[Depends(check_auth)] if not app.debug else []
+    )
+
+    router.include_router(
+        utils.router,
         dependencies=[Depends(check_auth)] if not app.debug else []
     )
 
