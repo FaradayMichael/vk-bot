@@ -53,7 +53,7 @@ async def get(
         request: Request,
         response: Response,
 
-        basic_auth: Annotated[HTTPBasicCredentials, Depends(HTTPBasic())],
+        basic_auth: Annotated[HTTPBasicCredentials, Depends(HTTPBasic(auto_error=False))],
         db_conn: db.Session = Depends(get_db),
         redis_conn: redis.Connection = Depends(get_redis),
         conf: Config = Depends(get_conf),
@@ -100,7 +100,7 @@ async def get_session(
         [api_key_header, HEADERS_SESSION],
         [api_key_query, TOKEN_SESSION]
     ]
-    if basic_auth.username and basic_auth.password:
+    if basic_auth:
         hashed_password = await get_password_hash(basic_auth.password, conf.salt)
         user = await users_db.get_by_credentials(
             db_conn,
