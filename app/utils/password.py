@@ -1,5 +1,5 @@
 from passlib import pwd
-from passlib.hash import bcrypt
+import bcrypt
 
 
 async def generate_password() -> str:
@@ -7,4 +7,4 @@ async def generate_password() -> str:
 
 
 async def get_password_hash(password: str, salt: str) -> str:
-    return bcrypt.using(salt=salt).hash(password)
+    return (bcrypt.hashpw(password.encode('utf-8'), salt.encode())).decode('utf-8')

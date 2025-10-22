@@ -1,4 +1,5 @@
 import logging
+from typing import Annotated
 
 from fastapi import (
     Request,
@@ -6,6 +7,7 @@ from fastapi import (
     Security,
     Depends
 )
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.security.api_key import (
     APIKeyQuery,
     APIKeyHeader,
@@ -15,11 +17,15 @@ from fastapi.security.api_key import (
 from app.db import (
     users as users_db
 )
+from app.utils.config import Config
 from app.utils.fastapi.depends.db import (
     get as get_db
 )
 from app.utils.fastapi.depends.redis import (
     get as get_redis
+)
+from app.utils.fastapi.depends.conf import (
+    get as get_conf
 )
 from app.utils.fastapi.session import (
     COOKIE_SESSION_NAME,
@@ -34,6 +40,7 @@ from app.utils.fastapi.session import (
     SessionType
 )
 from app.utils import redis, db
+from app.utils.password import get_password_hash
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +52,23 @@ api_key_cookie = APIKeyCookie(name=COOKIE_SESSION_NAME, auto_error=False)
 async def get(
         request: Request,
         response: Response,
+
+        basic_auth: Annotated[HTTPBasicCredentials, Depends(HTTPBasic())],
         db_conn: db.Session = Depends(get_db),
         redis_conn: redis.Connection = Depends(get_redis),
+        conf: Config = Depends(get_conf),
         api_key_query: str = Security(api_key_query),
         api_key_header: str = Security(api_key_header),
-        api_key_cookie: str = Security(api_key_cookie)
+        api_key_cookie: str = Security(api_key_cookie),
 ) -> Session:
     session = await get_session(
+        basic_auth,
         api_key_query,
         api_key_header,
         api_key_cookie,
         db_conn,
-        redis_conn
+        redis_conn,
+        conf
     )
     request.state.session = session
     if session.session_type == COOKIE_SESSION:
@@ -75,17 +87,31 @@ async def get(
 
 
 async def get_session(
+        basic_auth: HTTPBasicCredentials,
         api_key_query: str,
         api_key_header: str,
         api_key_cookie: str,
         db_conn: db.Session,
-        redis_conn: redis.Connection
+        redis_conn: redis.Connection,
+        conf: Config
 ) -> Session:
     values = [
         [api_key_cookie, COOKIE_SESSION],
         [api_key_header, HEADERS_SESSION],
         [api_key_query, TOKEN_SESSION]
     ]
+    if basic_auth.username and basic_auth.password:
+        hashed_password = await get_password_hash(basic_auth.password, conf.salt)
+        user = await users_db.get_by_credentials(
+            db_conn,
+            basic_auth.username,
+            hashed_password
+        )
+        if user:
+            session = Session()
+            session.set_user(user)
+            return session
+
     for key, session_type in values:
         if key:
             session = await get_from_redis(session_type, key, redis_conn)

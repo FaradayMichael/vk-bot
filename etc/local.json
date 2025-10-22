@@ -1,6 +1,6 @@
 {
   "debug": true,
-  "salt": "qCdzo6ECvh8Bf9Uy6rz7p2",
+  "salt": "$2b$12$HdqjzxTkbFtgPgwg..iLYu",
   "db": {
     "dsn": "postgresql+asyncpg://postgres:postgres@db/vk_bot"
   },
