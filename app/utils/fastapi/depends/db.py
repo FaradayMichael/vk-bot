@@ -17,4 +17,3 @@ async def get(request: fastapi.Request) -> db.Session:
     else:
         async with sm(expire_on_commit=False) as session:
             yield session
-            await session.aclose()
