@@ -185,5 +185,7 @@ class DataURL(str):
                 return "ogg"
             case "audio/wav":
                 return "wav"
+            case "audio/x-wav":
+                return "wav"
             case _:
                 raise RuntimeError(f'Тип {mimetype} не поддерживается')
