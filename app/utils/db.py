@@ -22,8 +22,12 @@ class DBHelper:
         self.session_maker: async_sessionmaker[Session] | None = None
 
     async def init(self):
-        self.engine = create_async_engine(url=self._dsn)
-        self.session_maker = async_sessionmaker(bind=self.engine)
+        self.engine = create_async_engine(
+            url=self._dsn,
+            echo=False,
+            pool_recycle=3600,
+        )
+        self.session_maker = async_sessionmaker(bind=self.engine, expire_on_commit=False, class_=AsyncSession)
 
     async def close(self):
         if self.engine:
@@ -33,9 +37,8 @@ class DBHelper:
 
     @asynccontextmanager
     async def get_session(self) -> Session:
-        async with self.session_maker(expire_on_commit=False) as session:
+        async with self.session_maker() as session:
             yield session
-            # await session.close()
 
 
 async def init_db(config: PostgresqlConfig) -> DBHelper:

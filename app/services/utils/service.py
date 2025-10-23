@@ -95,6 +95,7 @@ class UtilsService(BaseService):
         async with TempBase64File(data.base64, decode=True) as tmp:
             with ProcessPoolExecutor() as executor:
                 text = await self.loop.run_in_executor(executor, speech_to_text, tmp.filepath)
+                logger.info(f'Speach2Text result: {text}')
         await ctx.success(SpeechToTextResponse(text=text))
 
     @classmethod
