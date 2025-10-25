@@ -83,7 +83,7 @@ async def on_message(service: DiscordService, message: Message):
             if result_tags:
                 await message.reply(
                     content='\n\n'.join(
-                        [f"{i + 1}. {m.text(limit=3000)}" for i, m in enumerate(result_tags)]
+                        [f"{i + 1}. {m.text(limit=1500)}" for i, m in enumerate(result_tags)]
                     )
                 )
 
