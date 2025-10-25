@@ -25,7 +25,7 @@ class ImageTags(BaseModel):
         return ', '.join(self.tags)
 
     def get_products_data_text(self, limit: int = None) -> str:
-        return '\n'.join(self.products_data[:limit])
+        return '\n'.join(self.products_data)[:limit]
 
 
 class ImageTagsResponse(SuccessResponse):
