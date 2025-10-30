@@ -108,22 +108,25 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 or (message_model.reply_message and message_model.reply_message.from_id == -config.vk.main_group_id)
                 or not from_chat
         ):
-            payload_text = ''
-            if message_model.reply_message and message_model.reply_message.text:
-                payload_text = message_model.reply_message.text + '\n'
-            payload_text += message_model.text
+            try:
+                payload_text = ''
+                if message_model.reply_message and message_model.reply_message.text:
+                    payload_text = message_model.reply_message.text + '\n'
+                payload_text += message_model.text
 
-            response_message = await service.utils_client.gpt_chat(
-                from_id,
-                payload_text,
-            )
-            if response_message:
-                await service.client_vk.messages.send(
-                    peer_id=peer_id,
-                    message=Message(
-                        text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {response_message.message}",
-                    )
+                response_message = await service.utils_client.gpt_chat(
+                    from_id,
+                    payload_text,
                 )
+                if response_message:
+                    await service.client_vk.messages.send(
+                        peer_id=peer_id,
+                        message=Message(
+                            text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {response_message.message}",
+                        )
+                    )
+            except Exception as e:
+                logger.error(e)
 
         # Posting on group wall
         if from_chat and peer_id == 2000000001:

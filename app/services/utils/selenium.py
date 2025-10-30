@@ -35,6 +35,7 @@ class SeleniumHelper:
     def get_image_tags(self, image_url: str) -> ImageTags:
         tags = []
         description = None
+        text = None
         products_data = []
 
         search_url = self._get_search_url(image_url)
@@ -44,7 +45,7 @@ class SeleniumHelper:
             driver.uc_open_with_reconnect(search_url, reconnect_time=2)
             time.sleep(2)
 
-            driver.save_screenshot('1.png')
+            # driver.save_screenshot('1.png')
 
             try:
                 more_btn_element = driver.find_element(
@@ -58,6 +59,7 @@ class SeleniumHelper:
             except Exception as e:
                 logger.error(e)
 
+            # tags
             try:
                 elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/images/search?text=')]")
                 for element in elements:
@@ -65,6 +67,7 @@ class SeleniumHelper:
             except Exception as e:
                 logger.error(e)
 
+            # description
             try:
                 description_element = driver.find_element(
                     By.CLASS_NAME,
@@ -76,6 +79,18 @@ class SeleniumHelper:
             except Exception as e:
                 logger.error(e)
 
+            # text
+            try:
+                text_elements = driver.find_elements(
+                    By.CSS_SELECTOR,
+                    "//div[contains(@class, 'CbirOcr-TextBox')]"
+                )
+                logger.info(f"{text_elements=}")
+                text = " ".join([i.text for i in text_elements])
+            except Exception as e:
+                logger.error(e)
+
+            # products
             try:
                 products_elements = driver.find_elements(
                     By.CSS_SELECTOR,
@@ -90,6 +105,7 @@ class SeleniumHelper:
         return ImageTags(
             tags=tags,
             description=description,
+            text_on_image=text,
             products_data=products_data
         )
 
