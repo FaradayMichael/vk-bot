@@ -57,12 +57,12 @@ async def drop_broken_activities(
             logger.info(f"Schedule drop activities {sleep=}")
             await asyncio.sleep(sleep)
 
-            now = datetime.datetime.now(tz=datetime.timezone.utc)
+            now = datetime.datetime.now()
             async with service.db_helper.get_session() as session:
                 activities = await activity_sessions_db.get_list(session, unfinished=True)
                 for activity in activities:
                     if (now - activity.started_at).total_seconds() / 3600 >= timeout_hours:
-                        logger.info(f"Drop activity from db: {activity}")
+                        logger.info(f"Drop activity from db: {repr(activity)}")
                         await activity_sessions_db.delete(session, activity.id)
 
         except (GeneratorExit, asyncio.CancelledError, KeyboardInterrupt):

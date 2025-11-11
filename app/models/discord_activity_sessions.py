@@ -36,3 +36,6 @@ class DiscordActivitySession(Base):
             return self.finished_at.astimezone(tz)
         else:
             return self.finished_at
+
+    def __repr__(self):
+        return f"<DiscordActivitySession({self.activity_name}, {self.user_id}, {self.started_at}, {self.finished_at})>"

@@ -86,9 +86,9 @@ async def get_list(
         )
     if unfinished is not None:
         if unfinished:
-            where_stmts.append(DiscordActivitySession.finished_at is None)
+            where_stmts.append(DiscordActivitySession.finished_at.is_(None))
         else:
-            where_stmts.extend(DiscordActivitySession.finished_at is not None)
+            where_stmts.extend(DiscordActivitySession.finished_at.isnot(None))
 
     stmt = select(DiscordActivitySession).where(and_(*where_stmts))
     result = await session.scalars(stmt)
