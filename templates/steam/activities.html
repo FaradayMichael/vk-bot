@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Activities</h1>
+<!--<table id="dtBasicExample" class="table table-striped table-bordered table-sm" cellspacing="0" width="100%">-->
+<!--    <thead>-->
+<!--    <tr>-->
+<!--        <th class="th-sm">Id</th>-->
+<!--        <th class="th-sm">Name</th>-->
+<!--    </tr>-->
+<!--    </thead>-->
+<!--    <tbody>-->
+<!--    {% for u_d in users_data %}-->
+<!--    <tr>-->
+<!--        <td>{{u_d[0]}}</td>-->
+<!--        <td>{{u_d[1]}}</td>-->
+<!--    </tr>-->
+<!--    {% endfor %}-->
+<!--    </tbody>-->
+<!--</table>-->
+<form action="/steam/activities" method="GET">
+    <label>From</label>
+    {{from_date_default}}
+    <div class="form-group">
+        <input type="date" id="from_dt" name="from_date" value={{from_date_default}} required>
+    </div>
+    <label>To</label>
+    <div class="form-group">
+        <input type="date" id="to_dt" name="to_date" value={{to_date_default}} required>
+    </div>
+    <label>User</label>
+    <div class="form-group">
+        <!--        <input type="number" id="user_id" name="user_id" value={{user_id}} required>-->
+        <select name="user_id">
+            {% for u_d in users_data %}
+            <option value={{u_d[0]}}>{{u_d[1]}}</option>
+            {% endfor %}
+        </select>
+
+    </div>
+<!--    <div class="form-group">-->
+<!--        <label>Group</label>-->
+<!--        <input-->
+<!--                type="checkbox"-->
+<!--                id="group"-->
+<!--                name="group"-->
+<!--                {% if group %}-->
+<!--                checked-->
+<!--                {% endif %}-->
+<!--        >-->
+<!--    </div>-->
+    <button type="submit" class="btn btn-primary">Send</button>
+</form>
+<img src="data:image/jpeg;base64,{{ image | safe }}">
+
+{% endblock %}

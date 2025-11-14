@@ -11,3 +11,4 @@ from .discord_status_sessions import DiscordStatusSession
 from .discord_reply_commands import DiscordReplyCommand
 from .discord_activity_sessions import DiscordActivitySession
 from .send_on_schedule import SendOnScheduleMessage
+from .steam import SteamUser, SteamActivitySession

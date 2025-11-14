@@ -8,7 +8,8 @@ from . import (
     auth,
     vk,
     service,
-    discord
+    discord,
+    steam,
 )
 from app.services.web.depends.auth import check_auth
 
@@ -31,6 +32,7 @@ def register_routers(app):
         vk.router,
         dependencies=[Depends(check_auth)] if not app.debug else []
     )
+    router.include_router(steam.router)
     router = discord.register_routes(router, app.debug)
 
     app.include_router(router)

@@ -31,3 +31,4 @@ alembic==1.16.1
 aiobotocore==2.24.2
 SpeechRecognition==3.14.3
 google-cloud-speech==2.34.0
+python-steam-api==2.2.1

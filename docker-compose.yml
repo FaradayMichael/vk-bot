@@ -157,6 +157,35 @@ services:
     env_file:
       - .env
 
+  steam_service:
+    build:
+      context: .
+      dockerfile: docker/base/Dockerfile
+    container_name: steam_service
+    command: python3 steam_service.py
+    volumes:
+      - .:/code
+    links:
+      - redis
+      - db
+      - mailhog
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      db:
+        condition: service_healthy
+      utils_service:
+        condition: service_started
+    env_file:
+      - .env
+
+
   db:
     image: postgres:15
     container_name: db

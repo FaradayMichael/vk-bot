@@ -3,7 +3,8 @@ import logging
 import os
 
 from pydantic import (
-    BaseModel
+    BaseModel,
+    Field,
 )
 
 CONFIG_ENV_KEY = 'SRVC_CONFIG'
@@ -82,6 +83,11 @@ class S3Config(BaseModel):
     endpoint_url: str
 
 
+class SteamConfig(BaseModel):
+    key: str
+    user_ids: list[str] = Field(default_factory=list)
+
+
 class Config(BaseModel):
     debug: bool = False
     salt: str
@@ -98,6 +104,7 @@ class Config(BaseModel):
     sftp: SftpConfig
     amqp: str
     s3: S3Config
+    steam: SteamConfig
 
 
 def read_config(path: str) -> Config:
