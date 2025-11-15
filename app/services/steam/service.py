@@ -71,7 +71,7 @@ class SteamService(BaseService):
                             if current_activity is not None:
                                 # Finish activity
                                 logger.info(f"Steam user {username} {user_steam_id} finish activity {current_activity}")
-                                current_activity_db.finished_at = datetime.datetime.now(datetime.UTC)
+                                current_activity_db.finished_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
 
                             if activity is not None:
                                 # Start new activity
