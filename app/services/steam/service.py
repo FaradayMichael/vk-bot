@@ -3,6 +3,7 @@ import datetime
 import logging
 
 from redis.asyncio import Redis
+from urllib3.exceptions import NameResolutionError
 
 from app.db import (
     steam as steam_db
@@ -84,10 +85,13 @@ class SteamService(BaseService):
                                 current_activity_db.finished_at = datetime.datetime.utcnow()
 
                             await session.commit()
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(3)
 
             except (asyncio.CancelledError, StopIteration, GeneratorExit, KeyboardInterrupt):
                 return await self.stop()
+            except NameResolutionError as e:
+                logger.exception(e)
+                await asyncio.sleep(120)
             except Exception as e:
                 logger.exception(e)
             await asyncio.sleep(60)

@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from steam_web_api import Steam
+from urllib3.exceptions import NameResolutionError
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ class SteamClient:
     async def _run_async(self, func, *args):
         try:
             return await self._loop.run_in_executor(None, func, *args)
+        except NameResolutionError:
+            raise
         except Exception as e:
             logger.error(e)
             return {}
