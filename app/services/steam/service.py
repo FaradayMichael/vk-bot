@@ -68,10 +68,14 @@ class SteamService(BaseService):
                         current_activity_db = await steam_db.get_current_activity(session, user_db.id)
                         current_activity = current_activity_db.activity_name if current_activity_db else None
                         if current_activity != activity:
-                            logger.info(
-                                f"Steam user {username} {user_steam_id} changed activity {current_activity} to {activity}")
+                            if current_activity is not None:
+                                # Finish activity
+                                logger.info(f"Steam user {username} {user_steam_id} finish activity {current_activity}")
+                                current_activity_db.finished_at = datetime.datetime.now(datetime.UTC)
+
                             if activity is not None:
                                 # Start new activity
+                                logger.info(f"Steam user {username} {user_steam_id} start activity {activity}")
                                 new_activity_db = SteamActivitySession(
                                     user_id=user_db.id,
                                     steam_id=user_steam_id,
@@ -79,10 +83,6 @@ class SteamService(BaseService):
                                     extra_data={"username": username},
                                 )
                                 session.add(new_activity_db)
-
-                            if current_activity is not None:
-                                # Finish activity
-                                current_activity_db.finished_at = datetime.datetime.utcnow()
 
                             await session.commit()
                             await asyncio.sleep(3)
@@ -113,6 +113,13 @@ class SteamService(BaseService):
         self._tasks.append(asyncio.create_task(self._process_users_task()))
 
     async def close(self):
+        for task in self._tasks:
+            try:
+                task.cancel()
+                await task
+            except Exception as e:
+                logger.error(e)
+
         if self.db_helper:
             await self.db_helper.close()
             self.db_helper = None
