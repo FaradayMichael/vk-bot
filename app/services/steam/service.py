@@ -111,7 +111,7 @@ class SteamService(BaseService):
                                 f"Steam user [{username}] [{user_steam_id}] is now [{status}]"
                             )
                             if current_status is not None:
-                                current_status.finished_at = datetime.datetime.now(
+                                current_status_db.finished_at = datetime.datetime.now(
                                     datetime.UTC
                                 ).replace(tzinfo=None)
                             if status is not None:
