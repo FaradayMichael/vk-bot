@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
 from . import (
-    activities
+    activities,
+    statuses,
 )
 
 router = APIRouter(
@@ -9,4 +10,7 @@ router = APIRouter(
 )
 router.include_router(
     activities.router
+)
+router.include_router(
+    statuses.router
 )

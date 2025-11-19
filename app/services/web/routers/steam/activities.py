@@ -14,7 +14,7 @@ from jinja2 import (
     Environment
 )
 
-from app.business_logic.discord import activities as discord_activities_bl
+from app.business_logic import activities as activities_bl
 from app.db import steam as steam_db
 from app.utils.fastapi.depends.db import (
     get as get_db
@@ -52,14 +52,14 @@ async def activity_sessions_view(
 
     image_base64_data = None
     if user_id:
-        activities = await steam_db.get_list(
+        activities = await steam_db.get_list_activities(
             session=conn,
             user_id=user_id,
             from_dt=from_date,
             to_dt=to_date,
         )
         if activities:
-            image_dataurl_gantt = discord_activities_bl.create_figure_image_gantt(activities, now, tz)
+            image_dataurl_gantt = activities_bl.create_figure_image_gantt(activities, now, tz)
             image_base64_data = image_dataurl_gantt.data.decode("utf-8")
 
         users_data = _insert_current_user_in_head(users_data, user_id)

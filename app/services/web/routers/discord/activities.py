@@ -14,7 +14,7 @@ from jinja2 import (
     Environment
 )
 
-from app.business_logic.discord import activities as discord_activities_bl
+from app.business_logic import activities as activities_bl
 from app.db import activity_sessions as activity_sessions_db
 from app.utils.fastapi.depends.db import (
     get as get_db
@@ -59,7 +59,7 @@ async def activity_sessions_view(
             to_dt=to_date,
         )
         if activities:
-            image_dataurl_gantt = discord_activities_bl.create_figure_image_gantt(activities, now, tz)
+            image_dataurl_gantt = activities_bl.create_figure_image_gantt(activities, now, tz)
             image_base64_data = image_dataurl_gantt.data.decode("utf-8")
 
         users_data = _insert_current_user_in_head(users_data, user_id)

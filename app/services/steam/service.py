@@ -9,6 +9,7 @@ from app.db import (
     steam as steam_db
 )
 from app.models import SteamUser, SteamActivitySession
+from app.models.steam import SteamStatusSession
 from app.utils.db import (
     DBHelper,
     init_db
@@ -39,6 +40,7 @@ class SteamService(BaseService):
         self.process_users = config.steam.user_ids
 
     async def _process_users_task(self):
+        logger.info("Start process users task")
         while not self.stopping:
             try:
                 async with self.db_helper.get_session() as session:
@@ -47,14 +49,15 @@ class SteamService(BaseService):
                     for user_steam_id in self.process_users:
                         steam_data = await self.steam_client.get_user_details(user_steam_id)
                         if not steam_data:
-                            logger.error(f"Steam user {user_steam_id} not found")
+                            logger.error(f"Steam user [{user_steam_id}] not found")
                             continue
                         activity = steam_data.get("gameextrainfo")
                         username = steam_data.get("personaname")
+                        status = self._get_status_str(bool(steam_data.get("personastate")))
 
                         user_db = users_db_map.get(user_steam_id)
                         if not user_db:
-                            logger.info(f"Steam user {username} {user_steam_id} not exist in DB")
+                            logger.info(f"Steam user [{username}] [{user_steam_id}] not exist in DB")
                             user_db = SteamUser(
                                 steam_id=user_steam_id,
                                 username=username,
@@ -70,12 +73,14 @@ class SteamService(BaseService):
                         if current_activity != activity:
                             if current_activity is not None:
                                 # Finish activity
-                                logger.info(f"Steam user {username} {user_steam_id} finish activity {current_activity}")
-                                current_activity_db.finished_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+                                logger.info(f"Steam user [{username}] [{user_steam_id}] finish activity [{current_activity}]")
+                                current_activity_db.finished_at = datetime.datetime.now(datetime.UTC).replace(
+                                    tzinfo=None
+                                )
 
                             if activity is not None:
                                 # Start new activity
-                                logger.info(f"Steam user {username} {user_steam_id} start activity {activity}")
+                                logger.info(f"Steam user [{username}] [{user_steam_id}] start activity [{activity}]")
                                 new_activity_db = SteamActivitySession(
                                     user_id=user_db.id,
                                     steam_id=user_steam_id,
@@ -84,8 +89,23 @@ class SteamService(BaseService):
                                 )
                                 session.add(new_activity_db)
 
-                            await session.commit()
-                            await asyncio.sleep(3)
+                        current_status_db = await steam_db.get_current_status(session, user_db.id)
+                        current_status = current_status_db.status if current_status_db else None
+                        if current_status != status:
+                            logger.info(f"Steam user [{username}] [{user_steam_id}] is now [{status}]")
+                            if current_status is not None:
+                                current_status.finished_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+                            if status is not None:
+                                new_status_db = SteamStatusSession(
+                                    user_id=user_db.id,
+                                    steam_id=user_steam_id,
+                                    status=status,
+                                    extra_data={"username": username},
+                                )
+                                session.add(new_status_db)
+
+                        await session.commit()
+                        await asyncio.sleep(3)
 
             except (asyncio.CancelledError, StopIteration, GeneratorExit, KeyboardInterrupt):
                 return await self.stop()
@@ -95,6 +115,10 @@ class SteamService(BaseService):
             except Exception as e:
                 logger.exception(e)
             await asyncio.sleep(60)
+
+    @staticmethod
+    def _get_status_str(status: bool) -> str:
+        return "online" if status else "offline"
 
     @classmethod
     async def create(

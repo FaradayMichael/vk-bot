@@ -207,7 +207,7 @@ services:
       dockerfile: docker/base/Dockerfile
     container_name: migrations
     command:  alembic upgrade head
-    #command:  alembic revision --autogenerate -m "init"
+    #command:  alembic revision --autogenerate
     volumes:
       - .:/code
     links:

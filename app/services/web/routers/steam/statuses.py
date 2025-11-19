@@ -15,7 +15,9 @@ from jinja2 import (
 )
 
 from app.business_logic import activities as activities_bl
-from app.db import status_sessions as status_sessions_db
+from app.db import (
+    steam as steam_db,
+)
 from app.utils.fastapi.depends.db import (
     get as get_db
 )
@@ -25,11 +27,9 @@ from app.utils.fastapi.depends.session import (
 from app.utils.fastapi.depends.jinja import (
     get as get_jinja
 )
-from app.models.discord_status_sessions import (
-    DiscordStatusSession
-)
-from app.models.discord_activity_sessions import (
-    DiscordActivitySession
+from app.models.steam import (
+    SteamStatusSession,
+    SteamActivitySession
 )
 from app.utils.fastapi.session import (
     Session
@@ -44,7 +44,7 @@ router = APIRouter(prefix='/statuses')
 @router.get('/', response_class=HTMLResponse)
 async def status_sessions_view(
         request: Request,
-        user_id: str = None,
+        user_id: int = None,
         from_date: datetime.date = None,
         to_date: datetime.date = None,
         # group: bool = False,
@@ -54,11 +54,11 @@ async def status_sessions_view(
 ):
     tz = pytz.timezone('Europe/Moscow')
     now = datetime.datetime.now(tz=tz)
-    users_data = await status_sessions_db.get_users_data(conn)
+    users_data = await steam_db.get_users_data(conn)
 
     image_base64_data = None
     if user_id:
-        activities = await status_sessions_db.get_list(
+        activities = await steam_db.get_list_statuses(
             session=conn,
             user_id=user_id,
             from_dt=from_date,
@@ -74,7 +74,7 @@ async def status_sessions_view(
 
     from_date_default = from_date or now
     to_date_default = to_date or (now + datetime.timedelta(days=1))
-    return jinja.get_template('discord/statuses.html').render(
+    return jinja.get_template('steam/statuses.html').render(
         user=session.user,
         request=request,
         users_data=users_data,
@@ -93,11 +93,11 @@ def _insert_current_user_in_head(users_data, user_id):
     return users_data
 
 
-def _statuses_model_to_activities_model(model: DiscordStatusSession) -> DiscordActivitySession:
-    return DiscordActivitySession(
+def _statuses_model_to_activities_model(model: SteamStatusSession) -> SteamActivitySession:
+    return SteamActivitySession(
         activity_name=model.status,
         user_id=model.user_id,
-        user_name=model.user_name,
+        steam_id=model.steam_id,
         started_at=model.started_at,
         finished_at=model.finished_at,
         extra_data=model.extra_data,

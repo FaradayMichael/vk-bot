@@ -6,15 +6,16 @@ from plotly import (
 )
 from plotly.graph_objs import Figure
 
-from app.models import SteamActivitySession
+
 from app.utils.dataurl import DataURL
 from app.utils.plotly import figure_to_image_dataurl
 from app.models.discord_activity_sessions import DiscordActivitySession
 from app.models.discord_status_sessions import DiscordStatusSession
+from app.models.steam import SteamActivitySession, SteamStatusSession
 
 
 def create_figure_image_gantt(
-        activities: list[DiscordActivitySession],
+        activities: list[DiscordActivitySession | DiscordStatusSession | SteamActivitySession | SteamStatusSession],
         now: datetime.datetime | None = None,
         tz: datetime.tzinfo | None = None,
 ) -> DataURL | None:
@@ -25,7 +26,7 @@ def create_figure_image_gantt(
 
 
 def create_figure_gantt(
-        activities: list[DiscordActivitySession | DiscordStatusSession | SteamActivitySession],
+        activities: list[DiscordActivitySession | DiscordStatusSession | SteamActivitySession | SteamStatusSession],
         now: datetime.datetime | None = None,
         tz: datetime.tzinfo | None = None,
 ) -> Figure | None:
