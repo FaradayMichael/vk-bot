@@ -15,16 +15,10 @@ from aio_pika import (
     RobustChannel,
     Message,
     DeliveryMode,
-    IncomingMessage
+    IncomingMessage,
 )
-from aio_pika.message import (
-    ReturnedMessage
-)
-from aio_pika.abc import (
-    ConsumerTag,
-    AbstractQueueIterator,
-    AbstractIncomingMessage
-)
+from aio_pika.message import ReturnedMessage
+from aio_pika.abc import ConsumerTag, AbstractQueueIterator, AbstractIncomingMessage
 from aiormq.abc import ExceptionType
 
 from .serializer import (
@@ -50,12 +44,12 @@ logger = logging.getLogger(__name__)
 
 class Task:
     def __init__(
-            self,
-            method: str,
-            data: bytes,
-            response_class: Type[ModelClass],
-            priority: int | None = None,
-            nullable_response: bool = False
+        self,
+        method: str,
+        data: bytes,
+        response_class: Type[ModelClass],
+        priority: int | None = None,
+        nullable_response: bool = False,
     ):
         self.id = uuid.uuid4().hex
         self.method = method
@@ -83,24 +77,18 @@ class Task:
 class Client:
     @classmethod
     async def create(
-            cls,
-            conn: RobustConnection,
-            worker_queue_name: str,
-            serializer: Serializer
-    ) -> 'Client':
+        cls, conn: RobustConnection, worker_queue_name: str, serializer: Serializer
+    ) -> "Client":
         instance = cls(conn, worker_queue_name, serializer)
         await instance.init()
         return instance
 
     def __init__(
-            self,
-            conn: RobustConnection,
-            worker_queue_name: str,
-            serializer: Serializer
+        self, conn: RobustConnection, worker_queue_name: str, serializer: Serializer
     ):
         super().__init__()
         self.conn = conn
-        self.client_queue_name = f'asynctask.clients.{uuid.uuid4().hex}'
+        self.client_queue_name = f"asynctask.clients.{uuid.uuid4().hex}"
         self.worker_queue_name = worker_queue_name
         self.serializer = serializer
         self.channel: RobustChannel | None = None
@@ -124,7 +112,7 @@ class Client:
 
         self.channel.close_callbacks.add(self.on_close)
         self.channel.return_callbacks.add(self.on_message_returned)
-        logger.info(f'Client initialised for queue {self.worker_queue_name}')
+        logger.info(f"Client initialised for queue {self.worker_queue_name}")
 
     async def close(self):
         for task in self.tasks.values():
@@ -143,16 +131,16 @@ class Client:
 
         if self.channel:
             await self.channel.close()
-        logger.info(f'Client for queue {self.worker_queue_name} closed')
+        logger.info(f"Client for queue {self.worker_queue_name} closed")
 
     async def call(
-            self,
-            method: str,
-            data: ModelClass | None = None,
-            response_class: Type[ModelClass] | None = None,
-            priority: int | None = None,
-            expiration: int | None = None,
-            nullable_response: bool = False,
+        self,
+        method: str,
+        data: ModelClass | None = None,
+        response_class: Type[ModelClass] | None = None,
+        priority: int | None = None,
+        expiration: int | None = None,
+        nullable_response: bool = False,
     ) -> Any:
         task = Task(
             method=method,
@@ -167,9 +155,7 @@ class Client:
             body=self.serializer.pack(data),
             content_type=self.serializer.content_type(),
             type=MessageType.REQUEST.value,
-            headers={
-                METHOD_HEADER: method
-            },
+            headers={METHOD_HEADER: method},
             timestamp=time.time(),
             priority=task.priority,
             correlation_id=task.id,
@@ -185,19 +171,15 @@ class Client:
             mandatory=True,
         )
 
-        return await asyncio.wait_for(
-            task.future,
-            timeout=expiration
-        )
+        return await asyncio.wait_for(task.future, timeout=expiration)
 
     async def on_message(
-            self,
-            incoming_message: IncomingMessage | AbstractIncomingMessage
+        self, incoming_message: IncomingMessage | AbstractIncomingMessage
     ):
         task = self.tasks.pop(incoming_message.correlation_id, None)
         if not task:
             logger.error(
-                f'Task {incoming_message.correlation_id} for message {incoming_message} not found'
+                f"Task {incoming_message.correlation_id} for message {incoming_message} not found"
             )
             await incoming_message.ack()
             return
@@ -208,35 +190,34 @@ class Client:
                     task.set_result(None)
                 else:
                     data = self.serializer.unpack(
-                        incoming_message.body, task.response_class)
+                        incoming_message.body, task.response_class
+                    )
                     task.set_result(data)
             elif incoming_message.type == MessageType.CANCELED:
                 task.set_exception(TaskCanceled())
             elif incoming_message.type == MessageType.ERROR:
                 task.set_exception(
                     TaskError(
-                        self.serializer.unpack(
-                            incoming_message.body, ErrorData).message
+                        self.serializer.unpack(incoming_message.body, ErrorData).message
                     )
                 )
             elif incoming_message.type == MessageType.EXCEPTION:
                 task.set_exception(
                     TaskException(
-                        self.serializer.unpack(
-                            incoming_message.body, ExceptionData)
+                        self.serializer.unpack(incoming_message.body, ExceptionData)
                     )
                 )
             elif incoming_message.type == MessageType.NO_HANDLER:
                 task.set_exception(
                     TaskNoHandler(
-                        self.serializer.unpack(
-                            incoming_message.body, ErrorData).message
+                        self.serializer.unpack(incoming_message.body, ErrorData).message
                     )
                 )
             else:
                 task.set_exception(
                     RuntimeError(
-                        f'Unknown response {incoming_message.type} {incoming_message.body}')
+                        f"Unknown response {incoming_message.type} {incoming_message.body}"
+                    )
                 )
         except Exception as exc:
             task.set_exception(exc)
@@ -244,12 +225,14 @@ class Client:
             try:
                 await incoming_message.ack()
             except Exception:
-                logger.exception(f"Error asking message {incoming_message.body.decode()}")
+                logger.exception(
+                    f"Error asking message {incoming_message.body.decode()}"
+                )
                 raise
 
     def on_close(
-            self,
-            exc: ExceptionType | None = None,
+        self,
+        exc: ExceptionType | None = None,
     ) -> None:
         for task in self.tasks.values():
             if not task.done():
@@ -258,29 +241,24 @@ class Client:
                 else:
                     task.cancel()
 
-    def on_message_returned(
-            self,
-            returned_message: ReturnedMessage
-    ):
-        logger.error('Message returned')
+    def on_message_returned(self, returned_message: ReturnedMessage):
+        logger.error("Message returned")
         task = self.tasks.pop(returned_message.correlation_id, None)
         if task:
             if not task.done():
-                task.set_exception(
-                    TaskReturned(f'Task {task.id} message returned')
-                )
+                task.set_exception(TaskReturned(f"Task {task.id} message returned"))
         else:
-            logger.error(f'Message returned {returned_message}')
+            logger.error(f"Message returned {returned_message}")
 
 
 IGNORE_EXCEPTIONS = [
-    'Captcha',
-    'ProxyBanned',
-    'NetworkTrouble',
-    'TooManyRequests',
-    'PageNotFound',
-    'InvalidSessionIdException',
-    'RestartParser',
+    "Captcha",
+    "ProxyBanned",
+    "NetworkTrouble",
+    "TooManyRequests",
+    "PageNotFound",
+    "InvalidSessionIdException",
+    "RestartParser",
 ]
 
 
@@ -295,9 +273,14 @@ def retry(fn):
             except asyncio.CancelledError:
                 raise
             except TaskReturned:
-                logger.info(f'Waiting parser nodes to start')
-            except (TaskCanceled, asyncio.TimeoutError, TimeoutError, TaskNoHandler) as exc:
-                logger.info(f'pass {exc.cls}')
+                logger.info(f"Waiting parser nodes to start")
+            except (
+                TaskCanceled,
+                asyncio.TimeoutError,
+                TimeoutError,
+                TaskNoHandler,
+            ) as exc:
+                logger.info(f"pass {exc.cls}")
                 pass
             except TaskException as exc:
                 if exc.cls not in IGNORE_EXCEPTIONS:

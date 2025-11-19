@@ -1,11 +1,5 @@
-from gigachat import (
-    GigaChatAsyncClient
-)
-from gigachat.models import (
-    Chat,
-    Messages,
-    MessagesRole
-)
+from gigachat import GigaChatAsyncClient
+from gigachat.models import Chat, Messages, MessagesRole
 
 from app.db import gigachat as gigachat_db
 from app.utils.config import GigachatConfig
@@ -16,13 +10,13 @@ user_alias = str | int
 
 class GigachatClient:
     def __init__(
-            self,
-            config: GigachatConfig,
-            db_helper: DBHelper,
-            role: MessagesRole = MessagesRole.SYSTEM,
-            init_payload_message: str = "Ты внимательный бот, который помогает пользователю решить его проблемы.",
-            temperature: float = 0.7,
-            max_tokens: int = 500,
+        self,
+        config: GigachatConfig,
+        db_helper: DBHelper,
+        role: MessagesRole = MessagesRole.SYSTEM,
+        init_payload_message: str = "Ты внимательный бот, который помогает пользователю решить его проблемы.",
+        temperature: float = 0.7,
+        max_tokens: int = 500,
     ):
         self.config = config
         self.db_helper = db_helper
@@ -45,7 +39,9 @@ class GigachatClient:
             if not messages_db:
                 messages_db = [
                     await gigachat_db.create(
-                        session, user, Messages(role=self._role, content=self._init_payload_message)
+                        session,
+                        user,
+                        Messages(role=self._role, content=self._init_payload_message),
                     )
                 ]
         return Chat(
@@ -57,7 +53,9 @@ class GigachatClient:
     async def chat(self, user: user_alias, message_text: str) -> Messages:
         user = str(user)
         async with self.db_helper.get_session() as session:
-            await gigachat_db.create(session, user, Messages(role=MessagesRole.USER, content=message_text))
+            await gigachat_db.create(
+                session, user, Messages(role=MessagesRole.USER, content=message_text)
+            )
             payload = await self._get_payload(user)
 
             response = await self._giga.achat(payload)

@@ -1,57 +1,45 @@
 import asyncio
 import logging
 
-from discord import (
-    Client,
-    Intents
-)
+from discord import Client, Intents
 from fastapi import (
     APIRouter,
     Depends,
     Request,
     Form,
 )
-from fastapi.responses import (
-    HTMLResponse,
-    RedirectResponse
-)
+from fastapi.responses import HTMLResponse, RedirectResponse
 from jinja2 import Environment
 
 from app.utils.config import Config
-from app.utils.fastapi.depends.conf import (
-    get as get_config
-)
-from app.utils.fastapi.depends.session import (
-    get as ges_session
-)
-from app.utils.fastapi.depends.jinja import (
-    get as get_jinja
-)
+from app.utils.fastapi.depends.conf import get as get_config
+from app.utils.fastapi.depends.session import get as ges_session
+from app.utils.fastapi.depends.jinja import get as get_jinja
 from app.utils.fastapi.session import Session
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix='/messages')
+router = APIRouter(prefix="/messages")
 
 
-@router.get('/', response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 async def discord_messages_view(
-        request: Request,
-        jinja: Environment = Depends(get_jinja),
-        session: Session = Depends(ges_session),
+    request: Request,
+    jinja: Environment = Depends(get_jinja),
+    session: Session = Depends(ges_session),
 ):
-    return jinja.get_template('/discord/messages.html').render(
+    return jinja.get_template("/discord/messages.html").render(
         user=session.user,
         request=request,
     )
 
 
-@router.post('/', response_class=RedirectResponse)
+@router.post("/", response_class=RedirectResponse)
 async def send_discord_message(
-        peer_id: int = Form(),
-        message_text: str = Form(default=''),
-        # files: list[UploadFile] = File(...),
-        config: Config = Depends(get_config)
+    peer_id: int = Form(),
+    message_text: str = Form(default=""),
+    # files: list[UploadFile] = File(...),
+    config: Config = Depends(get_config),
 ):
     intents = Intents.all()
     intents.messages = True
@@ -60,7 +48,7 @@ async def send_discord_message(
     for i in range(10):
         if client.is_ready():
             break
-        logger.info(f'Waiting for client ready {i + 1}...')
+        logger.info(f"Waiting for client ready {i + 1}...")
         await asyncio.sleep(3)
     channel = client.get_channel(peer_id)
     if not channel:
@@ -72,4 +60,4 @@ async def send_discord_message(
     except Exception as e:
         logger.error(e)
 
-    return RedirectResponse('/discord/messages', status_code=302)
+    return RedirectResponse("/discord/messages", status_code=302)

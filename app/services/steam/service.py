@@ -5,15 +5,10 @@ import logging
 from redis.asyncio import Redis
 from urllib3.exceptions import NameResolutionError
 
-from app.db import (
-    steam as steam_db
-)
+from app.db import steam as steam_db
 from app.models import SteamUser, SteamActivitySession
 from app.models.steam import SteamStatusSession
-from app.utils.db import (
-    DBHelper,
-    init_db
-)
+from app.utils.db import DBHelper, init_db
 from app.utils import redis
 from app.utils.config import Config
 from app.utils.service import BaseService
@@ -24,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 class SteamService(BaseService):
     def __init__(
-            self,
-            config: Config,
-            controller_name: str,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs
+        self,
+        config: Config,
+        controller_name: str,
+        loop: asyncio.AbstractEventLoop,
+        **kwargs,
     ):
         super().__init__(config, controller_name, loop, **kwargs)
 
@@ -47,17 +42,23 @@ class SteamService(BaseService):
                     users_db = await steam_db.get_users(session)
                     users_db_map = {i.steam_id: i for i in users_db}
                     for user_steam_id in self.process_users:
-                        steam_data = await self.steam_client.get_user_details(user_steam_id)
+                        steam_data = await self.steam_client.get_user_details(
+                            user_steam_id
+                        )
                         if not steam_data:
                             logger.error(f"Steam user [{user_steam_id}] not found")
                             continue
                         activity = steam_data.get("gameextrainfo")
                         username = steam_data.get("personaname")
-                        status = self._get_status_str(bool(steam_data.get("personastate")))
+                        status = self._get_status_str(
+                            bool(steam_data.get("personastate"))
+                        )
 
                         user_db = users_db_map.get(user_steam_id)
                         if not user_db:
-                            logger.info(f"Steam user [{username}] [{user_steam_id}] not exist in DB")
+                            logger.info(
+                                f"Steam user [{username}] [{user_steam_id}] not exist in DB"
+                            )
                             user_db = SteamUser(
                                 steam_id=user_steam_id,
                                 username=username,
@@ -68,19 +69,29 @@ class SteamService(BaseService):
                         if user_db.username != username:
                             user_db.username = username
 
-                        current_activity_db = await steam_db.get_current_activity(session, user_db.id)
-                        current_activity = current_activity_db.activity_name if current_activity_db else None
+                        current_activity_db = await steam_db.get_current_activity(
+                            session, user_db.id
+                        )
+                        current_activity = (
+                            current_activity_db.activity_name
+                            if current_activity_db
+                            else None
+                        )
                         if current_activity != activity:
                             if current_activity is not None:
                                 # Finish activity
-                                logger.info(f"Steam user [{username}] [{user_steam_id}] finish activity [{current_activity}]")
-                                current_activity_db.finished_at = datetime.datetime.now(datetime.UTC).replace(
-                                    tzinfo=None
+                                logger.info(
+                                    f"Steam user [{username}] [{user_steam_id}] finish activity [{current_activity}]"
                                 )
+                                current_activity_db.finished_at = datetime.datetime.now(
+                                    datetime.UTC
+                                ).replace(tzinfo=None)
 
                             if activity is not None:
                                 # Start new activity
-                                logger.info(f"Steam user [{username}] [{user_steam_id}] start activity [{activity}]")
+                                logger.info(
+                                    f"Steam user [{username}] [{user_steam_id}] start activity [{activity}]"
+                                )
                                 new_activity_db = SteamActivitySession(
                                     user_id=user_db.id,
                                     steam_id=user_steam_id,
@@ -89,12 +100,20 @@ class SteamService(BaseService):
                                 )
                                 session.add(new_activity_db)
 
-                        current_status_db = await steam_db.get_current_status(session, user_db.id)
-                        current_status = current_status_db.status if current_status_db else None
+                        current_status_db = await steam_db.get_current_status(
+                            session, user_db.id
+                        )
+                        current_status = (
+                            current_status_db.status if current_status_db else None
+                        )
                         if current_status != status:
-                            logger.info(f"Steam user [{username}] [{user_steam_id}] is now [{status}]")
+                            logger.info(
+                                f"Steam user [{username}] [{user_steam_id}] is now [{status}]"
+                            )
                             if current_status is not None:
-                                current_status.finished_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+                                current_status.finished_at = datetime.datetime.now(
+                                    datetime.UTC
+                                ).replace(tzinfo=None)
                             if status is not None:
                                 new_status_db = SteamStatusSession(
                                     user_id=user_db.id,
@@ -107,7 +126,12 @@ class SteamService(BaseService):
                         await session.commit()
                         await asyncio.sleep(3)
 
-            except (asyncio.CancelledError, StopIteration, GeneratorExit, KeyboardInterrupt):
+            except (
+                asyncio.CancelledError,
+                StopIteration,
+                GeneratorExit,
+                KeyboardInterrupt,
+            ):
                 return await self.stop()
             except NameResolutionError as e:
                 logger.exception(e)
@@ -122,12 +146,9 @@ class SteamService(BaseService):
 
     @classmethod
     async def create(
-            cls,
-            config: Config,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs
+        cls, config: Config, loop: asyncio.AbstractEventLoop, **kwargs
     ) -> "SteamService":
-        return await super().create(config, 'steam_service', loop, **kwargs)  # noqa
+        return await super().create(config, "steam_service", loop, **kwargs)  # noqa
 
     async def init(self):
         self.db_helper = await init_db(self.config.db)

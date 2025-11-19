@@ -5,9 +5,7 @@ from typing import Any
 from redis.asyncio import from_url, Redis
 
 from app.utils.config import RedisConfig
-from app.utils.env import (
-    get as get_from_env
-)
+from app.utils.env import get as get_from_env
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +15,12 @@ Connection = Redis
 async def init(config: RedisConfig) -> Connection:
     dsn = config.dsn
     if not dsn:
-        raise RuntimeError('Redis connection parameters not defined')
+        raise RuntimeError("Redis connection parameters not defined")
 
     return await from_url(
         dsn,
-        password=get_from_env('REDIS_PASS', strict=True),
-        max_connections=config.maxsize
+        password=get_from_env("REDIS_PASS", strict=True),
+        max_connections=config.maxsize,
     )
 
 
@@ -36,7 +34,7 @@ async def get(conn: Connection, key: str) -> dict | None:
         try:
             return json.loads(data)
         except:
-            logger.exception(f'Wrong session data {data}')
+            logger.exception(f"Wrong session data {data}")
     return None
 
 
@@ -52,9 +50,5 @@ async def setex(conn: Connection, key: str, ttl: int, value: Any):
     await conn.setex(key, ttl, json.dumps(value))
 
 
-async def publish(
-        conn: Connection,
-        queue_name: str,
-        data: Any
-) -> int | Any:
+async def publish(conn: Connection, queue_name: str, data: Any) -> int | Any:
     return await conn.publish(queue_name, json.dumps(data))

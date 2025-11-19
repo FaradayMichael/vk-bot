@@ -1,7 +1,4 @@
-from fastapi import (
-    APIRouter,
-    Depends
-)
+from fastapi import APIRouter, Depends
 
 from . import (
     index,
@@ -21,16 +18,12 @@ def register_routers(app):
         index.router,
         # dependencies=[Depends(check_auth)] if not app.debug else []
     )
+    router.include_router(auth.router)
     router.include_router(
-        auth.router
+        service.router, dependencies=[Depends(check_auth)] if not app.debug else []
     )
     router.include_router(
-        service.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
-    )
-    router.include_router(
-        vk.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
+        vk.router, dependencies=[Depends(check_auth)] if not app.debug else []
     )
     router.include_router(steam.router)
     router = discord.register_routes(router, app.debug)

@@ -11,4 +11,4 @@ async def get(request: fastapi.Request) -> SMTP:
     try:
         return request.app.state.smtp
     except AttributeError:
-        raise RuntimeError('Application state has no smtp connection')
+        raise RuntimeError("Application state has no smtp connection")

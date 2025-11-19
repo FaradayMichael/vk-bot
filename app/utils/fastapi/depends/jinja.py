@@ -10,4 +10,4 @@ async def get(request: fastapi.Request) -> Environment:
     try:
         return request.app.state.jinja
     except AttributeError:
-        raise RuntimeError('Application state has no jinja environment')
+        raise RuntimeError("Application state has no jinja environment")

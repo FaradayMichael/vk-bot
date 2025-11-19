@@ -1,9 +1,6 @@
 import datetime
 
-from pydantic import (
-    BaseModel,
-    Field, model_validator
-)
+from pydantic import BaseModel, Field, model_validator
 
 
 class BaseActivities(BaseModel):
@@ -23,21 +20,18 @@ class BaseActivities(BaseModel):
     def has_changes(self) -> bool:
         return self.before != self.after
 
-    @model_validator(mode='before')
-    def validate_user_id(
-            cls,  # noqa
-            data: dict
-    ):
-        data['user_id'] = str(data['user_id'])
+    @model_validator(mode="before")
+    def validate_user_id(cls, data: dict):  # noqa
+        data["user_id"] = str(data["user_id"])
         return data
 
 
 class PlayingActivities(BaseActivities):
-    rel_name: str = 'playing'
+    rel_name: str = "playing"
 
 
 class ListeningActivities(BaseActivities):
-    rel_name: str = 'listening'
+    rel_name: str = "listening"
 
 
 class ActivitiesState(BaseModel):
@@ -55,9 +49,9 @@ class ActivitySessionCreate(BaseModel):
     activity_name: str
     extra_data: dict = Field(default_factory=dict)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     def validate_user_id(cls, data: dict):
-        data['user_id'] = str(data['user_id'])
+        data["user_id"] = str(data["user_id"])
         return data
 
 
@@ -69,13 +63,10 @@ class ActivitySessionUpdate(BaseModel):
     activity_name: str | None = None
     extra_data: dict | None = None
 
-    @model_validator(mode='before')
-    def validate_user_id(
-            cls,  # noqa
-            data: dict
-    ):
-        if data.get('user_id'):
-            data['user_id'] = str(data['user_id'])
+    @model_validator(mode="before")
+    def validate_user_id(cls, data: dict):  # noqa
+        if data.get("user_id"):
+            data["user_id"] = str(data["user_id"])
         return data
 
 
@@ -93,9 +84,9 @@ class StatusSessionCreate(BaseModel):
     status: str
     extra_data: dict = Field(default_factory=dict)
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     def validate_user_id(cls, data: dict):
-        data['user_id'] = str(data['user_id'])
+        data["user_id"] = str(data["user_id"])
         return data
 
 
@@ -107,10 +98,10 @@ class StatusSessionUpdate(BaseModel):
     status: str | None = None
     extra_data: dict | None = None
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     def validate_user_id(cls, data: dict):
-        if data.get('user_id'):
-            data['user_id'] = str(data['user_id'])
+        if data.get("user_id"):
+            data["user_id"] = str(data["user_id"])
         return data
 
 

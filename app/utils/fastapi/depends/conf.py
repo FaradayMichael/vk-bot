@@ -11,4 +11,4 @@ async def get(request: fastapi.Request) -> Config:
     try:
         return request.app.state.config
     except AttributeError:
-        raise RuntimeError('Application state has no configs')
+        raise RuntimeError("Application state has no configs")

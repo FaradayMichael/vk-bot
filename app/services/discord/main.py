@@ -6,7 +6,7 @@ from .service import DiscordService
 
 
 def main(args, config: Config):
-    logging.info(f'Creating Discord Service')
+    logging.info(f"Creating Discord Service")
     loop = asyncio.get_event_loop()
 
     service: DiscordService | None = None

@@ -10,14 +10,9 @@ from fastapi import (
 from starlette.staticfiles import StaticFiles
 
 from app.utils.config import Config
-from app.utils.fastapi.depends.session import (
-    get as get_session
-)
+from app.utils.fastapi.depends.session import get as get_session
 from app.utils.fastapi.handlers import register_exception_handler
-from app.schemas.base import (
-    ErrorResponse,
-    UpdateErrorResponse
-)
+from app.schemas.base import ErrorResponse, UpdateErrorResponse
 from app.utils import config, ctrl, redis, smtp, db
 from app.utils.fastapi.state import State
 
@@ -34,18 +29,15 @@ def factory():
 def main(args, config: Config):
     loop = asyncio.get_event_loop()
     config_dict = config.model_dump()
-    root_path: str | None = config_dict.get('rot_path', None)
-    state = State(
-        loop=loop,
-        config=config
-    )
+    root_path: str | None = config_dict.get("rot_path", None)
+    state = State(loop=loop, config=config)
     app = FastAPI(
-        title='VK Bot WEB',
+        title="VK Bot WEB",
         debug=config.debug,
         root_path=root_path,
         responses=responses(),
         dependencies=[Depends(get_session)],
-        lifespan=lifespan
+        lifespan=lifespan,
     )
 
     app.state = state
@@ -58,7 +50,7 @@ def main(args, config: Config):
     # register_shutdown(app)
 
     static = StaticFiles(directory=config.folders.static)
-    app.mount(config.static_url, static, name='static')
+    app.mount(config.static_url, static, name="static")
 
     return app
 
@@ -71,21 +63,21 @@ async def lifespan(app):
 
 
 async def handler_startup(app):
-    logger.info('Startup called')
+    logger.info("Startup called")
     try:
         await startup(app)
         logger.info(f"{app.title} app startup executed")
     except:
-        logger.exception('Startup crashed')
+        logger.exception("Startup crashed")
 
 
 async def handler_shutdown(app):
-    logger.info('Shutdown called')
+    logger.info("Shutdown called")
     try:
         await shutdown(app)
         logger.info(f"{app.title} app shutdown executed")
     except:
-        logger.exception('Shutdown crashed')
+        logger.exception("Shutdown crashed")
 
 
 async def startup(app):
@@ -110,18 +102,11 @@ async def shutdown(app):
 
 
 async def startup_jinja(app):
-    from jinja2 import (
-        Environment,
-        ChoiceLoader,
-        FileSystemLoader,
-        select_autoescape
-    )
+    from jinja2 import Environment, ChoiceLoader, FileSystemLoader, select_autoescape
 
     env = Environment(
-        loader=ChoiceLoader([
-            FileSystemLoader('templates')
-        ]),
-        autoescape=select_autoescape()
+        loader=ChoiceLoader([FileSystemLoader("templates")]),
+        autoescape=select_autoescape(),
     )
     app.state.jinja = env
     return app
@@ -129,6 +114,7 @@ async def startup_jinja(app):
 
 def register_routers(app):
     from . import routers
+
     return routers.register_routers(app)
 
 
@@ -143,22 +129,10 @@ def check_folders(conf):
 
 def responses():
     return {
-        409: {
-            "model": UpdateErrorResponse
-        },
-        400: {
-            "model": ErrorResponse
-        },
-        401: {
-            "model": ErrorResponse
-        },
-        404: {
-            "model": ErrorResponse
-        },
-        422: {
-            "model": ErrorResponse
-        },
-        500: {
-            "model": ErrorResponse
-        },
+        409: {"model": UpdateErrorResponse},
+        400: {"model": ErrorResponse},
+        401: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
     }

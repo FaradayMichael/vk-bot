@@ -6,7 +6,7 @@ from app.services.vk_bot.service import VkBotService
 
 
 def main(args, config: Config):
-    logging.info(f'Creating VkBot Service')
+    logging.info(f"Creating VkBot Service")
     loop = asyncio.get_event_loop()
 
     service: VkBotService | None = None

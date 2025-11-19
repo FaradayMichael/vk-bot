@@ -6,21 +6,14 @@ from typing import Callable, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from vk_api.bot_longpoll import VkBotEvent
 
-from app.db import (
-    tasks as tasks_db
-)
+from app.db import tasks as tasks_db
 from app.schemas.vk_tasks import VkTask
 
 logger = logging.getLogger(__name__)
 
 
 class Task:
-    def __init__(
-            self,
-            func: Callable,
-            *args,
-            **kwargs
-    ):
+    def __init__(self, func: Callable, *args, **kwargs):
         self.tries: int = 0
         self.uuid: str = uuid.uuid4().hex
         self.func: Callable = func
@@ -47,15 +40,15 @@ class Task:
             return result
 
         return {
-            'uuid': self.uuid,
-            'func': self.func.__name__,
-            'args': parse_args(self.args),
-            'kwargs': self.kwargs,
-            'errors': str(self.errors) if self.errors else None,
-            'tries': self.tries,
-            'created': self.created,
-            'started': self.started,
-            'done': self.done,
+            "uuid": self.uuid,
+            "func": self.func.__name__,
+            "args": parse_args(self.args),
+            "kwargs": self.kwargs,
+            "errors": str(self.errors) if self.errors else None,
+            "tries": self.tries,
+            "created": self.created,
+            "started": self.started,
+            "done": self.done,
         }
 
     @property
@@ -70,12 +63,9 @@ async def execute_task(task: Task) -> Any | None:
     return await task.func(*task.args, **task.kwargs)
 
 
-async def save_task(
-        session: AsyncSession,
-        task: Task
-) -> VkTask:
+async def save_task(session: AsyncSession, task: Task) -> VkTask:
     task.done = datetime.datetime.now()
     try:
         return await tasks_db.create(session, task.model)
     except Exception as ex:
-        logger.info(f'Saving task {task.uuid} failed with {ex=}')
+        logger.info(f"Saving task {task.uuid} failed with {ex=}")

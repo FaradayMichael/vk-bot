@@ -8,8 +8,10 @@ from .base import Base, utc_now_default
 
 
 class DynamicConfig(Base):
-    __tablename__ = 'dynamic_config'
+    __tablename__ = "dynamic_config"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     data: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
-    atime: Mapped[datetime | None] = mapped_column(TIMESTAMP,default=None, onupdate=utc_now_default)
+    atime: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP, default=None, onupdate=utc_now_default
+    )

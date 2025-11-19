@@ -19,12 +19,12 @@ CHARSET_REGEX = r"[\w\-\+\.]+"
 _CHARSET_RE = re.compile("^{}$".format(CHARSET_REGEX))
 
 DATA_URI_REGEX = (
-        r"data:"
-        + r"(?P<mimetype>{})?".format(MIMETYPE_REGEX)
-        + r"(?:\;name\=(?P<name>[\w\.\-%!*'~\(\)]+))?"
-        + r"(?:\;charset\=(?P<charset>{}))?".format(CHARSET_REGEX)
-        + r"(?P<base64>\;base64)?"
-        + r",(?P<data>.*)"
+    r"data:"
+    + r"(?P<mimetype>{})?".format(MIMETYPE_REGEX)
+    + r"(?:\;name\=(?P<name>[\w\.\-%!*'~\(\)]+))?"
+    + r"(?:\;charset\=(?P<charset>{}))?".format(CHARSET_REGEX)
+    + r"(?P<base64>\;base64)?"
+    + r",(?P<data>.*)"
 )
 _DATA_URI_RE = re.compile(r"^{}$".format(DATA_URI_REGEX), re.DOTALL)
 
@@ -43,15 +43,19 @@ class InvalidDataURL(ValueError):
 
 class DataURL(str):
     @classmethod
-    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler):
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler
+    ):
         return core_schema.no_info_after_validator_function(cls, handler(str))
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler):
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ):
         json_schema = handler(core_schema)
         json_schema = handler.resolve_ref_schema(json_schema)
         json_schema.update(
-            pattern='data:[<тип данных>][;base64],<данные>',
+            pattern="data:[<тип данных>][;base64],<данные>",
         )
         return json_schema
 
@@ -188,4 +192,4 @@ class DataURL(str):
             case "audio/x-wav":
                 return "wav"
             case _:
-                raise RuntimeError(f'Тип {mimetype} не поддерживается')
+                raise RuntimeError(f"Тип {mimetype} не поддерживается")

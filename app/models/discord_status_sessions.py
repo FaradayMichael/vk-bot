@@ -8,15 +8,19 @@ from .base import Base, utc_now_default
 
 
 class DiscordStatusSession(Base):
-    __tablename__ = 'discord_status_sessions'
+    __tablename__ = "discord_status_sessions"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    started_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=utc_now_default)
+    started_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP, server_default=utc_now_default
+    )
     finished_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, default=None)
     user_id: Mapped[str] = mapped_column(index=True)
     user_name: Mapped[str]
     status: Mapped[str]
-    extra_data: Mapped[dict | None] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    extra_data: Mapped[dict | None] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
 
     def started_at_tz(self, tz: datetime.tzinfo = None) -> datetime | None:
         if tz:

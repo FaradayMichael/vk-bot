@@ -1,11 +1,6 @@
-from datetime import (
-    datetime
-)
+from datetime import datetime
 
-from pydantic import (
-    BaseModel,
-    Field
-)
+from pydantic import BaseModel, Field
 
 from app.schemas.base import (
     SuccessResponse,
@@ -39,8 +34,8 @@ BaseUser.model_rebuild()
 
 
 class Anonymous(BaseUser):
-    username: str = ''
-    email: str = ''
+    username: str = ""
+    email: str = ""
 
 
 class User(BaseUser):

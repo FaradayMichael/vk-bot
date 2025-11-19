@@ -10,10 +10,8 @@ async def on_help(service: VkBotService, message_model: VkMessage):
         message=Message(
             text=f"{f'@id{message_model.from_id} ' if message_model.from_chat else ''} help"
         ),
-        keyboard=callbacks.help_kb
+        keyboard=callbacks.help_kb,
     )
 
 
-COMMANDS_MAP = {
-    '/help': on_help
-}
+COMMANDS_MAP = {"/help": on_help}

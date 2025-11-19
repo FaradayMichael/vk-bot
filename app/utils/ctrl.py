@@ -4,7 +4,7 @@ import os
 from app.utils import config
 
 logger = logging.getLogger(__name__)
-CONFIG_ENV_KEY = 'SRVC_CONFIG'
+CONFIG_ENV_KEY = "SRVC_CONFIG"
 
 
 def main_with_parses(parser, entry_point):
@@ -22,10 +22,12 @@ def main_with_parses(parser, entry_point):
             conf = config.read_config(config_path)
         except Exception as e:
             logger.exception(e)
-            logger.error(f'Configuration file path not provided at environment [{CONFIG_ENV_KEY}]')
+            logger.error(
+                f"Configuration file path not provided at environment [{CONFIG_ENV_KEY}]"
+            )
             return None
 
     if conf is None:
-        logger.error(f'Configuration file at path {config_path} not found')
+        logger.error(f"Configuration file at path {config_path} not found")
     else:
         return entry_point(args, conf)

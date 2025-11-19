@@ -1,20 +1,12 @@
 import logging
 from enum import StrEnum
 from types import NoneType
-from typing import (
-    Any
-)
+from typing import Any
 
-from decimal import (
-    Decimal,
-    ROUND_HALF_UP
-)
+from decimal import Decimal, ROUND_HALF_UP
 from pydantic import BaseModel, Field
 
-from app.utils.consts import (
-    LIMIT_PER_PAGE,
-    LangsEnum
-)
+from app.utils.consts import LIMIT_PER_PAGE, LangsEnum
 
 
 class ValidationError(BaseModel):
@@ -56,7 +48,7 @@ class BaseSearchQueryParams(BaseModel):
 
 
 class BaseLangSearchQueryParams(BaseSearchQueryParams):
-    lang: LangsEnum = Field(default=LangsEnum.EN.value, description='Search lang')
+    lang: LangsEnum = Field(default=LangsEnum.EN.value, description="Search lang")
 
 
 class BaseListQueryParams(BaseModel):
@@ -65,9 +57,9 @@ class BaseListQueryParams(BaseModel):
 
 
 def round_decimal(
-        value: Decimal | None,
-        template: Decimal = Decimal('1.00'),
-        round_str: str = ROUND_HALF_UP
+    value: Decimal | None,
+    template: Decimal = Decimal("1.00"),
+    round_str: str = ROUND_HALF_UP,
 ) -> Decimal | None:
     if value is None:
         return None
@@ -80,11 +72,9 @@ class AttachmentType(StrEnum):
     VIDEO = "video"
 
     @staticmethod
-    def by_content_type(
-            content_type: str
-    ) -> "AttachmentType":
+    def by_content_type(content_type: str) -> "AttachmentType":
         match content_type:
-            case 'image/png':
+            case "image/png":
                 return AttachmentType.PHOTO
             case "image/jpeg":
                 return AttachmentType.PHOTO
@@ -102,22 +92,22 @@ class AttachmentType(StrEnum):
 
     @staticmethod
     def by_ext(
-            ext: str,
+        ext: str,
     ) -> "AttachmentType":
         match ext.lower():
-            case 'jpg':
+            case "jpg":
                 return AttachmentType.PHOTO
-            case 'jpeg':
+            case "jpeg":
                 return AttachmentType.PHOTO
-            case 'bmp':
+            case "bmp":
                 return AttachmentType.PHOTO
-            case 'mp4':
+            case "mp4":
                 return AttachmentType.VIDEO
-            case 'mov':
+            case "mov":
                 return AttachmentType.VIDEO
-            case 'mkv':
+            case "mkv":
                 return AttachmentType.VIDEO
-            case 'avi':
+            case "avi":
                 return AttachmentType.VIDEO
             case _ as arg:
                 logging.info(f"{arg=}")

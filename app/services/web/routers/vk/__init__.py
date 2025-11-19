@@ -1,12 +1,6 @@
 from fastapi import APIRouter
 
-from . import (
-    messages
-)
+from . import messages
 
-router = APIRouter(
-    prefix='/vk'
-)
-router.include_router(
-    messages.router
-)
+router = APIRouter(prefix="/vk")
+router.include_router(messages.router)

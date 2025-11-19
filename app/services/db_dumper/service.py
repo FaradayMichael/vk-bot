@@ -16,9 +16,9 @@ PG_DUMP_COMMAND_TEMPLATE = "pg_dump -U {user} -d {database} -h {host} > {filepat
 
 class DumperService:
     def __init__(
-            self,
-            loop: asyncio.AbstractEventLoop,
-            config: Config,
+        self,
+        loop: asyncio.AbstractEventLoop,
+        config: Config,
     ):
         self.loop = loop
         self.config = config
@@ -32,11 +32,11 @@ class DumperService:
                 logger.info(f"Schedule {sleep=}")
                 await asyncio.sleep(sleep)
 
-                filepath = f"dump_{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}.sql"
+                filepath = (
+                    f"dump_{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}.sql"
+                )
                 for _ in range(self.tries):
-                    success = await self.dump_db(
-                        filepath=filepath
-                    )
+                    success = await self.dump_db(filepath=filepath)
                     logger.info(f"Dumped {success=}")
                     if success:
                         break
@@ -55,14 +55,11 @@ class DumperService:
             except Exception as e:
                 logger.error(e)
 
-    async def dump_db(
-            self,
-            filepath: str
-    ) -> bool:
+    async def dump_db(self, filepath: str) -> bool:
         command = PG_DUMP_COMMAND_TEMPLATE.format(
             user=self.config.dumper.user,
             database=self.config.dumper.db,
-            host='db',
+            host="db",
             filepath=filepath,
         )
         result = os.system(command)
@@ -79,14 +76,11 @@ class DumperService:
         try:
             peer_id = self.config.dumper.vk_peer_id or self.config.vk.main_user_id
             attachment = await client.upload.doc_message(
-                peer_id=peer_id,
-                doc_path=filepath,
-                title=os.path.basename(filepath)
+                peer_id=peer_id, doc_path=filepath, title=os.path.basename(filepath)
             )
             if attachment:
                 result = await client.messages.send(
-                    peer_id=peer_id,
-                    message=Message(text='', attachment=attachment)
+                    peer_id=peer_id, message=Message(text="", attachment=attachment)
                 )
                 logger.info(result)
         except Exception as e:
@@ -99,7 +93,9 @@ class DumperService:
     @staticmethod
     def get_seconds_to_next_event_by_cron(cron: str) -> float:
         now = datetime.datetime.utcnow()
-        nxt: datetime.datetime = croniter.croniter(cron, now).get_next(datetime.datetime)
+        nxt: datetime.datetime = croniter.croniter(cron, now).get_next(
+            datetime.datetime
+        )
         return (nxt - now).total_seconds()
 
     def close(self):

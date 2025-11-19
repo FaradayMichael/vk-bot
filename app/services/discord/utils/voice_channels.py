@@ -1,12 +1,6 @@
 import logging
 
-from discord import (
-    VoiceChannel,
-    utils,
-    VoiceClient,
-    FFmpegPCMAudio,
-    AudioSource
-)
+from discord import VoiceChannel, utils, VoiceClient, FFmpegPCMAudio, AudioSource
 from discord.ext.commands import Bot
 
 from .yt import YTDLSource
@@ -14,7 +8,9 @@ from .yt import YTDLSource
 logger = logging.getLogger(__name__)
 
 
-async def connect_to_voice_channel(bot: Bot, voice_channel: VoiceChannel) -> VoiceClient:
+async def connect_to_voice_channel(
+    bot: Bot, voice_channel: VoiceChannel
+) -> VoiceClient:
     voice_client = utils.get(bot.voice_clients, channel=voice_channel)
     if not voice_client:
         voice_client = await voice_channel.connect()

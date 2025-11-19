@@ -6,19 +6,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.services.utils.client import UtilsClient
-from app.utils.fastapi.depends.session import (
-    get as ges_session
-)
-from app.utils.fastapi.depends.utils_clinet import (
-    get as get_utils_client
-)
+from app.utils.fastapi.depends.session import get as ges_session
+from app.utils.fastapi.depends.utils_clinet import get as get_utils_client
 
 from app.utils.fastapi.session import Session
 
-router = APIRouter(
-    prefix='/gigachat',
-    tags=['gigachat']
-)
+router = APIRouter(prefix="/gigachat", tags=["gigachat"])
 
 
 class FunctionCall(BaseModel):
@@ -36,15 +29,16 @@ class Message(BaseModel):
     id_: Any | None = Field(alias="id", default=None)
 
 
-@router.post('/chat', response_model=str)
+@router.post("/chat", response_model=str)
 async def api_gigachat_chat(
-        text: str = Body(media_type="text/plain", min_length=1, max_length=100),
-        session: Session = Depends(ges_session),
-        utils_client: UtilsClient = Depends(get_utils_client),
+    text: str = Body(media_type="text/plain", min_length=1, max_length=100),
+    session: Session = Depends(ges_session),
+    utils_client: UtilsClient = Depends(get_utils_client),
 ) -> str | JSONResponse:
     user = str(session.user.id)
     response = await utils_client.gpt_chat(user, text)
     return response.message
+
 
 # TODO
 # @router.post('/clear', response_model=SuccessResponse)

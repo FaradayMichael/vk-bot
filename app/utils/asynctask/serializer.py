@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 class Serializer:
-    def unpack(self, data: bytes, model_class: Type[ModelClass] | None = None) -> ModelClass | None:
+    def unpack(
+        self, data: bytes, model_class: Type[ModelClass] | None = None
+    ) -> ModelClass | None:
         raise NotImplemented()
 
     def pack(self, data: ModelClass | None = None) -> bytes:
@@ -19,11 +21,13 @@ class Serializer:
 
 
 class JsonSerializer(Serializer):
-    def unpack(self, data: bytes, model_class: Type[ModelClass] | None = None) -> ModelClass | None:
+    def unpack(
+        self, data: bytes, model_class: Type[ModelClass] | None = None
+    ) -> ModelClass | None:
         if not model_class and not data:
             return None
         if not model_class and data:
-            raise RuntimeError(f'Unexpected rpc result {data}')
+            raise RuntimeError(f"Unexpected rpc result {data}")
         # if data == b'':
         #     return None
         # if not model_class:
@@ -34,8 +38,8 @@ class JsonSerializer(Serializer):
 
     def pack(self, data: ModelClass | None = None) -> bytes:
         if data is None:
-            return b''
+            return b""
         return data.model_dump_json().encode()
 
     def content_type(self) -> str:
-        return 'application/json'
+        return "application/json"

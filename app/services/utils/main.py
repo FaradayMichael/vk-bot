@@ -6,7 +6,7 @@ from .service import UtilsService
 
 
 def main(args, config: Config):
-    logging.info(f'Creating Utils Service')
+    logging.info(f"Creating Utils Service")
     loop = asyncio.get_event_loop()
 
     service: UtilsService | None = None

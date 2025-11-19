@@ -13,9 +13,7 @@ from app.utils.db import DBHelper
 
 class State:
     def __init__(
-            self,
-            loop: asyncio.BaseEventLoop | asyncio.AbstractEventLoop,
-            config: Config
+        self, loop: asyncio.BaseEventLoop | asyncio.AbstractEventLoop, config: Config
     ):
         self.loop: asyncio.BaseEventLoop = loop
         self.config: Config = config

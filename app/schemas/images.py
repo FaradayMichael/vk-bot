@@ -13,7 +13,7 @@ class ImageTags(BaseModel):
     text_on_image: str | None = None
     products_data: list[str] = []
 
-    def text(self, sep: str = '\n', limit: int = None) -> str:
+    def text(self, sep: str = "\n", limit: int = None) -> str:
         str_lst = [f"TAGS: {self.tags_text}"]
         if self.description:
             str_lst.append(f"DESCRIPTION: {self.description}")
@@ -25,10 +25,10 @@ class ImageTags(BaseModel):
 
     @property
     def tags_text(self) -> str:
-        return ', '.join(self.tags)
+        return ", ".join(self.tags)
 
     def get_products_data_text(self, limit: int = None) -> str:
-        return '\n'.join(self.products_data)[:limit]
+        return "\n".join(self.products_data)[:limit]
 
 
 class ImageTagsResponse(SuccessResponse):

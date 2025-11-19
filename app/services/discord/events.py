@@ -6,15 +6,8 @@ from discord import (
     Message,
     ActivityType,
 )
-from discord.activity import (
-    ActivityTypes,
-    CustomActivity,
-    Spotify
-)
-from discord.member import (
-    Member,
-    VoiceState
-)
+from discord.activity import ActivityTypes, CustomActivity, Spotify
+from discord.member import Member, VoiceState
 
 from app.db import (
     dynamic_config as dynamic_config_db,
@@ -44,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 # https://discordpy.readthedocs.io/en/stable/api.html?highlight=event#event-reference
 
+
 async def on_message(service: DiscordService, message: Message):
     log_message(message)
 
@@ -54,7 +48,7 @@ async def on_message(service: DiscordService, message: Message):
         d_config = await dynamic_config_db.get(session)
         d_config_changed: bool = False
 
-        reactions_map = d_config.get('reactions_map', {})
+        reactions_map = d_config.get("reactions_map", {})
         reaction: str | None = reactions_map.get(str(message.author.id), None)
         if reaction is not None:
             await message.add_reaction(reaction)
@@ -82,8 +76,11 @@ async def on_message(service: DiscordService, message: Message):
             logger.info(f"{result_tags=}")
             if result_tags:
                 await message.reply(
-                    content='\n\n'.join(
-                        [f"{i + 1}. {m.text(limit=1500)}" for i, m in enumerate(result_tags)]
+                    content="\n\n".join(
+                        [
+                            f"{i + 1}. {m.text(limit=1500)}"
+                            for i, m in enumerate(result_tags)
+                        ]
                     )
                 )
 
@@ -95,13 +92,12 @@ async def on_ready_event(*args, **kwargs):
     logger.info(f"{args=} {kwargs=}")
 
 
-
 async def on_ready(service: DiscordService):
     bot = service.bot
 
     try:
         avatar_path = "static/avatar.jpg"
-        async with aiofiles.open(avatar_path, 'rb') as f:
+        async with aiofiles.open(avatar_path, "rb") as f:
             await bot.user.edit(
                 avatar=await f.read(),
             )
@@ -111,7 +107,7 @@ async def on_ready(service: DiscordService):
 
     async with service.db_helper.get_session() as session:
         d_config = await dynamic_config_db.get(session)
-        bot_activity_name = d_config.get('bot_activity_name')
+        bot_activity_name = d_config.get("bot_activity_name")
         if bot_activity_name:
             await bot.change_presence(activity=CustomActivity(name=bot_activity_name))
 
@@ -122,10 +118,7 @@ async def on_presence_update(service: DiscordService, before: Member, after: Mem
 
 
 async def on_voice_state_update(
-        service: DiscordService,
-        member: Member,
-        before: VoiceState,
-        after: VoiceState
+    service: DiscordService, member: Member, before: VoiceState, after: VoiceState
 ):
     async def on_leave_channel():
         channel = before.channel
@@ -138,7 +131,9 @@ async def on_voice_state_update(
     async def on_move():
         from_channel = before.channel
         to_channel = after.channel
-        logger.info(f"Member {member.name} moved from {from_channel.name} to {to_channel.name}")
+        logger.info(
+            f"Member {member.name} moved from {from_channel.name} to {to_channel.name}"
+        )
 
     async def on_start_stream():
         channel = after.channel
@@ -160,7 +155,9 @@ async def on_voice_state_update(
     return None
 
 
-async def _handel_activities_update(service: DiscordService, before: Member, after: Member):
+async def _handel_activities_update(
+    service: DiscordService, before: Member, after: Member
+):
     async with service.db_helper.get_session() as session:
 
         async def handle_activities_on_db(activities: BaseActivities):
@@ -173,26 +170,30 @@ async def _handel_activities_update(service: DiscordService, before: Member, aft
                         ActivitySessionCreate(
                             user_id=activities.user_id,
                             user_name=activities.user_name,
-                            activity_name=a
-                        )
+                            activity_name=a,
+                        ),
                     )
 
             if activities.finished:
                 for a in activities.finished:
-                    activity_db = await activity_sessions_db.get_first_unfinished(session, activities.user_id, a)
+                    activity_db = await activity_sessions_db.get_first_unfinished(
+                        session, activities.user_id, a
+                    )
                     if activity_db:
                         await activity_sessions_db.update(
-                            session, activity_db.id, finished_at=datetime.datetime.utcnow()
+                            session,
+                            activity_db.id,
+                            finished_at=datetime.datetime.utcnow(),
                         )
 
         dynamic_config = await dynamic_config_db.get(session)
-        exclude_activities = dynamic_config.get('exclude_activities', [])
+        exclude_activities = dynamic_config.get("exclude_activities", [])
 
         state = _get_activities_state(before, after)
         if state.watching.has_changes:
-            _log_activities(state.watching, 'watching')
+            _log_activities(state.watching, "watching")
         if state.streaming.has_changes:
-            _log_activities(state.streaming, 'streaming')
+            _log_activities(state.streaming, "streaming")
         if state.playing.has_changes:
             _log_activities(state.playing)
             await handle_activities_on_db(state.playing)
@@ -209,9 +210,13 @@ async def _handle_status_update(service: DiscordService, before: Member, after: 
         before_status = str(before.status)
         after_status = str(after.status)
 
-        logger.info(f"{before.name} change status from {before_status} to {after_status}")
+        logger.info(
+            f"{before.name} change status from {before_status} to {after_status}"
+        )
 
-        session_db = await status_sessions_db.get_first_unfinished(session, after.id, before_status)
+        session_db = await status_sessions_db.get_first_unfinished(
+            session, after.id, before_status
+        )
         if session_db:
             await status_sessions_db.update(
                 session, session_db.id, finished_at=datetime.datetime.utcnow()
@@ -219,10 +224,8 @@ async def _handle_status_update(service: DiscordService, before: Member, after: 
         await status_sessions_db.create(
             session,
             StatusSessionCreate(
-                user_id=after.id,
-                user_name=after.name,
-                status=after_status
-            )
+                user_id=after.id, user_name=after.name, status=after_status
+            ),
         )
 
 
@@ -231,7 +234,10 @@ def _get_activities_state(before: Member, after: Member) -> ActivitiesState:
         if activity.type == ActivityType.listening:
             activity: Spotify
             return f"{activity.artist} - {activity.title}"
-        if activity.type not in (ActivityType.playing, ActivityType.custom,):
+        if activity.type not in (
+            ActivityType.playing,
+            ActivityType.custom,
+        ):
             logger.info(f"Unknown activity: {repr(activity)}")
         return activity.name
 
@@ -242,27 +248,37 @@ def _get_activities_state(before: Member, after: Member) -> ActivitiesState:
     for a_type in ActivityType:
         a_type_name = a_type.name.lower()
 
-        before_activities = set([get_core_attr(act) for act in before.activities if act.type is a_type])
-        after_activities = set([get_core_attr(act) for act in after.activities if act.type is a_type])
+        before_activities = set(
+            [get_core_attr(act) for act in before.activities if act.type is a_type]
+        )
+        after_activities = set(
+            [get_core_attr(act) for act in after.activities if act.type is a_type]
+        )
         started_activities = after_activities.difference(before_activities)
         finished_activities = before_activities.difference(after_activities)
         unmodified_activities = before_activities.intersection(after_activities)
 
         state_dict[a_type_name] = {
-            'user_id': user_id,
-            'user_name': user_name,
-            'before': before_activities,
-            'after': after_activities,
-            'started': started_activities,
-            'finished': finished_activities,
-            'unmodified': unmodified_activities
+            "user_id": user_id,
+            "user_name": user_name,
+            "before": before_activities,
+            "after": after_activities,
+            "started": started_activities,
+            "finished": finished_activities,
+            "unmodified": unmodified_activities,
         }
     return ActivitiesState.model_validate(state_dict)
 
 
-def _log_activities(activity_model: BaseActivities, rel_name: str | None = None) -> None:
+def _log_activities(
+    activity_model: BaseActivities, rel_name: str | None = None
+) -> None:
     activity = rel_name or activity_model.rel_name
     if activity_model.started:
-        logger.info(f"{activity_model.user_name} start {activity=} {activity_model.started}")
+        logger.info(
+            f"{activity_model.user_name} start {activity=} {activity_model.started}"
+        )
     if activity_model.finished:
-        logger.info(f"{activity_model.user_name} finish {activity=} {activity_model.finished}")
+        logger.info(
+            f"{activity_model.user_name} finish {activity=} {activity_model.finished}"
+        )

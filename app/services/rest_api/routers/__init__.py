@@ -1,8 +1,4 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    FastAPI
-)
+from fastapi import APIRouter, Depends, FastAPI
 
 from . import (
     auth,
@@ -14,10 +10,7 @@ from . import (
     gigachat,
     utils,
 )
-from app.services.rest_api.depends.auth import (
-    check_auth,
-    check_is_admin
-)
+from app.services.rest_api.depends.auth import check_auth, check_is_admin
 
 API_PREFIX = "/api/v1"
 
@@ -25,45 +18,42 @@ API_PREFIX = "/api/v1"
 def register_routers(app: FastAPI):
     router = APIRouter(prefix=API_PREFIX)
 
-    router.include_router(
-        auth.router
-    )
+    router.include_router(auth.router)
 
     router.include_router(
         admin.router,
-        dependencies=[Depends(check_auth), Depends(check_is_admin)] if not app.debug else []
+        dependencies=(
+            [Depends(check_auth), Depends(check_is_admin)] if not app.debug else []
+        ),
     )
 
     router.include_router(
         triggers_answers.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
+        dependencies=[Depends(check_auth)] if not app.debug else [],
     )
 
     router.include_router(
         vk.router,
     )
 
-    router.include_router(
-        images.router
-    )
+    router.include_router(images.router)
 
     router.include_router(
-        vk_service.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
+        vk_service.router, dependencies=[Depends(check_auth)] if not app.debug else []
     )
     router.include_router(
         vk_service.admin_router,
-        dependencies=[Depends(check_auth), Depends(check_is_admin)] if not app.debug else []
+        dependencies=(
+            [Depends(check_auth), Depends(check_is_admin)] if not app.debug else []
+        ),
     )
 
     router.include_router(
-        gigachat.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
+        gigachat.router, dependencies=[Depends(check_auth)] if not app.debug else []
     )
 
     router.include_router(
-        utils.router,
-        dependencies=[Depends(check_auth)] if not app.debug else []
+        utils.router, dependencies=[Depends(check_auth)] if not app.debug else []
     )
 
     app.include_router(router)

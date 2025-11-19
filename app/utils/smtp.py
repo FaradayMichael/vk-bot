@@ -25,12 +25,10 @@ class SMTP(object):
         return self._config.sender
 
     async def send(self, message):
-        if 'from' not in message:
-            message['from'] = self.sender
+        if "from" not in message:
+            message["from"] = self.sender
 
-        conn = aiosmtplib.SMTP(
-            **self.smtp_config
-        )
+        conn = aiosmtplib.SMTP(**self.smtp_config)
 
         await conn.connect()
         res = await conn.send_message(message)
@@ -43,8 +41,5 @@ async def init(config: SmtpConfig) -> SMTP:
     return smtp
 
 
-async def send(
-        smtp: SMTP,
-        message: Union[EmailMessage, MIMEMultipart]
-):
+async def send(smtp: SMTP, message: Union[EmailMessage, MIMEMultipart]):
     return await smtp.send(message)

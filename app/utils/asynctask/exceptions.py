@@ -1,6 +1,4 @@
-from .models import (
-    ExceptionData
-)
+from .models import ExceptionData
 
 
 class TaskBaseException(Exception):
@@ -21,7 +19,7 @@ class TaskNoHandler(TaskBaseException):
 
 class TaskException(TaskBaseException):
     def __init__(self, exc: ExceptionData):
-        super().__init__(f'{exc.t.value}:{exc.cls} {exc.message}')
+        super().__init__(f"{exc.t.value}:{exc.cls} {exc.message}")
         self.cls = exc.cls
         self.t = exc.t
         self.data = exc.data

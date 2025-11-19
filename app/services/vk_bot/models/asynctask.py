@@ -15,7 +15,7 @@ class VkBotPost(S3VkPost):
     image_url: AnyUrl | None = None
     yt_url: str | None = None
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     def validate_empty(cls, data):
         if isinstance(data, dict):
             for k, v in data.items():

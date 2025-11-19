@@ -13,15 +13,9 @@ class TriggersHistoryNew(BaseModel):
     message_data: VkMessage
 
 
-
-
-
 class TriggersHistory(TriggersHistoryNew):
     id: int
     ctime: datetime.datetime
 
     know_id: KnowIds | None
     trigger_answer: TriggerAnswer
-
-
-

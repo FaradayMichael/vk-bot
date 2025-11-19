@@ -21,22 +21,22 @@ OnCloseCallback = Callable[[], Awaitable[None] | Any]
 class BaseService:
     @classmethod
     async def create(
-            cls,
-            config: Config,
-            controller_name: str,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs
-    ) -> 'BaseService':
+        cls,
+        config: Config,
+        controller_name: str,
+        loop: asyncio.AbstractEventLoop,
+        **kwargs,
+    ) -> "BaseService":
         instance = cls(config, controller_name, loop, **kwargs)
         await instance.setup()
         return instance
 
     def __init__(
-            self,
-            config: Config,
-            controller_name: str,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs
+        self,
+        config: Config,
+        controller_name: str,
+        loop: asyncio.AbstractEventLoop,
+        **kwargs,
     ):
         super().__init__()
         self.config = config
@@ -50,21 +50,18 @@ class BaseService:
         try:
             self.amqp = await asyncio.wait_for(
                 aio_pika.connect_robust(
-                    str(self.config.amqp),
-                    loop=self.loop,
-                    timeout=300
+                    str(self.config.amqp), loop=self.loop, timeout=300
                 ),
-                timeout=30
+                timeout=30,
             )
 
             await self.init()
-            logger.info(f'Service {self.controller_name} started')
+            logger.info(f"Service {self.controller_name} started")
         except TimeoutError:
             logger.exception("RabbitMQ connection timed out. Exiting service")
             self.stop()
         except Exception as exc:
-            logger.exception(
-                f"Service {self.controller_name} crashed with {exc}")
+            logger.exception(f"Service {self.controller_name} crashed with {exc}")
             self.stop()
 
     async def init(self):
@@ -84,7 +81,7 @@ class BaseService:
         try:
             await self.close()
         except Exception as e:
-            logger.error(f'Closed with exception: {e}')
+            logger.error(f"Closed with exception: {e}")
 
     async def close(self):
         if self.amqp:

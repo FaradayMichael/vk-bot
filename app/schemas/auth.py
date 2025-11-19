@@ -1,12 +1,6 @@
-from pydantic import (
-    BaseModel,
-    constr
-)
+from pydantic import BaseModel, constr
 
-from app.utils.consts import (
-    EMAIL_REGEX,
-    LOGIN
-)
+from app.utils.consts import EMAIL_REGEX, LOGIN
 from app.schemas.base import SuccessResponse
 from app.schemas.users import BaseUser
 

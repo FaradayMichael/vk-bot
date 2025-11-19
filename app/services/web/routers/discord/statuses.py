@@ -2,57 +2,37 @@ import datetime
 import logging
 
 import pytz
-from fastapi import (
-    APIRouter,
-    Depends,
-    Request
-)
-from fastapi.responses import (
-    HTMLResponse
-)
-from jinja2 import (
-    Environment
-)
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
+from jinja2 import Environment
 
 from app.business_logic import activities as activities_bl
 from app.db import status_sessions as status_sessions_db
-from app.utils.fastapi.depends.db import (
-    get as get_db
-)
-from app.utils.fastapi.depends.session import (
-    get as ges_session
-)
-from app.utils.fastapi.depends.jinja import (
-    get as get_jinja
-)
-from app.models.discord_status_sessions import (
-    DiscordStatusSession
-)
-from app.models.discord_activity_sessions import (
-    DiscordActivitySession
-)
-from app.utils.fastapi.session import (
-    Session
-)
+from app.utils.fastapi.depends.db import get as get_db
+from app.utils.fastapi.depends.session import get as ges_session
+from app.utils.fastapi.depends.jinja import get as get_jinja
+from app.models.discord_status_sessions import DiscordStatusSession
+from app.models.discord_activity_sessions import DiscordActivitySession
+from app.utils.fastapi.session import Session
 from app.utils import db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix='/statuses')
+router = APIRouter(prefix="/statuses")
 
 
-@router.get('/', response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 async def status_sessions_view(
-        request: Request,
-        user_id: str = None,
-        from_date: datetime.date = None,
-        to_date: datetime.date = None,
-        # group: bool = False,
-        jinja: Environment = Depends(get_jinja),
-        session: Session = Depends(ges_session),
-        conn: db.Session = Depends(get_db),
+    request: Request,
+    user_id: str = None,
+    from_date: datetime.date = None,
+    to_date: datetime.date = None,
+    # group: bool = False,
+    jinja: Environment = Depends(get_jinja),
+    session: Session = Depends(ges_session),
+    conn: db.Session = Depends(get_db),
 ):
-    tz = pytz.timezone('Europe/Moscow')
+    tz = pytz.timezone("Europe/Moscow")
     now = datetime.datetime.now(tz=tz)
     users_data = await status_sessions_db.get_users_data(conn)
 
@@ -67,20 +47,22 @@ async def status_sessions_view(
         if activities:
             activities = list(map(_statuses_model_to_activities_model, activities))
 
-            image_dataurl_gantt = activities_bl.create_figure_image_gantt(activities, now, tz)
+            image_dataurl_gantt = activities_bl.create_figure_image_gantt(
+                activities, now, tz
+            )
             image_base64_data = image_dataurl_gantt.data.decode("utf-8")
 
         users_data = _insert_current_user_in_head(users_data, user_id)
 
     from_date_default = from_date or now
     to_date_default = to_date or (now + datetime.timedelta(days=1))
-    return jinja.get_template('discord/statuses.html').render(
+    return jinja.get_template("discord/statuses.html").render(
         user=session.user,
         request=request,
         users_data=users_data,
         image=image_base64_data,
-        from_date_default=from_date_default.strftime('%Y-%m-%d'),
-        to_date_default=to_date_default.strftime('%Y-%m-%d'),
+        from_date_default=from_date_default.strftime("%Y-%m-%d"),
+        to_date_default=to_date_default.strftime("%Y-%m-%d"),
         user_id=user_id,
         # group=group
     )
@@ -93,7 +75,9 @@ def _insert_current_user_in_head(users_data, user_id):
     return users_data
 
 
-def _statuses_model_to_activities_model(model: DiscordStatusSession) -> DiscordActivitySession:
+def _statuses_model_to_activities_model(
+    model: DiscordStatusSession,
+) -> DiscordActivitySession:
     return DiscordActivitySession(
         activity_name=model.status,
         user_id=model.user_id,

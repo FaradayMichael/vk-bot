@@ -5,7 +5,7 @@ from .base import Base
 
 
 class DiscordReplyCommand(Base):
-    __tablename__ = 'discord_reply_commands'
+    __tablename__ = "discord_reply_commands"
 
     en: Mapped[bool] = mapped_column(default=True)
     command: Mapped[str] = mapped_column(primary_key=True)

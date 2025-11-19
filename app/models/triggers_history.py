@@ -10,10 +10,10 @@ from .triggers_answers import TriggerAnswer
 
 
 class TriggerHistory(Base):
-    __tablename__ = 'triggers_history'
+    __tablename__ = "triggers_history"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ctime: Mapped[datetime] = mapped_column(TIMESTAMP,server_default=utc_now_default)
+    ctime: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=utc_now_default)
     trigger_answer_id: Mapped[int] = mapped_column(ForeignKey("triggers_answers.id"))
     vk_id: Mapped[int]
     message_data: Mapped[dict] = mapped_column(JSONB)

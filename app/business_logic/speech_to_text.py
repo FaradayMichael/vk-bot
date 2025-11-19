@@ -1,9 +1,7 @@
 import speech_recognition as sr
 
 
-def speech_to_text(
-        filepath: str
-) -> str:
+def speech_to_text(filepath: str) -> str:
     recognizer = sr.Recognizer()
     with sr.AudioFile(filepath) as source:
         audio = recognizer.record(source)

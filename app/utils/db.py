@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
     AsyncEngine,
-    AsyncSession
+    AsyncSession,
 )
 
 from app.utils.config import PostgresqlConfig
@@ -14,8 +14,8 @@ Session = AsyncSession
 
 class DBHelper:
     def __init__(
-            self,
-            dsn: str,
+        self,
+        dsn: str,
     ):
         self._dsn = dsn
         self.engine: AsyncEngine | None = None
@@ -27,7 +27,9 @@ class DBHelper:
             echo=False,
             pool_recycle=3600,
         )
-        self.session_maker = async_sessionmaker(bind=self.engine, expire_on_commit=False, class_=AsyncSession)
+        self.session_maker = async_sessionmaker(
+            bind=self.engine, expire_on_commit=False, class_=AsyncSession
+        )
 
     async def close(self):
         if self.engine:

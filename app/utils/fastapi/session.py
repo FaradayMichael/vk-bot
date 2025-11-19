@@ -1,34 +1,28 @@
 import secrets
 import typing
 
-from app.models import (
-    User
-)
+from app.models import User
 
-COOKIE_SESSION = 'cookie'
-HEADERS_SESSION = 'headers'
-TOKEN_SESSION = 'token'
+COOKIE_SESSION = "cookie"
+HEADERS_SESSION = "headers"
+TOKEN_SESSION = "token"
 
-COOKIE_SESSION_NAME = 'sid'
-HEADERS_SESSION_NAME = 'X-SID'
-TOKEN_SESSION_NAME = 'sid'
+COOKIE_SESSION_NAME = "sid"
+HEADERS_SESSION_NAME = "X-SID"
+TOKEN_SESSION_NAME = "sid"
 
 ANONYMOUS_EXPIRES = 3600
 AUTHENTICATED_EXPIRES = 2592000
 
-SessionType = typing.Literal[
-    COOKIE_SESSION,
-    HEADERS_SESSION,
-    TOKEN_SESSION
-]
+SessionType = typing.Literal[COOKIE_SESSION, HEADERS_SESSION, TOKEN_SESSION]
 
 
 class Session(object):
     def __init__(
-            self,
-            session_type: typing.Optional[SessionType] = None,
-            key: typing.Optional[str] = None,
-            data: typing.Optional[dict] = None
+        self,
+        session_type: typing.Optional[SessionType] = None,
+        key: typing.Optional[str] = None,
+        data: typing.Optional[dict] = None,
     ):
         super().__init__()
         self.reset_user()
@@ -45,12 +39,12 @@ class Session(object):
     def set_user(self, user: User):
         self._user = user
         if user:
-            self._data['user_id'] = user.id
-            self._data['is_admin'] = user.is_admin
+            self._data["user_id"] = user.id
+            self._data["is_admin"] = user.is_admin
 
     def reset_user(self):
         self._user = None
-        self._data: dict = {'user_id': None, 'is_admin': None}
+        self._data: dict = {"user_id": None, "is_admin": None}
 
     @property
     def key(self):
@@ -73,7 +67,7 @@ class Session(object):
     @property
     def session_user_id(self):
         if self._data:
-            return self._data.get('user_id')
+            return self._data.get("user_id")
         return None
 
     @property

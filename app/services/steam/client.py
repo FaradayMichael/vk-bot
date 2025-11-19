@@ -9,11 +9,7 @@ logger = logging.getLogger(__name__)
 
 class SteamClient:
 
-    def __init__(
-            self,
-            loop: asyncio.AbstractEventLoop,
-            key: str
-    ):
+    def __init__(self, loop: asyncio.AbstractEventLoop, key: str):
         self._loop = loop
         self._client = Steam(key)
 

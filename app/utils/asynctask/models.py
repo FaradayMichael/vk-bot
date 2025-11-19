@@ -4,25 +4,25 @@ from typing import (
 )
 from pydantic import BaseModel, Field
 
-ModelClass = TypeVar('ModelClass', bound=BaseModel)
+ModelClass = TypeVar("ModelClass", bound=BaseModel)
 
 
-METHOD_HEADER = 'x-method'
+METHOD_HEADER = "x-method"
 
 
 class MessageType(str, Enum):
-    REQUEST = 'request'
-    SUCCESS = 'success'
-    CANCELED = 'canceled'
-    EXCEPTION = 'exception'
-    ERROR = 'error'
-    NO_HANDLER = 'no_handler'
+    REQUEST = "request"
+    SUCCESS = "success"
+    CANCELED = "canceled"
+    EXCEPTION = "exception"
+    ERROR = "error"
+    NO_HANDLER = "no_handler"
 
 
 class ExceptionType(str, Enum):
-    NETWORK = 'network'
-    KNOWN = 'known'
-    UNKNOWN = 'unknown'
+    NETWORK = "network"
+    KNOWN = "known"
+    UNKNOWN = "unknown"
 
 
 class ExceptionData(BaseModel):

@@ -12,10 +12,7 @@ from redis.asyncio import Redis
 from app.db import reply_commands as reply_commands_db
 from app.services.utils.client import UtilsClient
 from app.services.vk_bot.client import VkBotClient
-from app.utils.db import (
-    DBHelper,
-    init_db
-)
+from app.utils.db import DBHelper, init_db
 from app.utils import redis
 from app.utils.config import Config
 from app.utils.service import BaseService
@@ -27,11 +24,11 @@ logger = logging.getLogger(__name__)
 
 class DiscordService(BaseService):
     def __init__(
-            self,
-            config: Config,
-            controller_name: str,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs
+        self,
+        config: Config,
+        controller_name: str,
+        loop: asyncio.AbstractEventLoop,
+        **kwargs,
     ):
         super().__init__(config, controller_name, loop, **kwargs)
 
@@ -50,12 +47,9 @@ class DiscordService(BaseService):
 
     @classmethod
     async def create(
-            cls,
-            config: Config,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs
+        cls, config: Config, loop: asyncio.AbstractEventLoop, **kwargs
     ) -> "DiscordService":
-        return await super().create(config, 'discord_service', loop, **kwargs)  # noqa
+        return await super().create(config, "discord_service", loop, **kwargs)  # noqa
 
     async def init(self):
         self.db_helper = await init_db(self.config.db)
@@ -85,9 +79,9 @@ class DiscordService(BaseService):
         logger.info(f"Started Discord Bot {self._bot.user.id}")
 
         from .events import on_ready
-        await on_ready(self)
-        logger.info('Ready')
 
+        await on_ready(self)
+        logger.info("Ready")
 
     async def run_bot(self, bot: Bot) -> None:
         logger.info(f"Run Discord Bot")
@@ -103,9 +97,10 @@ class DiscordService(BaseService):
         from .scheduled import (
             send_on_schedule,
             drop_broken_activities,
-            drop_broken_status_sessions
+            drop_broken_status_sessions,
             # cb_task
         )
+
         # self._tasks.append(
         #     self.loop.create_task(
         #         send_on_schedule(
@@ -117,12 +112,7 @@ class DiscordService(BaseService):
         #     )
         # )
         self._tasks.append(
-            self.loop.create_task(
-                drop_broken_activities(
-                    self,
-                    "0 0 * * *"
-                )
-            )
+            self.loop.create_task(drop_broken_activities(self, "0 0 * * *"))
         )
         self._tasks.append(
             self.loop.create_task(
@@ -136,28 +126,25 @@ class DiscordService(BaseService):
     # noinspection PyTypeChecker
     async def _register_commands(self) -> None:
         command_names = [
-            'test',
-            'play',
-            'stop',
-            'clown',
-            'boris',
+            "test",
+            "play",
+            "stop",
+            "clown",
+            "boris",
             #'clear_history',
-            'set_avatar',
+            "set_avatar",
         ]
         async with self.db_helper.get_session() as session:
             reply_commands = await reply_commands_db.get_list(session)
 
         from . import commands
-        commands_map = {
-                           c: getattr(commands, c)
-                           for c in command_names
-                       } | {
-                           r_c.command: commands.reply
-                           for r_c in reply_commands
-                       }
+
+        commands_map = {c: getattr(commands, c) for c in command_names} | {
+            r_c.command: commands.reply for r_c in reply_commands
+        }
 
         for command_name, call in commands_map.items():
-            command = Command(call, name=command_name, extras={'service': self})
+            command = Command(call, name=command_name, extras={"service": self})
             self._bot.add_command(command)
 
     def _register_events(self) -> None:

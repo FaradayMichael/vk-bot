@@ -6,7 +6,7 @@ from .service import SteamService
 
 
 def main(args, config: Config):
-    logging.info(f'Creating Steam Service')
+    logging.info(f"Creating Steam Service")
     loop = asyncio.get_event_loop()
 
     service: SteamService | None = None

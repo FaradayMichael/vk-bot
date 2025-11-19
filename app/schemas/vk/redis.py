@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 
 class RedisCommands(StrEnum):
-    SERVICE_START = 'service_start'
-    SERVICE_STOP = 'service_stop'
-    SERVICE_RESTART = 'service_restart'
-    SEND_ON_SCHEDULE_RESTART = 'send_on_schedule_restart'
+    SERVICE_START = "service_start"
+    SERVICE_STOP = "service_stop"
+    SERVICE_RESTART = "service_restart"
+    SEND_ON_SCHEDULE_RESTART = "send_on_schedule_restart"
 
 
 class RedisCommandData(BaseModel):

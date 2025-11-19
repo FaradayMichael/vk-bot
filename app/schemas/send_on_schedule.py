@@ -19,4 +19,3 @@ class SendOnSchedule(SendOnScheduleNew):
     id: int
     ctime: datetime.datetime
     etime: datetime.datetime | None = None
-

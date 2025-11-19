@@ -7,9 +7,9 @@ from pydantic import BaseModel, model_validator
 class PhotoSize(BaseModel):
     height: int = 0
     width: int = 0
-    type: str = ''
-    url: str = ''
-    src: str = ''
+    type: str = ""
+    url: str = ""
+    src: str = ""
 
 
 class PhotoAttachment(BaseModel):
@@ -17,11 +17,11 @@ class PhotoAttachment(BaseModel):
     date: int = 0
     id: int = 0
     owner_id: int = 0
-    access_key: str = ''
+    access_key: str = ""
     sizes: list[PhotoSize] = []
-    text: str = ''
+    text: str = ""
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def filter_max_size(self):
         if self.sizes:
             self.sizes = [max(self.sizes, key=lambda x: x.height)]
@@ -37,9 +37,9 @@ class VideoAttachment(BaseModel):
     owner_id: int = 0
     user_id: int | None = 0
     type: str | None = None
-    access_key: str = ''
+    access_key: str = ""
     can_add: int = 0
-    title: str | None = ''
+    title: str | None = ""
     image: list[PhotoSize] = []
 
     @property
@@ -52,9 +52,9 @@ class DocPreview(BaseModel):
 
 
 class DocAttachment(BaseModel):
-    access_key: str = ''
+    access_key: str = ""
     date: int = 0
-    ext: str = ''
+    ext: str = ""
     id: int = 0
     owner_id: int = 0
     preview: DocPreview | None = None
@@ -65,7 +65,7 @@ class WallAttachment(BaseModel):
 
 
 class VkMessageAttachment(BaseModel):
-    type: str = ''
+    type: str = ""
     photo: PhotoAttachment | None = None
     video: VideoAttachment | None = None
     wall: WallAttachment | None = None
@@ -84,7 +84,7 @@ class VkMessageAttachment(BaseModel):
         elif self.doc:
             return f"doc: {self.doc.preview.photo.sizes[0].url}"
         else:
-            return ''
+            return ""
 
 
 class VkMessage(BaseModel):
@@ -95,24 +95,26 @@ class VkMessage(BaseModel):
     conversation_message_id: int = 0
     fwd_messages: list[Any] = []
     peer_id: int = 0
-    text: str = ''
+    text: str = ""
     from_chat: bool | None = None
     reply_message: "VkMessage | None" = None
 
     @property
     def short_str(self) -> str:
-        return f"text='{self.text}' attachments={[a.short_str for a in self.attachments]}"
+        return (
+            f"text='{self.text}' attachments={[a.short_str for a in self.attachments]}"
+        )
 
 
 class WallItemFilter(StrEnum):
-    POSTPONED = 'postponed'
+    POSTPONED = "postponed"
 
 
 class WallItem(BaseModel):
     comments: dict | None = None
     attachments: list[VkMessageAttachment] | None = None
     id: int
-    text: str = ''
+    text: str = ""
     post_source: dict | None = None
 
 
@@ -121,6 +123,7 @@ class PollAnswer(BaseModel):
     rate: float
     text: str
     votes: int
+
 
 class Poll(BaseModel):
     multiple: bool

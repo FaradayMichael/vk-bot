@@ -10,39 +10,32 @@ from vk_api.bot_longpoll import VkBotMessageEvent
 from app.db import (
     triggers_answers as triggers_answers_db,
 )
-from app.db import polls as polls_db, know_ids as know_ids_db, triggers_history as triggers_history_db
+from app.db import (
+    polls as polls_db,
+    know_ids as know_ids_db,
+    triggers_history as triggers_history_db,
+)
 from app.business_logic.vk import (
     post_in_group_wall,
     GroupPostMode,
     download_video as download_video_vk,
 )
-from app.utils.files import (
-    TempUrlFile,
-    DOWNLOADS_DIR
-)
+from app.utils.files import TempUrlFile, DOWNLOADS_DIR
 from app.utils.vk_client import VkClient
-from app.schemas.images import (
-    ImageTags
-)
+from app.schemas.images import ImageTags
 from app.schemas.polls import PollCreate, PollServices
 from app.schemas.triggers_answers import Answer
 from app.schemas.triggers_history import TriggersHistoryNew
-from app.schemas.vk import (
-    Message
-)
+from app.schemas.vk import Message
 from . import callbacks
 from . import commands
-from app.services.vk_bot.models.vk import (
-    PhotoSize,
-    VkMessageAttachment,
-    VkMessage
-)
+from app.services.vk_bot.models.vk import PhotoSize, VkMessageAttachment, VkMessage
 from app.services.vk_bot.service import VkBotService
 from app.services.utils.client import UtilsClient
 
 logger = logging.getLogger(__name__)
 
-backslash_n = '\n'  # Expression fragments inside f-strings cannot include backslashes
+backslash_n = "\n"  # Expression fragments inside f-strings cannot include backslashes
 
 VOTES_MAP = {
     "💀": True,
@@ -66,7 +59,9 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         return
 
     # Find tags of images
-    tags_models = await _parse_attachments_tags(service.utils_client, message_model.attachments)
+    tags_models = await _parse_attachments_tags(
+        service.utils_client, message_model.attachments
+    )
     logger.info(f"{tags_models=}")
     if tags_models:
         await _send_tags(service.client_vk, tags_models, peer_id)
@@ -75,43 +70,44 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     async with service.db_helper.get_session() as session:
         find_triggers = await triggers_answers_db.get_for_like(
             session,
-            f"{message_model.text}{''.join([t.tags_text + str(t.description) for t in tags_models])}"
+            f"{message_model.text}{''.join([t.tags_text + str(t.description) for t in tags_models])}",
         )
         logger.info(f"{find_triggers=}")
-        answers = list(set(
-            sum([i.answers for i in find_triggers], [])
-        ))
+        answers = list(set(sum([i.answers for i in find_triggers], [])))
         know_id = await know_ids_db.get_by_vk_id(session, from_id)
-        know_id_place = f"({know_id.name})" if know_id else ''
+        know_id_place = f"({know_id.name})" if know_id else ""
         if answers:
             answer: Answer = random.choice(answers)
             await service.client_vk.messages.send(
                 peer_id=peer_id,
                 message=Message(
                     text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {answer.answer}",
-                    attachment=answer.attachment
-                )
+                    attachment=answer.attachment,
+                ),
             )
             await triggers_history_db.create(
                 session,
                 TriggersHistoryNew(
                     trigger_answer_id=answer.id,
                     vk_id=from_id,
-                    message_data=message_model
-                )
+                    message_data=message_model,
+                ),
             )
 
         # answer gpt
         if (
-                str(config.vk.main_group_id) in message_model.text
-                or config.vk.main_group_alias in message_model.text
-                or (message_model.reply_message and message_model.reply_message.from_id == -config.vk.main_group_id)
-                or not from_chat
+            str(config.vk.main_group_id) in message_model.text
+            or config.vk.main_group_alias in message_model.text
+            or (
+                message_model.reply_message
+                and message_model.reply_message.from_id == -config.vk.main_group_id
+            )
+            or not from_chat
         ):
             try:
-                payload_text = ''
+                payload_text = ""
                 if message_model.reply_message and message_model.reply_message.text:
-                    payload_text = message_model.reply_message.text + '\n'
+                    payload_text = message_model.reply_message.text + "\n"
                 payload_text += message_model.text
 
                 response_message = await service.utils_client.gpt_chat(
@@ -123,7 +119,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                         peer_id=peer_id,
                         message=Message(
                             text=f"{f'@id{from_id} {know_id_place}' if from_chat else ''} {response_message.message}",
-                        )
+                        ),
                     )
             except Exception as e:
                 logger.error(e)
@@ -132,52 +128,47 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
         if from_chat and peer_id == 2000000001:
             photo_attachments_from_msg = []
             for a in message_model.attachments:
-                if a.type == 'photo' and a.photo:
+                if a.type == "photo" and a.photo:
                     url = a.photo.sizes[0].url
                     async with TempUrlFile(url) as tmp:
                         if tmp:
-                            photo_attachments_from_msg += await service.client_vk.upload.photo_wall(
-                                [tmp.filepath]
+                            photo_attachments_from_msg += (
+                                await service.client_vk.upload.photo_wall(
+                                    [tmp.filepath]
+                                )
                             )
-                if a.type == 'video' and a.video:
+                if a.type == "video" and a.video:
                     poll_db = await polls_db.create(
                         session,
-                        PollCreate(
-                            key=a.video.attachment_str,
-                            service=PollServices.VK
-                        )
+                        PollCreate(key=a.video.attachment_str, service=PollServices.VK),
                     )
 
                     poll = await service.client_vk.polls.create(
-                        question=str(poll_db.id),
-                        add_answers=list(VOTES_MAP.keys())
+                        question=str(poll_db.id), add_answers=list(VOTES_MAP.keys())
                     )
                     await service.client_vk.messages.send(
                         peer_id=peer_id,
-                        message=Message(
-                            text="mems?",
-                            attachment=poll.attachment_str
-                        )
+                        message=Message(text="mems?", attachment=poll.attachment_str),
                     )
                     logger.info(f"Created poll {poll_db}")
 
             if photo_attachments_from_msg:
                 await post_in_group_wall(
                     service.client_vk,
-                    message_text='',
+                    message_text="",
                     attachments=photo_attachments_from_msg,
                     mode=GroupPostMode.COMPILE_9,
-                    notify=True
+                    notify=True,
                 )
 
 
 async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
     callbacks_map: dict[str, Callable[[VkBotService, VkBotMessageEvent], Awaitable]] = {
-        'help_callback': callbacks.help_callback
+        "help_callback": callbacks.help_callback
     }
 
     logger.info(pformat(event.object))
-    callback_str = event.object['payload']['type']
+    callback_str = event.object["payload"]["type"]
     callback = callbacks_map.get(callback_str, None)
     if callback is not None:
         await callback(service, event)
@@ -188,7 +179,11 @@ async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
 
 async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
     try:
-        poll_id, answer_id, user_id = event.object['poll_id'], event.object['option_id'], event.object['user_id']
+        poll_id, answer_id, user_id = (
+            event.object["poll_id"],
+            event.object["option_id"],
+            event.object["user_id"],
+        )
     except KeyError as e:
         logger.error(e)
         return
@@ -199,7 +194,10 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
 
     try:
         poll_id_db = int(poll.question)
-    except (TypeError, ValueError,) as e:
+    except (
+        TypeError,
+        ValueError,
+    ) as e:
         logger.error(e)
         return
 
@@ -230,10 +228,7 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
         # await service.client_vk.polls.edit(poll_id, question=str(vote_result))
 
 
-async def _on_command(
-        service: VkBotService,
-        message_model: VkMessage
-) -> bool:
+async def _on_command(service: VkBotService, message_model: VkMessage) -> bool:
     command_call = None
     for k, v in commands.COMMANDS_MAP.items():
         if message_model.text.strip().startswith(k):
@@ -246,14 +241,9 @@ async def _on_command(
     return False
 
 
-def _validate_message(
-        event: VkBotMessageEvent
-) -> VkMessage | None:
+def _validate_message(event: VkBotMessageEvent) -> VkMessage | None:
     try:
-        return VkMessage(
-            **dict(event.message),
-            from_chat=event.from_chat
-        )
+        return VkMessage(**dict(event.message), from_chat=event.from_chat)
     except ValidationError as e:
         logger.exception(e)
         logger.info(event.message)
@@ -261,8 +251,7 @@ def _validate_message(
 
 
 async def _parse_attachments_tags(
-        utils_client: UtilsClient,
-        attachments: list[VkMessageAttachment]
+    utils_client: UtilsClient, attachments: list[VkMessageAttachment]
 ) -> list[ImageTags]:
     if not attachments:
         return []
@@ -275,24 +264,22 @@ async def _parse_attachments_tags(
     return result
 
 
-def _get_photos_urls_from_message(
-        attachments: list[VkMessageAttachment]
-) -> list[str]:
+def _get_photos_urls_from_message(attachments: list[VkMessageAttachment]) -> list[str]:
     result = []
     if attachments:
         for i in attachments:
             match i.type:
-                case 'photo':
+                case "photo":
                     max_img = _extract_max_size_img(i.photo.sizes)
                     result.append(max_img.url)
-                case 'video':
+                case "video":
                     max_img = _extract_max_size_img(i.video.image)
                     result.append(max_img.url)
-                case 'wall':
+                case "wall":
                     result += _get_photos_urls_from_message(
                         attachments=i.wall.attachments
                     )
-                case 'doc':
+                case "doc":
                     if i.doc.preview and i.doc.preview.photo:
                         max_img = _extract_max_size_img(i.doc.preview.photo.sizes)
                         result.append(max_img.src)
@@ -305,19 +292,10 @@ def _extract_max_size_img(sizes: list[PhotoSize]):
     return max(sizes, key=lambda x: x.height)
 
 
-async def _send_tags(
-        client: VkClient,
-        tags: list[ImageTags],
-        peer_id: int
-):
+async def _send_tags(client: VkClient, tags: list[ImageTags], peer_id: int):
     await client.messages.send(
         peer_id=peer_id,
         message=Message(
-            text='\n\n'.join(
-                [
-                    f"{i + 1}. {m.text()}"
-                    for i, m in enumerate(tags)
-                ]
-            )
-        )
+            text="\n\n".join([f"{i + 1}. {m.text()}" for i, m in enumerate(tags)])
+        ),
     )

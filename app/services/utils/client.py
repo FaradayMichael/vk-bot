@@ -22,10 +22,14 @@ class UtilsClient(Client):
 
     @classmethod
     async def create(
-            cls,
-            conn: aio_pika.RobustConnection | aio_pika.Connection | aio_pika.abc.AbstractRobustConnection,
-            **kwargs
-    ) -> 'Client':
+        cls,
+        conn: (
+            aio_pika.RobustConnection
+            | aio_pika.Connection
+            | aio_pika.abc.AbstractRobustConnection
+        ),
+        **kwargs,
+    ) -> "Client":
         return await super().create(conn, WORKER_QUEUE_NAME, JsonSerializer())
 
     async def get_image_tags(self, image_url: str) -> ImageTags:
@@ -33,35 +37,25 @@ class UtilsClient(Client):
             method=GET_IMAGE_TAGS,
             data=ImageUrl(url=image_url),
             response_class=ImageTags,
-            expiration=90
+            expiration=90,
         )
 
-    async def gpt_chat(
-            self,
-            user: int | str,
-            message_text: str
-    ) -> GptChatResponse:
+    async def gpt_chat(self, user: int | str, message_text: str) -> GptChatResponse:
         return await self.call(
             method=GPT_CHAT,
-            data=GptChat(
-                user=user,
-                message_text=message_text
-            ),
+            data=GptChat(user=user, message_text=message_text),
             response_class=GptChatResponse,
-            expiration=30
+            expiration=30,
         )
 
     async def speech_to_text(
-            self,
-            filename: str,
-            base64: str,
+        self,
+        filename: str,
+        base64: str,
     ) -> SpeechToTextResponse:
         return await self.call(
             method=SPEECH_TO_TEXT,
-            data=SpeechToText(
-                filename=filename,
-                base64=base64
-            ),
+            data=SpeechToText(filename=filename, base64=base64),
             response_class=SpeechToTextResponse,
-            expiration=120
+            expiration=120,
         )

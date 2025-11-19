@@ -1,9 +1,6 @@
 import asyncio
 
-from pydantic import (
-    BaseModel,
-    ConfigDict
-)
+from pydantic import BaseModel, ConfigDict
 
 Task = asyncio.Task
 
@@ -17,6 +14,4 @@ class BackgroundTasks(BaseModel):
 
     @property
     def is_empty(self) -> bool:
-        return bool(
-            self.tasks or self.schedule_tasks or self.redis_listener
-        )
+        return bool(self.tasks or self.schedule_tasks or self.redis_listener)

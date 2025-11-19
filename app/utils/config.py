@@ -7,7 +7,7 @@ from pydantic import (
     Field,
 )
 
-CONFIG_ENV_KEY = 'SRVC_CONFIG'
+CONFIG_ENV_KEY = "SRVC_CONFIG"
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,13 @@ class RedisConfig(BaseModel):
 
 
 class TransportSmtpConfig(BaseModel):
-    hostname: str = 'mailhog'
+    hostname: str = "mailhog"
     port: int = 1025
 
 
 class SmtpConfig(BaseModel):
     transport: TransportSmtpConfig
-    sender: str = 'noreply@template.ru'
+    sender: str = "noreply@template.ru"
 
 
 class FoldersConfig(BaseModel):
@@ -44,7 +44,7 @@ class VkConfig(BaseModel):
     main_group_id: int
     timeout: int = 60
     main_group_alias: str = ""
-    api_version: str = '5.199'
+    api_version: str = "5.199"
 
 
 class KafkaConfig(BaseModel):
@@ -77,6 +77,7 @@ class SftpConfig(BaseModel):
     host: str
     port: int
 
+
 class S3Config(BaseModel):
     access_key: str
     secret_key: str
@@ -95,7 +96,7 @@ class Config(BaseModel):
     redis: RedisConfig
     smtp: SmtpConfig
     folders: FoldersConfig
-    static_url: str = '/media'
+    static_url: str = "/media"
     vk: VkConfig
     kafka: KafkaConfig
     discord: DiscordConfig
@@ -109,8 +110,8 @@ class Config(BaseModel):
 
 def read_config(path: str) -> Config:
     if not os.path.exists(path):
-        raise RuntimeError(f'Configuration file {path} not found')
-    with open(path, 'r') as fd:
+        raise RuntimeError(f"Configuration file {path} not found")
+    with open(path, "r") as fd:
         config_json = json.load(fd)
 
     config = Config.model_validate(config_json)
@@ -123,7 +124,9 @@ def from_env() -> Config:
         config_path = os.environ[CONFIG_ENV_KEY]
         return read_config(config_path)
     except Exception as e:
-        raise RuntimeError(f'Configuration file path not provided at environment [{CONFIG_ENV_KEY}]')
+        raise RuntimeError(
+            f"Configuration file path not provided at environment [{CONFIG_ENV_KEY}]"
+        )
 
 
 def static_files_folder(conf: Config) -> str:

@@ -2,22 +2,12 @@ import logging
 from pprint import pformat
 
 import aiohttp
-from discord import (
-    VoiceClient,
-    Guild,
-    ChannelType
-)
+from discord import VoiceClient, Guild, ChannelType
 from discord.ext.commands import Context
 
 from app.db import reply_commands as reply_commands_db
-from .service import (
-    DiscordService
-)
-from .utils.voice_channels import (
-    connect_to_voice_channel,
-    play_yt_url,
-    play_file
-)
+from .service import DiscordService
+from .utils.voice_channels import connect_to_voice_channel, play_yt_url, play_file
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +17,7 @@ async def test(ctx: Context):
     await ctx.reply(content="test")
 
 
-async def play(
-        ctx: Context,
-        url: str | None = None
-):
+async def play(ctx: Context, url: str | None = None):
     if url is None:
         return None
 
@@ -63,7 +50,7 @@ async def stop(ctx: Context):
 
 
 async def clown(ctx: Context, user_id: int | None = None):
-    service: DiscordService = ctx.command.extras['service']
+    service: DiscordService = ctx.command.extras["service"]
 
     if user_id == service.config.discord.main_user_id:
         return None
@@ -82,7 +69,7 @@ async def boris(ctx: Context):
     if voice_client:
         await connect_to_voice_channel(ctx.bot, voice_client.channel)
         try:
-            await play_file(voice_client, 'static/boris.mp4')
+            await play_file(voice_client, "static/boris.mp4")
         except Exception as e:
             logger.exception(e)
 
@@ -107,12 +94,9 @@ async def set_avatar(ctx: Context, url: str | None = None):
 
 
 async def reply(ctx: Context):
-    service: DiscordService = ctx.command.extras['service']
+    service: DiscordService = ctx.command.extras["service"]
     async with service.db_helper.get_session() as session:
-        command_db = await reply_commands_db.get(
-            session,
-            ctx.command.name
-        )
+        command_db = await reply_commands_db.get(session, ctx.command.name)
     if command_db:
         if command_db.reply:
             await ctx.reply(command_db.text)

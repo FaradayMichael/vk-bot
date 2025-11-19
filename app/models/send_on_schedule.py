@@ -9,11 +9,11 @@ from .base import BaseTable
 
 
 class SendOnScheduleServiceEnum(StrEnum):
-    VK = 'vk'
+    VK = "vk"
 
 
 class SendOnSchedule(BaseTable):
-    __tablename__ = 'send_on_schedule'
+    __tablename__ = "send_on_schedule"
 
     cron: Mapped[str]
     message_data: Mapped[SendOnScheduleMessage | dict] = mapped_column(JSONB)

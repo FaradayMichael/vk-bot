@@ -6,10 +6,7 @@ from app.schemas.triggers_history import TriggersHistoryNew
 from app.utils import db
 
 
-async def create(
-        session: db.Session,
-        model: TriggersHistoryNew
-) -> TriggerHistory:
+async def create(session: db.Session, model: TriggersHistoryNew) -> TriggerHistory:
     obj = TriggerHistory(**model.model_dump())
     session.add(obj)
     await session.commit()
@@ -17,8 +14,7 @@ async def create(
 
 
 async def get_list(
-        session: db.Session,
-        q_words: list[str] | None = None
+    session: db.Session, q_words: list[str] | None = None
 ) -> list[TriggerHistory]:
     if q_words is None:
         q_words = []
@@ -30,19 +26,13 @@ async def get_list(
         # KnowId.name
     }
 
-    stmt = select(
-        TriggerHistory
-    ).join(TriggerAnswer).where(
-        and_(
-            *[
-                or_(
-                    *[
-                        s_f.ilike(f"%{q}%")
-                        for s_f in search_fields
-                    ]
-                )
-                for q in q_words
-            ]
+    stmt = (
+        select(TriggerHistory)
+        .join(TriggerAnswer)
+        .where(
+            and_(
+                *[or_(*[s_f.ilike(f"%{q}%") for s_f in search_fields]) for q in q_words]
+            )
         )
     )
 

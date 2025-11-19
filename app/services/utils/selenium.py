@@ -13,10 +13,7 @@ logger = logging.getLogger(__name__)
 
 class SeleniumHelper:
 
-    def __init__(
-            self,
-            config: Config
-    ):
+    def __init__(self, config: Config):
         self._config = config
 
         self.__base_search_url = "https://yandex.ru/images/search?rpt=imageview&url="
@@ -51,7 +48,7 @@ class SeleniumHelper:
                 more_btn_element = driver.find_element(
                     By.CSS_SELECTOR,
                     "//button[contains(@aria-label, 'Показать ещё')]",
-                    timeout=self._timeout
+                    timeout=self._timeout,
                 )
                 if more_btn_element:
                     more_btn_element.click()
@@ -61,7 +58,9 @@ class SeleniumHelper:
 
             # tags
             try:
-                elements = driver.find_elements(By.XPATH, "//a[contains(@href, '/images/search?text=')]")
+                elements = driver.find_elements(
+                    By.XPATH, "//a[contains(@href, '/images/search?text=')]"
+                )
                 for element in elements:
                     tags.append(element.text)
             except Exception as e:
@@ -72,7 +71,7 @@ class SeleniumHelper:
                 description_element = driver.find_element(
                     By.CLASS_NAME,
                     "CbirObjectResponse-Description",
-                    timeout=self._timeout
+                    timeout=self._timeout,
                 )
                 logger.info(description_element)
                 description = description_element.text
@@ -82,8 +81,7 @@ class SeleniumHelper:
             # text
             try:
                 text_elements = driver.find_elements(
-                    By.CSS_SELECTOR,
-                    "//div[contains(@class, 'CbirOcr-TextBox')]"
+                    By.CSS_SELECTOR, "//div[contains(@class, 'CbirOcr-TextBox')]"
                 )
                 logger.info(f"{text_elements=}")
                 text = " ".join([i.text for i in text_elements])
@@ -94,7 +92,7 @@ class SeleniumHelper:
             try:
                 products_elements = driver.find_elements(
                     By.CSS_SELECTOR,
-                    "//a[contains(@class, 'Link EProductSnippetTitle')]"
+                    "//a[contains(@class, 'Link EProductSnippetTitle')]",
                 )
                 for element in products_elements:
                     if href := element.get_attribute("href"):
@@ -106,7 +104,7 @@ class SeleniumHelper:
             tags=tags,
             description=description,
             text_on_image=text,
-            products_data=products_data
+            products_data=products_data,
         )
 
     def _get_search_url(self, base_link: str) -> str:
