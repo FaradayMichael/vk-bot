@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 from app.utils.consts import LIMIT_PER_PAGE, LangsEnum
 
 
+logger = logging.getLogger(__name__)
+
 class ValidationError(BaseModel):
     field: str
     message: str
@@ -86,8 +88,10 @@ class AttachmentType(StrEnum):
                 return AttachmentType.VIDEO
             case "video/webm":
                 return AttachmentType.VIDEO
+            case "image/webp":
+                return AttachmentType.PHOTO
             case _ as arg:
-                logging.info(f"{arg=}")
+                logger.info(f"{arg=}")
                 return AttachmentType.DOC
 
     @staticmethod
