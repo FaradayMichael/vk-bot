@@ -230,17 +230,17 @@ services:
       - "1025:1025"
       - "8025:8025"
 
-  pgweb:
-    image: sosedoff/pgweb
-    ports:
-      - "8081:8081"
-    links:
-      - db
-    environment:
-      - PGWEB_DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
-    depends_on:
-      db:
-        condition: service_healthy
+#  pgweb:
+#    image: sosedoff/pgweb
+#    ports:
+#      - "8081:8081"
+#    links:
+#      - db
+#    environment:
+#      - PGWEB_DATABASE_URL=postgres://postgres:postgres@db:5432/vk_bot?sslmode=disable
+#    depends_on:
+#      db:
+#        condition: service_healthy
   
   cloudbeaver:
     container_name: dbeaver
