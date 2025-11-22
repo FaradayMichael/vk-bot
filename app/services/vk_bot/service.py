@@ -414,6 +414,7 @@ class VkBotService(BaseService):
             VkBotEventType.MESSAGE_EVENT, handlers.on_callback_event
         )
         self.register_handler_vk(VkBotEventType.POLL_VOTE_NEW, handlers.on_poll_vote)
+        self.register_handler_vk(VkBotEventType.MESSAGE_REPLY, handlers.on_message_reply)
 
     def register_handler_vk(self, method: VkBotEventType, handler: Callable):
         self._handlers_vk[method] = handler

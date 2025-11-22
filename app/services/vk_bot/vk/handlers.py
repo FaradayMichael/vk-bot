@@ -5,6 +5,7 @@ from pprint import pformat
 from typing import Callable, Awaitable
 
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 from vk_api.bot_longpoll import VkBotMessageEvent
 
 from app.db import (
@@ -19,6 +20,9 @@ from app.business_logic.vk import (
     post_in_group_wall,
     GroupPostMode,
     download_video as download_video_vk,
+)
+from app.models.vk_messages import (
+    VkMessage as VkMessageDb,
 )
 from app.utils.files import TempUrlFile, DOWNLOADS_DIR
 from app.utils.vk_client import VkClient
@@ -55,19 +59,22 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
     peer_id = message_model.peer_id if event.from_chat else message_model.from_id
     from_id = message_model.from_id
 
-    if await _on_command(service, message_model):
-        return
-
-    # Find tags of images
-    tags_models = await _parse_attachments_tags(
-        service.utils_client, message_model.attachments
-    )
-    logger.info(f"{tags_models=}")
-    if tags_models:
-        await _send_tags(service.client_vk, tags_models, peer_id)
-
-    # Find triggers, send answer
     async with service.db_helper.get_session() as session:
+        await _save_vk_message(session, message_model)
+
+        if await _on_command(service, message_model):
+            return
+
+        # Find tags of images
+        tags_models = await _parse_attachments_tags(
+            service.utils_client, message_model.attachments
+        )
+        logger.info(f"{tags_models=}")
+        if tags_models:
+            await _send_tags(service.client_vk, tags_models, peer_id)
+
+        # Find triggers, send answer
+
         find_triggers = await triggers_answers_db.get_for_like(
             session,
             f"{message_model.text}{''.join([t.tags_text + str(t.description) for t in tags_models])}",
@@ -96,13 +103,13 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
 
         # answer gpt
         if (
-            str(config.vk.main_group_id) in message_model.text
-            or config.vk.main_group_alias in message_model.text
-            or (
+                str(config.vk.main_group_id) in message_model.text
+                or config.vk.main_group_alias in message_model.text
+                or (
                 message_model.reply_message
                 and message_model.reply_message.from_id == -config.vk.main_group_id
-            )
-            or not from_chat
+        )
+                or not from_chat
         ):
             try:
                 payload_text = ""
@@ -162,6 +169,15 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 )
 
 
+async def on_message_reply(service: VkBotService, event: VkBotMessageEvent):
+    message_model = _validate_reply_message(event)
+    if not message_model:
+        return
+    logger.info(pformat(message_model.model_dump()))
+    async with service.db_helper.get_session() as session:
+        await _save_vk_message(session, message_model)
+
+
 async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
     callbacks_map: dict[str, Callable[[VkBotService, VkBotMessageEvent], Awaitable]] = {
         "help_callback": callbacks.help_callback
@@ -195,8 +211,8 @@ async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
     try:
         poll_id_db = int(poll.question)
     except (
-        TypeError,
-        ValueError,
+            TypeError,
+            ValueError,
     ) as e:
         logger.error(e)
         return
@@ -250,8 +266,17 @@ def _validate_message(event: VkBotMessageEvent) -> VkMessage | None:
         return None
 
 
+def _validate_reply_message(event: VkBotMessageEvent) -> VkMessage | None:
+    try:
+        return VkMessage(**dict(event.object), from_chat=event.from_chat)
+    except ValidationError as e:
+        logger.exception(e)
+        logger.info(event.message)
+        return None
+
+
 async def _parse_attachments_tags(
-    utils_client: UtilsClient, attachments: list[VkMessageAttachment]
+        utils_client: UtilsClient, attachments: list[VkMessageAttachment]
 ) -> list[ImageTags]:
     if not attachments:
         return []
@@ -299,3 +324,22 @@ async def _send_tags(client: VkClient, tags: list[ImageTags], peer_id: int):
             text="\n\n".join([f"{i + 1}. {m.text()}" for i, m in enumerate(tags)])
         ),
     )
+
+
+async def _save_vk_message(session: AsyncSession, message_model: VkMessage) -> VkMessageDb:
+    try:
+        message_db = VkMessageDb(
+            from_id=message_model.from_id,
+            peer_id=message_model.peer_id,
+            from_chat=message_model.from_chat,
+            from_bot=message_model.from_id < 0,
+            reply_message=message_model.reply_message.model_dump() if message_model.reply_message else None,
+            attachments=message_model.model_dump().get("attachments", {}),
+            date=message_model.date,
+            text=message_model.text,
+        )
+        session.add(message_db)
+        await session.commit()
+        return message_db
+    except Exception as e:
+        logger.exception(e)

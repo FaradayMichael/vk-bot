@@ -12,3 +12,4 @@ from .discord_reply_commands import DiscordReplyCommand
 from .discord_activity_sessions import DiscordActivitySession
 from .send_on_schedule import SendOnScheduleMessage
 from .steam import SteamUser, SteamActivitySession
+from .vk_messages import VkMessage
