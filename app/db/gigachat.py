@@ -6,9 +6,16 @@ from app.utils import db
 
 
 async def create(session: db.Session, user_id: str, model: Messages) -> GigachatMessage:
-    data = model.dict()
-    data["user_id"] = user_id
-    obj = GigachatMessage(**data)
+    obj = GigachatMessage(
+        attachments=model.attachments,
+        name=model.name,
+        user_id=user_id,
+        id_=model.id_,
+        data_for_context=model.data_for_context,
+        role=model.role,
+        content=model.content,
+        function_call=model.function_call,
+    )
     session.add(obj)
     await session.commit()
     return obj
