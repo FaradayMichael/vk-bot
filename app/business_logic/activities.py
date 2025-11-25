@@ -54,6 +54,8 @@ def create_figure_gantt(
     df_list = []
     activities.sort(key=lambda x: hours_data[x.activity_name], reverse=True)
 
+    total_hours_str = f"Total hours {round(sum(hours_data.values()), 1)}"
+
     for a in activities:
         print(a.started_at_tz(tz), a.started_at)
         df_list.append(
@@ -65,7 +67,7 @@ def create_figure_gantt(
                 "Finish": (a.finished_at_tz(tz) or a.finished_at or now).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 ),
-                "Total hours": f"{a.activity_name} — {hours_data[a.activity_name]}",
+                total_hours_str: f"{a.activity_name} — {hours_data[a.activity_name]}",
             }
         )
     df = pd.DataFrame(df_list)
@@ -74,7 +76,7 @@ def create_figure_gantt(
         x_start="Start",
         x_end="Finish",
         y="Activity",
-        color="Total hours",
+        color=total_hours_str,
         width=1900,
         title="1984",
     )
