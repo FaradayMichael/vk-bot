@@ -104,7 +104,7 @@ class SeleniumHelper:
             tags=tags,
             description=description,
             text_on_image=text,
-            products_data=products_data,
+            products_data=products_data[:5],
         )
 
     def _get_search_url(self, base_link: str) -> str:
