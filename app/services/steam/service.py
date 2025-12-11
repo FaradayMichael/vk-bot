@@ -131,7 +131,8 @@ class SteamService(BaseService):
                 StopIteration,
                 GeneratorExit,
                 KeyboardInterrupt,
-            ):
+            ) as e:
+                logger.error(e)
                 return await self.stop()
             except NameResolutionError as e:
                 logger.exception(e)
