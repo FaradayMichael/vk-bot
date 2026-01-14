@@ -71,7 +71,7 @@ class VkBotService(BaseService):
         self.utils_client: UtilsClient | None = None
         self.asynctask_worker: Worker | None = None
 
-        self._s3_client: S3Client | None = None
+        self.s3_client: S3Client | None = None
 
     @classmethod
     async def create(
@@ -88,8 +88,8 @@ class VkBotService(BaseService):
             self.amqp, WORKER_QUEUE_NAME, JsonSerializer()
         )
 
-        self._s3_client = S3Client(**self.config.s3.model_dump())
-        await self._s3_client.init()
+        self.s3_client = S3Client(**self.config.s3.model_dump())
+        await self.s3_client.init()
 
         self._register_handlers_vk()
         self._register_commands_redis()
@@ -214,7 +214,7 @@ class VkBotService(BaseService):
         if message.bucket and message.filePath:
             logger.info(f"Handle {message.bucket=} {message.filePath=}")
             async with TempS3File(
-                message.filePath, message.bucket, self._s3_client, True
+                message.filePath, message.bucket, self.s3_client, True
             ) as tmp:
                 attachment_type = AttachmentType.by_ext(
                     os.path.basename(tmp.filepath).split(".")[-1]
@@ -481,9 +481,9 @@ class VkBotService(BaseService):
             await redis.close(self.redis_conn)
             self.redis_conn = None
 
-        if self._s3_client:
-            await self._s3_client.close()
-            self._s3_client = None
+        if self.s3_client:
+            await self.s3_client.close()
+            self.s3_client = None
 
         if self.utils_client:
             await self.utils_client.close()

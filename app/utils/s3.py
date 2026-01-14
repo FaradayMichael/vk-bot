@@ -43,6 +43,25 @@ class S3Client:
         async with self._session.create_client("s3", **self._config) as client:
             yield client
 
+    async def upload_file(
+            self,
+            bucket: str,
+            path: str,
+            filepath: str,
+    ):
+        filename = os.path.basename(filepath)
+        key = os.path.join(path, filename)
+        try:
+            async with self.get_client() as client:
+                async with aiofiles.open(filepath, "rb") as f:
+                    data = await f.read()
+                    return await client.put_object(Bucket=bucket, Key=key, Body=data)
+        except ClientError as e:
+            logger.error(e)
+        except FileNotFoundError as e:
+            logger.error(e)
+
+
     async def download(
         self,
         bucket: str,
