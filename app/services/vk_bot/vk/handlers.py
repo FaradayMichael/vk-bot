@@ -132,41 +132,41 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 logger.error(e)
 
         # Posting on group wall
-        if from_chat and peer_id == 2000000001:
-            photo_attachments_from_msg = []
-            for a in message_model.attachments:
-                if a.type == "photo" and a.photo:
-                    url = a.photo.sizes[0].url
-                    async with TempUrlFile(url) as tmp:
-                        if tmp:
-                            photo_attachments_from_msg += (
-                                await service.client_vk.upload.photo_wall(
-                                    [tmp.filepath]
-                                )
-                            )
-                if a.type == "video" and a.video:
-                    poll_db = await polls_db.create(
-                        session,
-                        PollCreate(key=a.video.attachment_str, service=PollServices.VK),
-                    )
-
-                    poll = await service.client_vk.polls.create(
-                        question=str(poll_db.id), add_answers=list(VOTES_MAP.keys())
-                    )
-                    await service.client_vk.messages.send(
-                        peer_id=peer_id,
-                        message=Message(text="mems?", attachment=poll.attachment_str),
-                    )
-                    logger.info(f"Created poll {poll_db}")
-
-            if photo_attachments_from_msg:
-                await post_in_group_wall(
-                    service.client_vk,
-                    message_text="",
-                    attachments=photo_attachments_from_msg,
-                    mode=GroupPostMode.COMPILE_9,
-                    notify=True,
-                )
+        # if from_chat and peer_id == 2000000001:
+        #     photo_attachments_from_msg = []
+        #     for a in message_model.attachments:
+        #         if a.type == "photo" and a.photo:
+        #             url = a.photo.sizes[0].url
+        #             async with TempUrlFile(url) as tmp:
+        #                 if tmp:
+        #                     photo_attachments_from_msg += (
+        #                         await service.client_vk.upload.photo_wall(
+        #                             [tmp.filepath]
+        #                         )
+        #                     )
+        #         if a.type == "video" and a.video:
+        #             poll_db = await polls_db.create(
+        #                 session,
+        #                 PollCreate(key=a.video.attachment_str, service=PollServices.VK),
+        #             )
+        #
+        #             poll = await service.client_vk.polls.create(
+        #                 question=str(poll_db.id), add_answers=list(VOTES_MAP.keys())
+        #             )
+        #             await service.client_vk.messages.send(
+        #                 peer_id=peer_id,
+        #                 message=Message(text="mems?", attachment=poll.attachment_str),
+        #             )
+        #             logger.info(f"Created poll {poll_db}")
+        #
+        #     if photo_attachments_from_msg:
+        #         await post_in_group_wall(
+        #             service.client_vk,
+        #             message_text="",
+        #             attachments=photo_attachments_from_msg,
+        #             mode=GroupPostMode.COMPILE_9,
+        #             notify=True,
+        #         )
 
 
 async def on_message_reply(service: VkBotService, event: VkBotMessageEvent):

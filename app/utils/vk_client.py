@@ -53,6 +53,8 @@ class BaseMethod:
 
     @with_retries
     async def _call_user(self, method: str, values: dict | None = None, **kwargs):
+        # disabled
+        return 1
         return await asyncio.to_thread(
             self._session_user.method, method, values, **kwargs
         )
@@ -188,6 +190,8 @@ class Upload(BaseMethod):
     async def photo_wall(
         self, photo_paths: list[str]
     ) -> list[str]:  # list 'attachment' str
+        # disabled
+        return []
         response = await asyncio.to_thread(
             self._upload_user.photo_wall,
             photo_paths,
@@ -201,6 +205,8 @@ class Upload(BaseMethod):
     async def video_wall_and_post(
         self, path: str | None = None, name: str | None = None, link: str | None = None
     ) -> Mapping:
+        # disabled
+        return {}
         if not path and not link:
             raise ValueError("Either path or link is required")
 
