@@ -132,7 +132,7 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                 logger.error(e)
 
         # Posting on group wall
-        if from_chat:
+        if from_chat and peer_id == 2000000001:
             for a in message_model.attachments:
                 if a.type == "photo" and a.photo:
                     url = a.photo.sizes[0].url
