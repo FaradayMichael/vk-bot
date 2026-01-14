@@ -112,6 +112,8 @@ class Wall(BaseMethod):
         from_group: bool = True,
         post_time: datetime.datetime | None = None,
     ) -> int:
+        # disabled
+        return 1
         owner_id = owner_id if owner_id is not None else -self._config.main_group_id
         result = await self._call_user(
             "wall.post",

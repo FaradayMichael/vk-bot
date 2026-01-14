@@ -45,6 +45,8 @@ async def post_in_group_wall(
     mode: GroupPostMode = GroupPostMode.COMPILE_9,
     notify: bool = True,
 ):
+    # disabled
+    return
     if not message_text and not attachments:
         return None
 
