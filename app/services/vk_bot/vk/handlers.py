@@ -139,20 +139,6 @@ async def on_new_message(service: VkBotService, event: VkBotMessageEvent):
                     async with TempUrlFile(url) as tmp:
                         if tmp:
                             await service.s3_client.upload_file("memes", "tmp/image/", tmp.filepath)
-                if a.type == "video" and a.video:
-                    poll_db = await polls_db.create(
-                        session,
-                        PollCreate(key=a.video.attachment_str, service=PollServices.VK),
-                    )
-
-                    poll = await service.client_vk.polls.create(
-                        question=str(poll_db.id), add_answers=list(VOTES_MAP.keys())
-                    )
-                    await service.client_vk.messages.send(
-                        peer_id=peer_id,
-                        message=Message(text="mems?", attachment=poll.attachment_str),
-                    )
-                    logger.info(f"Created poll {poll_db}")
 
 
 
@@ -179,56 +165,6 @@ async def on_callback_event(service: VkBotService, event: VkBotMessageEvent):
     else:
         logger.info(f"Not found callback for {callback_str}")
 
-
-async def on_poll_vote(service: VkBotService, event: VkBotMessageEvent):
-    try:
-        poll_id, answer_id, user_id = (
-            event.object["poll_id"],
-            event.object["option_id"],
-            event.object["user_id"],
-        )
-    except KeyError as e:
-        logger.error(e)
-        return
-
-    poll = await service.client_vk.polls.get_by_id(poll_id)
-    if not poll:
-        logger.error(f"Poll not found: {poll_id}")
-
-    try:
-        poll_id_db = int(poll.question)
-    except (
-            TypeError,
-            ValueError,
-    ) as e:
-        logger.error(e)
-        return
-
-    vote_result: bool | None = None
-    for answer in poll.answers:
-        if answer.votes >= VOTES_THRESHOLD:
-            vote_result = VOTES_MAP.get(answer.text)
-
-    if vote_result is not None:
-        async with service.db_helper.get_session() as session:
-            poll_db = await polls_db.disable(session, poll_id_db)
-        if not poll_db:
-            logger.info(f"Not found poll id {poll_id_db}")
-            return
-
-        logger.info(f"Drop Voting[{vote_result}] {poll_db}")
-
-        if vote_result:
-            download_dir = DOWNLOADS_DIR
-            try:
-                fp = await download_video_vk(poll_db.key, download_dir)
-                logger.info(f"Downloaded {fp}")
-                await service.client_vk.upload.video_wall_and_post(fp)
-                os.remove(fp)
-            except Exception as e:
-                logger.exception(e)
-
-        # await service.client_vk.polls.edit(poll_id, question=str(vote_result))
 
 
 async def _on_command(service: VkBotService, message_model: VkMessage) -> bool:
