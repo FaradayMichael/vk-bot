@@ -19,6 +19,6 @@ COPY requirements/base.txt requirements/base.txt
 COPY requirements/tests.txt requirements/tests.txt
 
 RUN pip3 install --upgrade pip
-RUN pip3 install --upgrade setuptools
+RUN pip3 install setuptools==81.0.0
 RUN pip3 install -r requirements/base.txt
 RUN pip3 install "git+https://github.com/ytdl-org/youtube-dl.git"

@@ -65,10 +65,11 @@ COPY requirements requirements
 COPY requirements/base.txt requirements/base.txt
 COPY requirements/tests.txt requirements/tests.txt
 COPY requirements/selenium.txt requirements/selenium.txt
+COPY requirements/transformers.txt requirements/transformers.txt
 
 RUN pip3 install --upgrade pip
-RUN pip3 install --upgrade setuptools
+RUN pip3 install setuptools==81.0.0
 RUN pip3 install -r requirements/base.txt
 RUN pip3 install -r requirements/selenium.txt
-RUN pip3 install "git+https://github.com/ytdl-org/youtube-dl.git"
+RUN pip3 install --no-cache-dir -r requirements/transformers.txt --extra-index-url https://download.pytorch.org/whl/cpu
 

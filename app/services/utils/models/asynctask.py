@@ -26,3 +26,7 @@ class SpeechToText(BaseModel):
 
 class SpeechToTextResponse(BaseModel):
     text: str
+
+class ImageDescriptionResponse(BaseModel):
+    text_eng: str
+    text_ru: str
