@@ -69,17 +69,37 @@ async def on_message(service: DiscordService, message: Message):
 
         if image_urls:
             result_tags: list[ImageTags] = []
+            result_description: list = []
             for image_url in image_urls:
                 tags = await service.utils_client.get_image_tags(image_url)
                 if tags and (tags.tags or tags.description):
                     result_tags.append(tags)
+
+                try:
+                    description = await service.utils_client.get_image_description(image_url)
+                    if description:
+                        result_description.append(description.text_ru)
+                except Exception as e:
+                    logger.exception(e)
+
             logger.info(f"{result_tags=}")
+            logger.info(f"{result_description=}")
+
             if result_tags:
                 await message.reply(
                     content="\n\n".join(
                         [
                             f"{i + 1}. {m.text(limit=1500)}"
                             for i, m in enumerate(result_tags)
+                        ]
+                    )
+                )
+            if result_description:
+                await message.reply(
+                    content="\n\n".join(
+                        [
+                            f"{i + 1}. {m}"
+                            for i, m in enumerate(result_description)
                         ]
                     )
                 )
