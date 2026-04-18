@@ -206,9 +206,14 @@ async def _parse_attachments_tags(
     images_urls = _get_photos_urls_from_message(attachments)
     result = []
     for i in images_urls:
+        # TODO bad!
         tags_model = await utils_client.get_image_tags(i)
+        description_model = await utils_client.get_image_description(i)
         if tags_model and (tags_model.tags or tags_model.description):
             result.append(tags_model)
+        if description_model:
+            tags_model = tags_model or ImageTags()
+            tags_model.description = description_model.text_ru
     return result
 
 
