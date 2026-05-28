@@ -1,3 +1,0 @@
-transformers[sentencepiece]==5.5.0
-sacremoses==0.1.1
-torch==2.11.0+cpu

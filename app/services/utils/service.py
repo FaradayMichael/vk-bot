@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from concurrent.futures.process import ProcessPoolExecutor
-from concurrent.futures.thread import ThreadPoolExecutor
 
 from redis.asyncio import Redis
 
@@ -21,7 +20,6 @@ from .config import (
     GPT_CHAT,
     GET_IMAGE_TAGS,
     SPEECH_TO_TEXT,
-    GET_IMAGE_DESCRIPTION,
 )
 from .models.asynctask import (
     GptChat,
@@ -29,12 +27,9 @@ from .models.asynctask import (
     ImageUrl,
     SpeechToText,
     SpeechToTextResponse,
-    ImageDescriptionResponse,
 )
 from .selenium import SeleniumHelper
-from app.utils.files import TempBase64File, TempUrlFile
-from app.utils.image_captioning import ImageCaptioning
-from app.utils.text_translator import EnRuTextTranslator
+from app.utils.files import TempBase64File
 
 # https://discordpy.readthedocs.io/en/stable/api.html
 
@@ -43,11 +38,11 @@ logger = logging.getLogger(__name__)
 
 class UtilsService(BaseService):
     def __init__(
-            self,
-            config: Config,
-            controller_name: str,
-            loop: asyncio.AbstractEventLoop,
-            **kwargs,
+        self,
+        config: Config,
+        controller_name: str,
+        loop: asyncio.AbstractEventLoop,
+        **kwargs,
     ):
         super().__init__(config, controller_name, loop, **kwargs)
 
@@ -57,8 +52,6 @@ class UtilsService(BaseService):
         self.gigachat_client: GigachatClient | None = None
         self.asynctask_worker: Worker | None = None
         self._selenium_helper: SeleniumHelper = SeleniumHelper(config)
-        self._image_descriptor = ImageCaptioning()
-        self._translator = EnRuTextTranslator()
 
     async def on_get_image_tags(self, ctx: Context):
         data: ImageUrl = ctx.data
@@ -95,31 +88,9 @@ class UtilsService(BaseService):
                 logger.info(f"Speach2Text result: {text}")
         await ctx.success(SpeechToTextResponse(text=text))
 
-    async def on_get_image_description(self, ctx: Context):
-        data: ImageUrl = ctx.data
-        logger.info(f"Handle message: {repr(data)}")
-        async with TempUrlFile(str(data.url)) as tmp:
-            with ThreadPoolExecutor() as executor:
-                eng_description = await self.loop.run_in_executor(
-                    executor, self._image_descriptor.get_image_description, tmp.filepath
-                )
-                logger.info(f"Image description result: {eng_description}")
-
-                ru_description = await self.loop.run_in_executor(
-                    executor, self._translator.translate, eng_description
-                )
-                logger.info(f"Description translate result: {ru_description}")
-
-        await ctx.success(
-            ImageDescriptionResponse(
-                text_eng=eng_description,
-                text_ru=ru_description,
-            )
-        )
-
     @classmethod
     async def create(
-            cls, config: Config, loop: asyncio.AbstractEventLoop, **kwargs
+        cls, config: Config, loop: asyncio.AbstractEventLoop, **kwargs
     ) -> "UtilsService":
         return await super().create(config, "utils_service", loop, **kwargs)  # noqa
 
@@ -139,7 +110,6 @@ class UtilsService(BaseService):
         self.asynctask_worker.register(
             SPEECH_TO_TEXT, self.on_speech_to_text, SpeechToText
         )
-        self.asynctask_worker.register(GET_IMAGE_DESCRIPTION, self.on_get_image_description, ImageUrl)
 
     async def close(self):
         if self.db_helper:

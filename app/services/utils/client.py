@@ -8,7 +8,6 @@ from .config import (
     GPT_CHAT,
     GET_IMAGE_TAGS,
     SPEECH_TO_TEXT,
-    GET_IMAGE_DESCRIPTION,
 )
 from .models.asynctask import (
     GptChat,
@@ -16,7 +15,6 @@ from .models.asynctask import (
     ImageUrl,
     SpeechToText,
     SpeechToTextResponse,
-    ImageDescriptionResponse,
 )
 
 
@@ -24,13 +22,13 @@ class UtilsClient(Client):
 
     @classmethod
     async def create(
-            cls,
-            conn: (
-                    aio_pika.RobustConnection
-                    | aio_pika.Connection
-                    | aio_pika.abc.AbstractRobustConnection
-            ),
-            **kwargs,
+        cls,
+        conn: (
+            aio_pika.RobustConnection
+            | aio_pika.Connection
+            | aio_pika.abc.AbstractRobustConnection
+        ),
+        **kwargs,
     ) -> "Client":
         return await super().create(conn, WORKER_QUEUE_NAME, JsonSerializer())
 
@@ -51,21 +49,13 @@ class UtilsClient(Client):
         )
 
     async def speech_to_text(
-            self,
-            filename: str,
-            base64: str,
+        self,
+        filename: str,
+        base64: str,
     ) -> SpeechToTextResponse:
         return await self.call(
             method=SPEECH_TO_TEXT,
             data=SpeechToText(filename=filename, base64=base64),
             response_class=SpeechToTextResponse,
-            expiration=120,
-        )
-
-    async def get_image_description(self, image_url: str) -> ImageDescriptionResponse:
-        return await self.call(
-            method=GET_IMAGE_DESCRIPTION,
-            data=ImageUrl(url=image_url),
-            response_class=ImageDescriptionResponse,
             expiration=120,
         )
